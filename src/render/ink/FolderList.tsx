@@ -22,10 +22,12 @@ export function FolderList({
         const name = f.path.split('/').pop() || f.path;
         const d = delta(f);
         const active = i === selected;
+        const globalOnly = d === 0;
         return (
-          <Text key={f.path} inverse={active} wrap="truncate-end">
+          <Text key={f.path} inverse={active} dimColor={globalOnly && !active} wrap="truncate-end">
             {active ? '› ' : '  '}
-            {name} {d > 0 ? <Text color="cyan">+{d}</Text> : <Text dimColor>·</Text>}
+            {name}
+            {d > 0 ? <Text color="cyan"> +{d}</Text> : null}
           </Text>
         );
       })}
