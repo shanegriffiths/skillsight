@@ -12,27 +12,31 @@ Read-only by design — `skillsight` never writes to your config, and never read
 ## Quickstart
 
 ```sh
-npx skillsight                 # grouped report: global layer once, then per-folder deltas
-npx skillsight --provenance    # expand provider (origin repo) + "used by" per item
+npx skillsight                 # live dashboard — the default on a terminal
+npx skillsight --report        # one-shot plain report (global once, then per-folder deltas)
+npx skillsight --report --provenance   # + origin repo and "used by" per item
 npx skillsight --json          # machine-readable, stable schema
-skillsight watch               # live Ink dashboard, re-renders on config change
 ```
+
+The **live Ink dashboard is the default**: run `skillsight` in a terminal and it opens an interactive view that re-renders as your config changes (↑/↓ or j/k to move between folders, `q` to quit). When output is piped or redirected (non-TTY/CI), it prints the plain report instead.
 
 ## Usage
 
 ```
-skillsight [options]
-  --full                       full effective set per folder (not just deltas)
-  --json                       machine-readable output (the future-UI contract)
-  --global                     only the inherited global layer
+skillsight                     live dashboard (default on a terminal)
+skillsight --report            one-shot plain report
+skillsight --json              machine-readable output (the future-UI contract)
+skillsight watch               alias for the dashboard
+
+  --report                     plain grouped report instead of the dashboard
+  --full                       (report) full effective set per folder
+  --global                     (report) only the inherited global layer
   --dir <path>                 inspect a single directory
   --runtime <id...>            filter to runtimes, e.g. --runtime claude-code codex
   --kind <skill|plugin|mcp...> filter by kind
-  --provenance                 expand provider + "used by" per item
+  --provenance                 (report) expand provider + "used by" per item
   --no-walk                    registry only (skip the filesystem walk)
   --help
-
-skillsight watch               live dashboard; falls back to a reprint on non-TTY/CI
 ```
 
 Set `SKILLSIGHT_HOME` to point the scan at a different home root (used by the test suite).

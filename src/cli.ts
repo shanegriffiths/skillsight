@@ -1,8 +1,14 @@
 /**
  * skillsight CLI entry point.
  *
- * The Ink renderer (M7) is dynamically imported only on the `watch` path so the
- * default report / --json never pays Ink/React cold-start.
+ * The live Ink dashboard is the default experience on a terminal. The Ink
+ * renderer is dynamically imported only on that path, so the plain/--json
+ * escapes never pay Ink/React cold-start.
+ *
+ *   skillsight            -> live dashboard (TTY) / plain report (piped)
+ *   skillsight --report   -> plain one-shot report (even on a TTY)
+ *   skillsight --json     -> machine-readable
+ *   skillsight watch      -> alias for the dashboard
  */
 import { homedir } from 'node:os';
 import { scan } from './index.js';
@@ -14,6 +20,7 @@ import { renderPlain } from './render/plain.js';
 interface Args {
   watch: boolean;
   json: boolean;
+  report: boolean;
   full: boolean;
   provenance: boolean;
   global: boolean;
@@ -24,24 +31,46 @@ interface Args {
   kinds: Kind[];
 }
 
+export type Mode = 'json' | 'dashboard' | 'report';
+
 const KINDS: Kind[] = ['skill', 'plugin', 'mcp'];
 
 const HELP = `skillsight — cross-runtime inventory of agent skills, plugins, and MCP servers
 
 Usage:
-  skillsight [options]            grouped report: global once, then per-folder deltas
-  skillsight watch                live dashboard (re-renders on config change)
+  skillsight                      live dashboard (default on a terminal)
+  skillsight --report             one-shot plain report
+  skillsight --json               machine-readable output
+  skillsight watch                alias for the dashboard
 
 Options:
-  --full                          full effective set per folder (not just deltas)
+  --report                        plain grouped report instead of the dashboard
+  --full                          (report) full effective set per folder
+  --global                        (report) only the inherited global layer
   --json                          machine-readable output
-  --global                        only the inherited global layer
   --dir <path>                    inspect a single directory
   --runtime <id...>               filter to runtimes (e.g. --runtime claude-code codex)
   --kind <skill|plugin|mcp...>    filter by kind
-  --provenance                    expand provider + "used by" per item
+  --provenance                    (report) expand provider + "used by" per item
   --no-walk                       registry only (skip the filesystem walk)
-  --help                          show this help`;
+  --help
+
+When output is piped or redirected (non-TTY), skillsight prints the plain report.`;
+
+/**
+ * Choose the output mode. `--json` always wins; an explicit `watch`/`--report`
+ * forces that mode; otherwise the dashboard is the default on a TTY and the
+ * plain report is used when output is non-interactive.
+ */
+export function decideMode(
+  args: { json: boolean; watch: boolean; report: boolean },
+  isTTY: boolean,
+): Mode {
+  if (args.json) return 'json';
+  if (args.watch) return 'dashboard';
+  if (args.report) return 'report';
+  return isTTY ? 'dashboard' : 'report';
+}
 
 function isFlag(s: string | undefined): boolean {
   return s !== undefined && s.startsWith('-');
@@ -49,7 +78,7 @@ function isFlag(s: string | undefined): boolean {
 
 function parseArgs(argv: string[]): Args {
   const a: Args = {
-    watch: false, json: false, full: false, provenance: false,
+    watch: false, json: false, report: false, full: false, provenance: false,
     global: false, noWalk: false, help: false, runtimes: [], kinds: [],
   };
   for (let i = 0; i < argv.length; i++) {
@@ -57,6 +86,7 @@ function parseArgs(argv: string[]): Args {
     switch (arg) {
       case 'watch': a.watch = true; break;
       case '--json': a.json = true; break;
+      case '--report': a.report = true; break;
       case '--full': a.full = true; break;
       case '--provenance': a.provenance = true; break;
       case '--global': a.global = true; break;
@@ -86,22 +116,19 @@ async function main(): Promise<void> {
   }
 
   const homeRoot = process.env.SKILLSIGHT_HOME || homedir();
+  const scanOpts = { walk: !args.noWalk, dir: args.dir };
+  const filterOpts = { runtimes: args.runtimes, kinds: args.kinds };
+  const mode = decideMode(args, Boolean(process.stdout.isTTY));
 
-  if (args.watch) {
-    // Dynamically imported so the default/--json path never loads Ink/React.
+  if (mode === 'dashboard') {
+    // Dynamically imported so the plain/--json path never loads Ink/React.
     const { runWatch } = await import('./render/ink/index.js');
-    await runWatch(
-      homeRoot,
-      { walk: !args.noWalk, dir: args.dir },
-      { runtimes: args.runtimes, kinds: args.kinds },
-    );
+    await runWatch(homeRoot, scanOpts, filterOpts);
     return;
   }
 
-  const raw = scan(homeRoot, { walk: !args.noWalk, dir: args.dir });
-  const inv = filterInventory(raw, { runtimes: args.runtimes, kinds: args.kinds });
-
-  if (args.json) {
+  const inv = filterInventory(scan(homeRoot, scanOpts), filterOpts);
+  if (mode === 'json') {
     process.stdout.write(renderJson(inv) + '\n');
     return;
   }
