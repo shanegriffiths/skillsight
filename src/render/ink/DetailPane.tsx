@@ -1,25 +1,79 @@
 import { Box, Text } from 'ink';
 import type { Bucket, FolderReport } from '../../types.js';
+import { itemRows, type ItemRow } from './rows.js';
+
+const KIND_W = 6;
+const USED_W = 4;
+const SOURCE_W = 22;
+
+function HeaderRow() {
+  return (
+    <Box>
+      <Box width={KIND_W} marginRight={1}>
+        <Text dimColor bold>
+          KIND
+        </Text>
+      </Box>
+      <Box flexGrow={1} marginRight={1}>
+        <Text dimColor bold>
+          NAME
+        </Text>
+      </Box>
+      <Box width={USED_W} marginRight={1} justifyContent="flex-end">
+        <Text dimColor bold>
+          USED
+        </Text>
+      </Box>
+      <Box width={SOURCE_W}>
+        <Text dimColor bold>
+          SOURCE
+        </Text>
+      </Box>
+    </Box>
+  );
+}
+
+function Row({ row }: { row: ItemRow }) {
+  const used = row.used === null ? '—' : row.used === 0 ? '·' : String(row.used);
+  const usedDim = row.used === null || row.used === 0;
+  return (
+    <Box>
+      <Box width={KIND_W} marginRight={1}>
+        <Text dimColor>{row.kind}</Text>
+      </Box>
+      <Box flexGrow={1} marginRight={1}>
+        <Text wrap="truncate-end">{row.name}</Text>
+      </Box>
+      <Box width={USED_W} marginRight={1} justifyContent="flex-end">
+        <Text dimColor={usedDim}>{used}</Text>
+      </Box>
+      <Box width={SOURCE_W}>
+        <Text wrap="truncate-end" dimColor={row.sourceDim}>
+          {row.source ?? ''}
+        </Text>
+      </Box>
+    </Box>
+  );
+}
 
 function Section({ title, b }: { title: string; b: Bucket }) {
-  const items = [
-    ...b.skills.map((s) => ({ label: s.name, tag: s.provider.kind })),
-    ...b.plugins.map((p) => ({ label: p.name, tag: `plugin ${p.marketplace}` })),
-    ...b.mcp.map((m) => ({ label: m.name, tag: `mcp ${m.transport.kind}` })),
-  ];
-  if (items.length === 0) return null;
+  const rows = itemRows(b);
+  if (rows.length === 0) return null;
+  const shown = rows.slice(0, 20);
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" marginTop={1}>
       <Text bold>
-        {title} <Text dimColor>({items.length})</Text>
+        {title} <Text dimColor>({rows.length})</Text>
       </Text>
-      {items.slice(0, 20).map((it, i) => (
-        <Text key={`${title}-${i}`} wrap="truncate-end">
-          {'  '}
-          {it.label} <Text dimColor>[{it.tag}]</Text>
-        </Text>
+      <HeaderRow />
+      {shown.map((r, i) => (
+        <Row key={`${title}-${i}`} row={r} />
       ))}
-      {items.length > 20 ? <Text dimColor>{'  '}…and {items.length - 20} more</Text> : null}
+      {rows.length > shown.length ? (
+        <Text dimColor>
+          {'  '}…and {rows.length - shown.length} more
+        </Text>
+      ) : null}
     </Box>
   );
 }
@@ -32,13 +86,7 @@ export function DetailPane({ folder }: { folder: FolderReport | undefined }) {
       </Box>
     );
   }
-  const empty =
-    folder.projectScoped.skills.length +
-      folder.projectScoped.plugins.length +
-      folder.projectScoped.mcp.length +
-      folder.local.skills.length +
-      folder.local.mcp.length ===
-    0;
+  const empty = itemRows(folder.projectScoped).length + itemRows(folder.local).length === 0;
   return (
     <Box flexDirection="column" flexGrow={1}>
       <Text bold underline>
