@@ -6,6 +6,12 @@ Each task notes its size (S/M/L), whether the data already exists in the engine,
 
 ---
 
+## Bugs
+
+- [x] **Home directory shows as a project with ~99 duplicate "global" skills.** `/Users/<you>` is in Claude's project registry, so it was discovered as a folder; scanning it read `~/.claude/skills`, `~/.agents/skills`, etc. — the global skill dirs — and re-listed them as `project-scoped` (the `shane +99` row). **Fixed 2026-06-24** — `discovery.ts` now excludes `homeRoot` (and `/`); regression test in `test/discovery.test.ts`.
+
+---
+
 ## Epic A — Dashboard shell: tabbed navigation
 
 Foundational; the Global and Leaderboard views hang off this.
@@ -23,7 +29,7 @@ Foundational; the Global and Leaderboard views hang off this.
 
 ## Epic C — Skill presentation & grouping
 
-- [ ] **C1. Group plugin-bundled skills under their plugin** — collapse/expand a plugin to reveal the skills it ships (e.g. all `gsap-skills` together). _(M · `bundledInPlugin` already on records)_ — from "better grouping of skills if they live under a plugin… collapsed and expanded view"
+- [ ] **C1. Group plugin-bundled skills under their plugin** — collapse/expand a plugin to reveal the skills it ships (e.g. all `gsap-skills` together). _(M · `bundledInPlugin` already on records; the expand/collapse interaction lives in **F2**)_ — from "better grouping of skills if they live under a plugin… collapsed and expanded view"
 - [ ] **C2. Skills table/grid layout** — restructure the detail pane into a proper table/grid (name · kind · provider · used-by · source) instead of flat lines. _(M · render work)_ — from "improve layout of the list of skills data table, grid"
 - [ ] **C3. Show "used N times"** — surface the usedBy count per skill; make it a sort key. _(S · data exists)_ — from "show count of used times" / "sort options"
 - [ ] **C4. Show origin URL** — display where a skill lives (GitHub repo / website) from `provider.sourceUrl`; make it copyable/openable. _(S · data exists)_ — from "url of where the skills lives (ie the website, gh repo)"
@@ -36,6 +42,20 @@ Foundational; the Global and Leaderboard views hang off this.
 ## Epic E — Interactive filtering
 
 - [ ] **E1. In-dashboard runtime filter** — toggle chips to filter by runtime (cc, codex, …) live, reusing the existing `filterInventory`. _(M · engine filter exists; needs UI)_ — from "filter by cc, codex etc"
+
+## Epic F — Drill navigation (left-to-right focus / Miller columns)
+
+A keyboard focus model that lets you move *into* a folder, walk its contents, expand plugin groups, and open a skill's detail — navigating left → right.
+
+- [ ] **F1. Column focus model** — `Enter` on a folder moves focus from the folder list (col 1) into the items column (col 2); ↑/↓ then navigate items there. A clear indicator shows which column is active. `Esc` (and `←` at the top level) returns focus to the folders. _(L · new interaction layer in `render/ink`)_ — from "navigate a folder and press Enter… takes you to the second column"
+- [ ] **F2. Expand/collapse plugin groups** — in the focused items column, `→` expands a collapsed plugin to reveal its nested skills; `←` collapses it (or, at the top level, steps back to the folder column). This is the interaction for **C1**. _(M, with C1)_ — from "pressing the right arrow on a collapsed plug-in list… would open it"
+- [ ] **F3. Skill detail view** — `Enter` on a skill opens an info view: description, provider (origin repo + URL), used-by runtimes, bundled-in-plugin, scope, content hash, path. Surfaces the data from **C2/C4**. _(M · data exists; needs a detail pane/modal)_ — from "pressing Enter on a skill would show information about that skill"
+
+**Proposed keymap**
+
+- _Folders col:_ `↑/↓` move · `Enter` focus items · `q` quit
+- _Items col:_ `↑/↓` move · `→` expand plugin · `←` collapse / back to folders · `Enter` skill detail (or expand, if a plugin) · `Esc` back to folders
+- _Detail:_ `Esc` / `←` back
 
 ---
 
@@ -56,6 +76,9 @@ Most of this is **presentation-layer** (`render/ink/*`, `render/plain.ts`) — t
 - **"Used times" (C3/A3)** — confirm this means *number of runtimes that use the skill* (we have that), not invocation counts (we don't track those).
 - **Leaderboard scope (A3)** — skills only, or plugins/MCP too? Global, or filterable by runtime?
 - **Scope of the table/grid (C2)** — dashboard only for now, or also feed the `--report` output and the eventual web UI?
+- **Skill detail (F3) presentation** — a third Miller column, a modal overlay, or replace the items pane?
+- **`←` overloading (F2)** — when focused in the items column, should `←` collapse an expanded plugin first and only step back to folders when nothing is expanded? (proposed: yes.)
+- **Leaf actions (F3)** — on a plain skill, do both `Enter` and `→` open the detail? And on a collapsed plugin, does `Enter` expand or open a "plugin detail"?
 
 ## Beyond v0.2 (carried from v1 plan)
 

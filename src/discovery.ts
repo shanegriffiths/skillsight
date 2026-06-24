@@ -51,14 +51,19 @@ export function groupFor(dir: string, homeRoot: string): string {
 export function discover(ctx: HomeCtx, opts: { walk: boolean }): string[] {
   const set = new Set<string>();
 
+  // The home root and filesystem root are config homes, not projects — scanning
+  // them re-lists the global skill dirs (~/.claude/skills, ~/.agents/skills, …)
+  // as if they were project-scoped. Always exclude them.
+  const excluded = new Set(['/', ctx.homeRoot]);
+
   const claudeJson = readJson<{ projects?: Record<string, unknown> }>(join(ctx.homeRoot, '.claude.json'));
   for (const p of Object.keys(claudeJson?.projects ?? {})) {
-    if (p !== '/' && isDir(p)) set.add(p);
+    if (!excluded.has(p) && isDir(p)) set.add(p);
   }
 
   if (opts.walk) {
     for (const d of walk(ctx.homeRoot, 0)) set.add(d);
   }
 
-  return [...set].sort();
+  return [...set].filter((d) => !excluded.has(d)).sort();
 }
