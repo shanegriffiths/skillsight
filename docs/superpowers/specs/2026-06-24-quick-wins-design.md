@@ -84,11 +84,18 @@ New pure, renderer-free module `src/render/ink/rows.ts`:
   `used` is a number for skills (including `0`) and `null` for plugins/MCP,
   so the renderer can distinguish "skill used by nobody" (`·`) from
   "usage not applicable" (`—`). All per-kind logic (usedBy presence, source
-  resolution, fallbacks) lives here.
-- a small column pad/format/truncate helper.
+  resolution, fallbacks) lives here. `itemRows` returns **raw field values**, not
+  pre-padded strings — column width/alignment/truncation is the renderer's job
+  (see below).
 
-`DetailPane` becomes a thin consumer: map `itemRows(bucket)` to padded `<Text>`
-rows; it owns only colour/dim/inverse and the header row.
+`DetailPane` becomes a thin consumer. Each row is a `<Box flexDirection="row">`
+of **fixed-width `<Box>` cells** (one per column: KIND, NAME, USED, SOURCE), each
+holding a `<Text wrap="truncate-end">`. This lets Ink handle alignment and the
+`…` ellipsis natively — note that Ink only truncates when the text sits in a
+**width-bounded container**, so per-column truncation *requires* the fixed-width
+cell (a single padded `<Text>` per row would not truncate per-column). USED is
+right-aligned with `justifyContent="flex-end"` on its cell (or `padStart` on the
+number). DetailPane owns colour/dim/inverse and the header row.
 
 `FolderList`'s global-only test is the existing `delta(f) === 0`; B2 is a render
 tweak (no new logic needed, though `isGlobalOnly` may be extracted for clarity).
@@ -105,7 +112,30 @@ test pattern; **no new dependency**):
 - plugin → `used: null` (renders dim `—`), source = `marketplaceRepo`.
 - mcp → `used: null` (renders dim `—`), source = transport kind.
 
-The thin Ink components remain untested, consistent with the current repo.
+The thin Ink components stay light on tests, consistent with the current repo.
+**Optional (zero new dependency):** Ink v7 ships `renderToString`, so one smoke
+test can render `DetailPane` for a fixture folder at a fixed `columns` width and
+assert the header row and a known skill row (name + count + `owner/repo`) appear.
+This directly covers the new table without pulling in `ink-testing-library`.
+
+## External API verification
+
+The Ink primitives this spec relies on were verified two ways (per the project's
+source-and-disk rigor):
+
+- **Official docs** — `vadimdemedes/ink` readme + API autodocs (via Context7).
+  Confirmed: `wrap="truncate-end"` truncates with `…` (and `truncate` is an
+  alias for `truncate-end`); truncation needs a width-bounded container;
+  `renderToString(node, { columns })` is the supported way to test rendered
+  output. Ink **core has no `Table` component** — manual column layout is the
+  expected approach (the separate `ink-table` package exists but is not needed
+  here).
+- **Installed version on disk** — Ink **7.1.0** (`node_modules/ink`). Type defs
+  confirm every prop used: `Text` (`color`, `dimColor`, `bold`, `underline`,
+  `inverse`, `wrap`) and `Box` (`flexDirection`, `width`, `marginRight`,
+  `paddingX`, `flexGrow`, `justifyContent` incl. `flex-end`); `wrap`'s type is
+  `'wrap' | 'hard' | 'truncate' | 'truncate-start' | 'truncate-middle' |
+  'truncate-end'`; `renderToString` is an exported top-level API.
 
 ## Acceptance
 
