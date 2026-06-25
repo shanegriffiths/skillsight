@@ -8,6 +8,7 @@ import { computeWatchPaths } from './watchpaths.js';
 import { Header } from './Header.js';
 import { TabBar, type TabId } from './TabBar.js';
 import { FoldersView } from './FoldersView.js';
+import { GlobalView } from './GlobalView.js';
 
 const TABS: TabId[] = ['folders', 'global', 'leaderboard'];
 
@@ -76,7 +77,7 @@ export function App({
       <Header inv={inv} status={status} />
       <TabBar active={tab} />
       {tab === 'folders' ? <FoldersView inv={inv} /> : null}
-      {tab === 'global' ? <Text dimColor>Global view — arrives in Task 5</Text> : null}
+      {tab === 'global' ? <GlobalView inv={inv} /> : null}
       {tab === 'leaderboard' ? <Text dimColor>Leaderboard view — arrives in Task 6</Text> : null}
       <Text dimColor>{FOOTER[tab]}</Text>
     </Box>
