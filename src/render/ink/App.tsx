@@ -13,7 +13,6 @@ import { LeaderboardView } from './LeaderboardView.js';
 
 const TABS: TabId[] = ['folders', 'global', 'leaderboard'];
 
-
 export function App({
   homeRoot,
   opts,

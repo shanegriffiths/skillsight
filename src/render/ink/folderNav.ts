@@ -57,34 +57,36 @@ export function folderNav(state: NavState, action: NavAction, ctx: NavContext): 
   }
 
   if (state.focus === 'items') {
-    const row = ctx.rows[state.item];
+    const item = clamp(state.item, ctx.rows.length);
+    const s = { ...state, item };
+    const row = ctx.rows[item];
     switch (action) {
       case 'down':
-        return { ...state, item: clamp(state.item + 1, ctx.rows.length) };
+        return { ...s, item: clamp(item + 1, ctx.rows.length) };
       case 'up':
-        return { ...state, item: clamp(state.item - 1, ctx.rows.length) };
+        return { ...s, item: clamp(item - 1, ctx.rows.length) };
       case 'enter': {
-        if (!row) return state;
-        if (row.expandState !== undefined) return withExpanded(state, row.name, !state.expanded.has(row.name));
-        return { ...state, focus: 'detail', detailItem: state.item };
+        if (!row) return s;
+        if (row.expandState !== undefined) return withExpanded(s, row.name, !s.expanded.has(row.name));
+        return { ...s, focus: 'detail', detailItem: item };
       }
       case 'right': {
-        if (!row) return state;
-        if (row.expandState === 'collapsed') return withExpanded(state, row.name, true);
-        if (row.expandState === 'expanded') return state;
-        return { ...state, focus: 'detail', detailItem: state.item };
+        if (!row) return s;
+        if (row.expandState === 'collapsed') return withExpanded(s, row.name, true);
+        if (row.expandState === 'expanded') return s;
+        return { ...s, focus: 'detail', detailItem: item };
       }
       case 'left': {
-        if (row?.expandState === 'expanded') return withExpanded(state, row.name, false);
+        if (row?.expandState === 'expanded') return withExpanded(s, row.name, false);
         if (row?.depth === 1) {
-          const pi = parentHeaderIndex(ctx.rows, state.item);
+          const pi = parentHeaderIndex(ctx.rows, item);
           const parent = ctx.rows[pi];
-          if (parent) return { ...withExpanded(state, parent.name, false), item: pi };
+          if (parent) return { ...withExpanded(s, parent.name, false), item: pi };
         }
-        return { ...state, focus: 'folders' };
+        return { ...s, focus: 'folders' };
       }
       case 'escape':
-        return { ...state, focus: 'folders' };
+        return { ...s, focus: 'folders' };
     }
   }
 

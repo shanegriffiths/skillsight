@@ -91,7 +91,7 @@ export function ItemTable({
 }: {
   rows: ItemRow[];
   showKind?: boolean;
-  /** Index (within `rows`) of the highlighted row; omit for no cursor (e.g. DetailPane). */
+  /** Index (within `rows`) of the highlighted row; omit for no cursor (e.g. an unfocused preview). */
   selectedIndex?: number;
 }) {
   const withCursor = selectedIndex !== undefined;

@@ -100,6 +100,15 @@ describe('folderNav — items focus', () => {
     expect(folderNav(items(rows, 1), 'down', ctxOf(rows)).item).toBe(1); // clamped
     expect(folderNav(items(rows, 0), 'up', ctxOf(rows)).item).toBe(0);
   });
+
+  it('clamps a stale out-of-range item index (e.g. after a live rescan shrinks rows)', () => {
+    const rows = [leaf('a'), leaf('b')]; // length 2; stored item 9 is stale
+    // clamp(9, 2) = 1; then down clamps 1+1=2 → 1, up moves 1-1=0 → 0:
+    expect(folderNav(items(rows, 9), 'down', ctxOf(rows)).item).toBe(1);
+    expect(folderNav(items(rows, 9), 'up', ctxOf(rows)).item).toBe(0);
+    // Enter opens the detail of the clamped row (index 1), not the stale index 9:
+    expect(folderNav(items(rows, 9), 'enter', ctxOf(rows))).toMatchObject({ focus: 'detail', detailItem: 1 });
+  });
 });
 
 describe('folderNav — detail focus', () => {
