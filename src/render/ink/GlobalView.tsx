@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { itemRows } from './rows.js';
 import { ItemTable } from './ItemTable.js';
+import { DetailView } from './DetailView.js';
 import { useScroll } from './scroll.js';
 
 // Header + tab bar + view title + position line + footer + margins.
@@ -11,11 +13,26 @@ export function GlobalView({ inv }: { inv: Inventory }) {
   const rows = itemRows(inv.global);
   const height = Math.max(3, useWindowSize().rows - CHROME);
   const { selected, start, end, moveUp, moveDown } = useScroll(rows.length, height);
+  const [detail, setDetail] = useState(false);
 
   useInput((input, key) => {
+    if (detail) {
+      if (key.escape || key.leftArrow) setDetail(false);
+      return;
+    }
     if (key.downArrow || input === 'j') moveDown();
     if (key.upArrow || input === 'k') moveUp();
+    if (key.return || key.rightArrow) setDetail(true);
   });
+
+  if (detail) {
+    return (
+      <Box flexDirection="column">
+        <DetailView row={rows[selected]} />
+        <Text dimColor>Esc/← back · 1/2/3 or Tab switch · q quit</Text>
+      </Box>
+    );
+  }
 
   const shown = rows.slice(start, end);
 
@@ -34,7 +51,7 @@ export function GlobalView({ inv }: { inv: Inventory }) {
           {start + 1}–{end} of {rows.length}
         </Text>
       ) : null}
-      <Text dimColor>↑/↓ scroll · 1/2/3 or Tab switch · q quit</Text>
+      <Text dimColor>↑/↓ scroll · Enter detail · 1/2/3 or Tab switch · q quit</Text>
     </Box>
   );
 }

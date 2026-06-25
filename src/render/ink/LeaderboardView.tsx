@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { ItemTable } from './ItemTable.js';
+import { DetailView } from './DetailView.js';
 import { leaderboard, summaryStats, type SummaryStats } from './stats.js';
 import { useScroll } from './scroll.js';
 
@@ -27,11 +29,26 @@ export function LeaderboardView({ inv }: { inv: Inventory }) {
   const stats = summaryStats(inv);
   const height = Math.max(3, useWindowSize().rows - CHROME);
   const { selected, start, end, moveUp, moveDown } = useScroll(rows.length, height);
+  const [detail, setDetail] = useState(false);
 
   useInput((input, key) => {
+    if (detail) {
+      if (key.escape || key.leftArrow) setDetail(false);
+      return;
+    }
     if (key.downArrow || input === 'j') moveDown();
     if (key.upArrow || input === 'k') moveUp();
+    if (key.return || key.rightArrow) setDetail(true);
   });
+
+  if (detail) {
+    return (
+      <Box flexDirection="column">
+        <DetailView row={rows[selected]} />
+        <Text dimColor>Esc/← back · 1/2/3 or Tab switch · q quit</Text>
+      </Box>
+    );
+  }
 
   const shown = rows.slice(start, end);
 
@@ -51,7 +68,7 @@ export function LeaderboardView({ inv }: { inv: Inventory }) {
         </Text>
       ) : null}
       <StatsBand stats={stats} />
-      <Text dimColor>↑/↓ scroll · 1/2/3 or Tab switch · q quit</Text>
+      <Text dimColor>↑/↓ scroll · Enter detail · 1/2/3 or Tab switch · q quit</Text>
     </Box>
   );
 }
