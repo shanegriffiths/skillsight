@@ -11,9 +11,11 @@ function delta(f: FolderReport): number {
 export function FolderList({
   folders,
   selected,
+  dimmed = false,
 }: {
   folders: FolderReport[];
   selected: number;
+  dimmed?: boolean;
 }) {
   return (
     <Box flexDirection="column" width={42} marginRight={1}>
@@ -24,7 +26,12 @@ export function FolderList({
         const active = i === selected;
         const globalOnly = d === 0;
         return (
-          <Text key={f.path} inverse={active} dimColor={globalOnly && !active} wrap="truncate-end">
+          <Text
+            key={f.path}
+            inverse={active && !dimmed}
+            dimColor={dimmed || (globalOnly && !active)}
+            wrap="truncate-end"
+          >
             {active ? '› ' : '  '}
             {name}
             {d > 0 ? <Text color="cyan"> +{d}</Text> : null}
