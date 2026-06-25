@@ -10,7 +10,7 @@ const CHROME = 8;
 export function GlobalView({ inv }: { inv: Inventory }) {
   const rows = itemRows(inv.global);
   const height = Math.max(3, useWindowSize().rows - CHROME);
-  const { start, end, moveUp, moveDown } = useScroll(rows.length, height);
+  const { selected, start, end, moveUp, moveDown } = useScroll(rows.length, height);
 
   useInput((input, key) => {
     if (key.downArrow || input === 'j') moveDown();
@@ -27,7 +27,7 @@ export function GlobalView({ inv }: { inv: Inventory }) {
       {rows.length === 0 ? (
         <Text dimColor>no global items</Text>
       ) : (
-        <ItemTable rows={shown} />
+        <ItemTable rows={shown} selectedIndex={selected - start} />
       )}
       {rows.length > height ? (
         <Text dimColor>

@@ -26,7 +26,7 @@ export function LeaderboardView({ inv }: { inv: Inventory }) {
   const rows = leaderboard(inv);
   const stats = summaryStats(inv);
   const height = Math.max(3, useWindowSize().rows - CHROME);
-  const { start, end, moveUp, moveDown } = useScroll(rows.length, height);
+  const { selected, start, end, moveUp, moveDown } = useScroll(rows.length, height);
 
   useInput((input, key) => {
     if (key.downArrow || input === 'j') moveDown();
@@ -43,7 +43,7 @@ export function LeaderboardView({ inv }: { inv: Inventory }) {
       {rows.length === 0 ? (
         <Text dimColor>no skills</Text>
       ) : (
-        <ItemTable rows={shown} showKind={false} />
+        <ItemTable rows={shown} showKind={false} selectedIndex={selected - start} />
       )}
       {rows.length > height ? (
         <Text dimColor>
