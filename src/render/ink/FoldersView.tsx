@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, useInput } from 'ink';
+import { Box, Text, useInput } from 'ink';
 import type { Inventory } from '../../types.js';
 import { GlobalBand } from './GlobalBand.js';
 import { FolderList } from './FolderList.js';
@@ -27,6 +27,7 @@ export function FoldersView({ inv }: { inv: Inventory }) {
         <FolderList folders={folders} selected={clamped} />
         <DetailPane folder={folders[clamped]} />
       </Box>
+      <Text dimColor>↑/↓ navigate · 1/2/3 or Tab switch · q quit</Text>
     </Box>
   );
 }

@@ -34,6 +34,7 @@ export function GlobalView({ inv }: { inv: Inventory }) {
           {start + 1}–{end} of {rows.length}
         </Text>
       ) : null}
+      <Text dimColor>↑/↓ scroll · 1/2/3 or Tab switch · q quit</Text>
     </Box>
   );
 }

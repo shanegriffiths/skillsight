@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Text, useApp, useInput } from 'ink';
+import { Box, useApp, useInput } from 'ink';
 import chokidar from 'chokidar';
 import type { Inventory } from '../../types.js';
 import { scan, type ScanOptions } from '../../index.js';
@@ -13,11 +13,6 @@ import { LeaderboardView } from './LeaderboardView.js';
 
 const TABS: TabId[] = ['folders', 'global', 'leaderboard'];
 
-const FOOTER: Record<TabId, string> = {
-  folders: '↑/↓ navigate · 1/2/3 or Tab switch · q quit',
-  global: '↑/↓ scroll · 1/2/3 or Tab switch · Esc folders · q quit',
-  leaderboard: '↑/↓ scroll · 1/2/3 or Tab switch · Esc folders · q quit',
-};
 
 export function App({
   homeRoot,
@@ -40,10 +35,6 @@ export function App({
   useInput((input, key) => {
     if (input === 'q') {
       exit();
-      return;
-    }
-    if (key.escape) {
-      setTab('folders');
       return;
     }
     if (input === '1') setTab('folders');
@@ -80,7 +71,6 @@ export function App({
       {tab === 'folders' ? <FoldersView inv={inv} /> : null}
       {tab === 'global' ? <GlobalView inv={inv} /> : null}
       {tab === 'leaderboard' ? <LeaderboardView inv={inv} /> : null}
-      <Text dimColor>{FOOTER[tab]}</Text>
     </Box>
   );
 }

@@ -51,6 +51,7 @@ export function LeaderboardView({ inv }: { inv: Inventory }) {
         </Text>
       ) : null}
       <StatsBand stats={stats} />
+      <Text dimColor>↑/↓ scroll · 1/2/3 or Tab switch · q quit</Text>
     </Box>
   );
 }
