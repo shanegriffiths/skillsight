@@ -11,6 +11,12 @@ export interface ItemRow {
   source: string | null;
   /** True when `source` is a fallback (provider/transport kind) and should render dim. */
   sourceDim: boolean;
+  /** The underlying record, so a cursored row can open its detail. Absent on synthetic group-header rows. */
+  record?: SkillRecord | PluginRecord | McpRecord;
+  /** Indent depth; `1` for a plugin group's child skills (Folders column only). */
+  depth?: number;
+  /** Present only on plugin-group header rows. */
+  expandState?: 'collapsed' | 'expanded';
 }
 
 function skillRow(s: SkillRecord): ItemRow {
@@ -20,6 +26,7 @@ function skillRow(s: SkillRecord): ItemRow {
     used: s.usedBy.length,
     source: s.provider.source ?? s.provider.kind,
     sourceDim: !s.provider.source,
+    record: s,
   };
 }
 
@@ -30,6 +37,7 @@ function pluginRow(p: PluginRecord): ItemRow {
     used: null,
     source: p.marketplaceRepo ?? p.marketplace,
     sourceDim: !p.marketplaceRepo,
+    record: p,
   };
 }
 
@@ -40,6 +48,7 @@ function mcpRow(m: McpRecord): ItemRow {
     used: null,
     source: m.transport.kind,
     sourceDim: true,
+    record: m,
   };
 }
 

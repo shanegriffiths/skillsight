@@ -40,38 +40,48 @@ function mcp(name: string, kind: McpRecord['transport']['kind']): McpRecord {
 
 describe('itemRows', () => {
   it('maps a shared-store skill to count + owner/repo source', () => {
-    const b: Bucket = { ...emptyBucket(), skills: [skill('systematic-debugging', ['cc', 'codex'], 'obra/superpowers')] };
+    const s = skill('systematic-debugging', ['cc', 'codex'], 'obra/superpowers');
+    const b: Bucket = { ...emptyBucket(), skills: [s] };
     expect(itemRows(b)).toEqual([
-      { kind: 'skill', name: 'systematic-debugging', used: 2, source: 'obra/superpowers', sourceDim: false },
+      { kind: 'skill', name: 'systematic-debugging', used: 2, source: 'obra/superpowers', sourceDim: false, record: s },
     ]);
   });
 
   it('maps a skill with no usedBy and no source to used:0 and dim provider kind', () => {
-    const b: Bucket = { ...emptyBucket(), skills: [skill('local-thing', [])] };
+    const s = skill('local-thing', []);
+    const b: Bucket = { ...emptyBucket(), skills: [s] };
     expect(itemRows(b)).toEqual([
-      { kind: 'skill', name: 'local-thing', used: 0, source: 'project-local', sourceDim: true },
+      { kind: 'skill', name: 'local-thing', used: 0, source: 'project-local', sourceDim: true, record: s },
     ]);
   });
 
   it('maps a plugin to used:null and marketplaceRepo source', () => {
-    const b: Bucket = { ...emptyBucket(), plugins: [plugin('chrome-devtools', 'anthropics/claude-code')] };
+    const p = plugin('chrome-devtools', 'anthropics/claude-code');
+    const b: Bucket = { ...emptyBucket(), plugins: [p] };
     expect(itemRows(b)).toEqual([
-      { kind: 'plugin', name: 'chrome-devtools', used: null, source: 'anthropics/claude-code', sourceDim: false },
+      { kind: 'plugin', name: 'chrome-devtools', used: null, source: 'anthropics/claude-code', sourceDim: false, record: p },
     ]);
   });
 
   it('falls back to dim marketplace name when a plugin has no repo', () => {
-    const b: Bucket = { ...emptyBucket(), plugins: [plugin('local-plugin')] };
+    const p = plugin('local-plugin');
+    const b: Bucket = { ...emptyBucket(), plugins: [p] };
     expect(itemRows(b)).toEqual([
-      { kind: 'plugin', name: 'local-plugin', used: null, source: 'official', sourceDim: true },
+      { kind: 'plugin', name: 'local-plugin', used: null, source: 'official', sourceDim: true, record: p },
     ]);
   });
 
   it('maps an mcp server to used:null and dim transport kind', () => {
-    const b: Bucket = { ...emptyBucket(), mcp: [mcp('linear', 'http')] };
+    const m = mcp('linear', 'http');
+    const b: Bucket = { ...emptyBucket(), mcp: [m] };
     expect(itemRows(b)).toEqual([
-      { kind: 'mcp', name: 'linear', used: null, source: 'http', sourceDim: true },
+      { kind: 'mcp', name: 'linear', used: null, source: 'http', sourceDim: true, record: m },
     ]);
+  });
+
+  it('attaches the exact source record to each row', () => {
+    const s = skill('x', ['cc']);
+    expect(itemRows({ ...emptyBucket(), skills: [s] })[0]!.record).toBe(s);
   });
 
   it('orders rows skills, then plugins, then mcp', () => {
