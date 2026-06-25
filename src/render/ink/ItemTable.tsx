@@ -47,8 +47,12 @@ function Row({
   withCursor: boolean;
   active: boolean;
 }) {
-  const used = row.used === null ? '—' : row.used === 0 ? '·' : String(row.used);
+  const isGroup = row.expandState !== undefined;
+  const marker = row.expandState === 'expanded' ? '▾' : row.expandState === 'collapsed' ? '▸' : '';
+  const label = isGroup ? `${marker} ${row.name} (${row.used})` : row.depth ? `  ${row.name}` : row.name;
+  const used = isGroup ? '' : row.used === null ? '—' : row.used === 0 ? '·' : String(row.used);
   const usedDim = row.used === null || row.used === 0;
+  const source = isGroup ? '' : row.source ?? '';
   return (
     <Box>
       {withCursor ? (
@@ -64,8 +68,8 @@ function Row({
         </Box>
       ) : null}
       <Box flexGrow={1} marginRight={1}>
-        <Text wrap="truncate-end" inverse={active} bold={active}>
-          {row.name}
+        <Text wrap="truncate-end" inverse={active} bold={active || isGroup}>
+          {label}
         </Text>
       </Box>
       <Box width={USED_W} marginRight={1} justifyContent="flex-end">
@@ -73,7 +77,7 @@ function Row({
       </Box>
       <Box width={SOURCE_W}>
         <Text wrap="truncate-end" dimColor={row.sourceDim}>
-          {row.source ?? ''}
+          {source}
         </Text>
       </Box>
     </Box>
