@@ -14,11 +14,11 @@ Each task notes its size (S/M/L), whether the data already exists in the engine,
 
 ## Epic A — Dashboard shell: tabbed navigation
 
-Foundational; the Global and Leaderboard views hang off this.
+Foundational; the Global and Leaderboard views hang off this. **Shipped 2026-06-25** (`epic-a-dashboard-shell`, merged to `main` @ `3de5c25`) — see `docs/superpowers/specs/2026-06-24-dashboard-shell-design.md` + `docs/superpowers/plans/2026-06-25-dashboard-shell.md`.
 
-- [ ] **A1. Top-level tab nav** — a global nav bar with `Folders | Global | Leaderboard / Stats`. Tab state + keyboard switching (e.g. `tab`/number keys). _(L · new UI)_ — from "leaderboard tab in a global nav. tabs shows folder view | global | leaderboard / stats"
-- [ ] **A2. Global tab** — full scrollable list of the global skills/plugins/MCP (today only the count band is shown). _(M · data exists)_ — from "need to see the list of globals"
-- [ ] **A3. Leaderboard / Stats tab** — rank skills by how many runtimes use them (usedBy count); summary stats (totals, per-runtime, per-provider, per-folder). _(M · data exists)_ — from "leaderboard tab… / stats" + "count of used times"
+- [x] **A1. Top-level tab nav** — a global nav bar with `Folders | Global | Leaderboard / Stats`. Tab state + keyboard switching (e.g. `tab`/number keys). _(L · new UI)_ — from "leaderboard tab in a global nav. tabs shows folder view | global | leaderboard / stats"
+- [x] **A2. Global tab** — full scrollable list of the global skills/plugins/MCP (today only the count band is shown). _(M · data exists)_ — from "need to see the list of globals"
+- [x] **A3. Leaderboard / Stats tab** — rank skills by how many runtimes use them (usedBy count); summary stats (totals, per-runtime, per-provider, per-folder). _(M · data exists)_ — from "leaderboard tab… / stats" + "count of used times"
 
 ## Epic B — Folder list UX
 
@@ -29,7 +29,7 @@ Foundational; the Global and Leaderboard views hang off this.
 
 ## Epic C — Skill presentation & grouping
 
-- [ ] **C1. Group plugin-bundled skills under their plugin** — collapse/expand a plugin to reveal the skills it ships (e.g. all `gsap-skills` together). _(M · `bundledInPlugin` already on records; the expand/collapse interaction lives in **F2**)_ — from "better grouping of skills if they live under a plugin… collapsed and expanded view"
+- [x] **C1. Group plugin-bundled skills under their plugin** — collapse/expand a plugin to reveal the skills it ships (e.g. all `gsap-skills` together). _(M · `bundledInPlugin` already on records; the expand/collapse interaction lives in **F2**)_ — from "better grouping of skills if they live under a plugin… collapsed and expanded view" **Shipped 2026-06-25** with Epic F (`grouping.ts` + F2).
 - [ ] **C2. Skills table/grid layout** — restructure the detail pane into a proper table/grid (name · kind · provider · used-by · source) instead of flat lines. _(M · render work)_ — from "improve layout of the list of skills data table, grid"
 - [ ] **C3. Show "used N times"** — surface the usedBy count per skill; make it a sort key. _(S · data exists)_ — from "show count of used times" / "sort options"
 - [ ] **C4. Show origin URL** — display where a skill lives (GitHub repo / website) from `provider.sourceUrl`; make it copyable/openable. _(S · data exists)_ — from "url of where the skills lives (ie the website, gh repo)"
@@ -45,11 +45,11 @@ Foundational; the Global and Leaderboard views hang off this.
 
 ## Epic F — Drill navigation (left-to-right focus / Miller columns)
 
-A keyboard focus model that lets you move *into* a folder, walk its contents, expand plugin groups, and open a skill's detail — navigating left → right.
+A keyboard focus model that lets you move *into* a folder, walk its contents, expand plugin groups, and open a skill's detail — navigating left → right. **Shipped 2026-06-25** (`epic-f-drill-navigation`, merged to `main` @ `cb25e5b`) — see `docs/superpowers/specs/2026-06-25-drill-navigation-design.md` + `docs/superpowers/plans/2026-06-25-drill-navigation.md`. F3 detail **replaces the items pane** (two columns, not a third Miller column) and is reachable from all three tabs.
 
-- [ ] **F1. Column focus model** — `Enter` on a folder moves focus from the folder list (col 1) into the items column (col 2); ↑/↓ then navigate items there. A clear indicator shows which column is active. `Esc` (and `←` at the top level) returns focus to the folders. _(L · new interaction layer in `render/ink`)_ — from "navigate a folder and press Enter… takes you to the second column"
-- [ ] **F2. Expand/collapse plugin groups** — in the focused items column, `→` expands a collapsed plugin to reveal its nested skills; `←` collapses it (or, at the top level, steps back to the folder column). This is the interaction for **C1**. _(M, with C1)_ — from "pressing the right arrow on a collapsed plug-in list… would open it"
-- [ ] **F3. Skill detail view** — `Enter` on a skill opens an info view: description, provider (origin repo + URL), used-by runtimes, bundled-in-plugin, scope, content hash, path. Surfaces the data from **C2/C4**. _(M · data exists; needs a detail pane/modal)_ — from "pressing Enter on a skill would show information about that skill"
+- [x] **F1. Column focus model** — `Enter` on a folder moves focus from the folder list (col 1) into the items column (col 2); ↑/↓ then navigate items there. A clear indicator shows which column is active. `Esc` (and `←` at the top level) returns focus to the folders. _(L · new interaction layer in `render/ink`)_ — from "navigate a folder and press Enter… takes you to the second column"
+- [x] **F2. Expand/collapse plugin groups** — in the focused items column, `→` expands a collapsed plugin to reveal its nested skills; `←` collapses it (or, at the top level, steps back to the folder column). This is the interaction for **C1**. _(M, with C1)_ — from "pressing the right arrow on a collapsed plug-in list… would open it"
+- [x] **F3. Skill detail view** — `Enter` on a skill opens an info view: description, provider (origin repo + URL), used-by runtimes, bundled-in-plugin, scope, content hash, path. Surfaces the data from **C2/C4**. _(M · data exists; needs a detail pane/modal)_ — from "pressing Enter on a skill would show information about that skill"
 
 **Proposed keymap**
 
