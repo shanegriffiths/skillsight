@@ -6,9 +6,16 @@ import { scan, type ScanOptions } from '../../index.js';
 import { filterInventory, type FilterOptions } from '../../filter.js';
 import { computeWatchPaths } from './watchpaths.js';
 import { Header } from './Header.js';
-import { GlobalBand } from './GlobalBand.js';
-import { FolderList } from './FolderList.js';
-import { DetailPane } from './DetailPane.js';
+import { TabBar, type TabId } from './TabBar.js';
+import { FoldersView } from './FoldersView.js';
+
+const TABS: TabId[] = ['folders', 'global', 'leaderboard'];
+
+const FOOTER: Record<TabId, string> = {
+  folders: '↑/↓ navigate · 1/2/3 or Tab switch · q quit',
+  global: '↑/↓ scroll · 1/2/3 or Tab switch · Esc folders · q quit',
+  leaderboard: '↑/↓ scroll · 1/2/3 or Tab switch · Esc folders · q quit',
+};
 
 export function App({
   homeRoot,
@@ -23,19 +30,25 @@ export function App({
 }) {
   const [raw, setRaw] = useState<Inventory>(initial);
   const [status, setStatus] = useState<'idle' | 'rescanning'>('idle');
-  const [selected, setSelected] = useState(0);
+  const [tab, setTab] = useState<TabId>('folders');
   const { exit } = useApp();
 
   const inv = filterInventory(raw, filter);
-  const folders = inv.folders;
 
   useInput((input, key) => {
-    if (input === 'q' || key.escape) {
+    if (input === 'q') {
       exit();
       return;
     }
-    if (key.downArrow || input === 'j') setSelected((s) => Math.min(s + 1, Math.max(folders.length - 1, 0)));
-    if (key.upArrow || input === 'k') setSelected((s) => Math.max(s - 1, 0));
+    if (key.escape) {
+      setTab('folders');
+      return;
+    }
+    if (input === '1') setTab('folders');
+    if (input === '2') setTab('global');
+    if (input === '3') setTab('leaderboard');
+    if (key.tab && !key.shift) setTab((t) => TABS[(TABS.indexOf(t) + 1) % TABS.length]!);
+    if (key.tab && key.shift) setTab((t) => TABS[(TABS.indexOf(t) + TABS.length - 1) % TABS.length]!);
   });
 
   useEffect(() => {
@@ -58,17 +71,14 @@ export function App({
     };
   }, []);
 
-  const clamped = Math.min(selected, Math.max(folders.length - 1, 0));
-
   return (
     <Box flexDirection="column">
       <Header inv={inv} status={status} />
-      <GlobalBand inv={inv} />
-      <Box>
-        <FolderList folders={folders} selected={clamped} />
-        <DetailPane folder={folders[clamped]} />
-      </Box>
-      <Text dimColor>↑/↓ or j/k navigate · q quit</Text>
+      <TabBar active={tab} />
+      {tab === 'folders' ? <FoldersView inv={inv} /> : null}
+      {tab === 'global' ? <Text dimColor>Global view — arrives in Task 5</Text> : null}
+      {tab === 'leaderboard' ? <Text dimColor>Leaderboard view — arrives in Task 6</Text> : null}
+      <Text dimColor>{FOOTER[tab]}</Text>
     </Box>
   );
 }
