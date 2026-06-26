@@ -7,6 +7,7 @@ import { leaderboard, summaryStats, type SummaryStats } from './stats.js';
 import { useScroll } from './scroll.js';
 import { Badges } from './Badges.js';
 import { marksFor } from './runtimeMark.js';
+import { theme } from './theme.js';
 
 // Header + tab bar + view title + position line + stats band (~5 lines) + footer.
 const CHROME = 13;
@@ -14,7 +15,7 @@ const CHROME = 13;
 function StatsBand({ stats }: { stats: SummaryStats }) {
   const providers = stats.perProvider.map((p) => `${p.kind} ${p.skills}`).join(' · ') || 'none';
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="gray" paddingX={1} marginTop={1}>
+    <Box flexDirection="column" borderStyle="round" borderColor={theme.border} paddingX={1} marginTop={1}>
       <Text>
         <Text bold>STATS</Text> {stats.totals.skills} skills · {stats.totals.plugins} plugins ·{' '}
         {stats.totals.mcp} mcp

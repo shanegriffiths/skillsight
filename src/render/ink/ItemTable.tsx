@@ -2,6 +2,7 @@ import { Box, Text } from 'ink';
 import type { ItemRow } from './rows.js';
 import { Badges } from './Badges.js';
 import { marksFor } from './runtimeMark.js';
+import { theme } from './theme.js';
 
 const CURSOR_W = 2;
 const KIND_W = 6;
@@ -84,7 +85,7 @@ function Row({
     <Box>
       {withCursor ? (
         <Box width={CURSOR_W}>
-          <Text color="cyan" bold>
+          <Text color={theme.accent} bold>
             {active ? '›' : ' '}
           </Text>
         </Box>

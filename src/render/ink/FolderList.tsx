@@ -2,6 +2,7 @@ import { Box, Text } from 'ink';
 import type { FolderRow } from './tree.js';
 import { Badges } from './Badges.js';
 import { marksFor } from './runtimeMark.js';
+import { theme } from './theme.js';
 
 /**
  * The folder-tree column. Renders pre-windowed `FolderRow[]`: indent by depth, a
@@ -35,7 +36,7 @@ export function FolderList({
               <Text inverse={active && !dimmed} dimColor={dimmed || (globalOnly && !active)} wrap="truncate-end">
                 {prefix}
                 {r.label}
-                {r.count > 0 ? <Text color="cyan"> +{r.count}</Text> : null}
+                {r.count > 0 ? <Text color={theme.accent}> +{r.count}</Text> : null}
               </Text>
             </Box>
             {marks.length ? <Badges marks={marks} /> : null}

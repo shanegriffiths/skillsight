@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runtimeMark, marksFor, otherCount, type RuntimeMark } from '../src/render/ink/runtimeMark.js';
+import { DEEP_RUNTIMES } from '../src/runtimes.js';
 
 describe('runtimeMark', () => {
   it('returns the mark for each of the six detected runtimes', () => {
@@ -38,5 +39,13 @@ describe('otherCount', () => {
     expect(otherCount(['claude-code', 'amp', 'zed', 'warp'])).toBe(3);
     expect(otherCount(['claude-code', 'codex'])).toBe(0);
     expect(otherCount([])).toBe(0);
+  });
+});
+
+describe('runtimeMark coverage', () => {
+  it('has a badge for every engine-detected (deep) runtime', () => {
+    for (const r of DEEP_RUNTIMES) {
+      expect(runtimeMark(r.id), `missing badge for ${r.id}`).toBeDefined();
+    }
   });
 });
