@@ -160,6 +160,10 @@ describe('folderNav — folders focus, tree navigation', () => {
     const toggled = folderNav(at(0, { folderCollapsed: new Set(['s']) }), 'enter', syn);
     expect(toggled.focus).toBe('folders');
     expect(toggled.folderCollapsed.has('s')).toBe(false);
+    // symmetric: Enter on an already-expanded synthetic node collapses it
+    const synExpanded = treeCtx([fRow('syn', { nodeId: 's', hasChildren: true, collapsed: false, folder: null })]);
+    const recollapsed = folderNav(at(0), 'enter', synExpanded);
+    expect(recollapsed.folderCollapsed.has('s')).toBe(true);
   });
 
   it('Left collapses an expanded node, else jumps to the parent row', () => {

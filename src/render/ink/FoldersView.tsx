@@ -53,6 +53,10 @@ export function FoldersView({ inv }: { inv: Inventory }) {
     }
     const action = toAction(input, key);
     if (!action) return;
+    // `folderRows`/`rows` are render-time snapshots; the reducer reads the
+    // authoritative `s.folderCollapsed` for collapse state, and `nav.folder`/
+    // `nav.item` are re-clamped against fresh rows on the next render — so a
+    // stale snapshot from rapid input self-corrects (never crashes).
     setNav((s) => folderNav(s, action, { folderRows, rows }));
   });
 

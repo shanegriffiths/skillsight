@@ -121,6 +121,17 @@ describe('buildFolderRows — sort', () => {
     );
     expect(rows.map((r) => r.label)).toEqual(['a', 'b', 'c']);
   });
+
+  it('items: sorts children at depth > 0, not just roots', () => {
+    const rows = buildFolderRows(
+      [folder('/home/p/z', 1), folder('/home/p/a', 3)],
+      '/home',
+      opts({ sort: 'items' }),
+    );
+    // `p` is a synthetic parent; its children must be ordered by count desc.
+    const children = rows.filter((r) => r.depth === 1).map((r) => r.label);
+    expect(children).toEqual(['a', 'z']); // a:3 before z:1
+  });
 });
 
 describe('buildFolderRows — hidden filter', () => {
