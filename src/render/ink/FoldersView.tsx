@@ -11,7 +11,7 @@ import { folderNav, initialNav, type NavAction } from './folderNav.js';
 import { buildFolderRows, type SortMode } from './tree.js';
 
 // Header + tab bar + global band + position line + footer + margins (heuristic).
-const CHROME = 11;
+const CHROME = 12;
 
 function toAction(
   input: string,
@@ -26,7 +26,7 @@ function toAction(
   return null;
 }
 
-export function FoldersView({ inv }: { inv: Inventory }) {
+export function FoldersView({ inv, inputActive = true }: { inv: Inventory; inputActive?: boolean }) {
   const [nav, setNav] = useState(initialNav);
   const [sort, setSort] = useState<SortMode>('items');
   const [showHidden, setShowHidden] = useState(false);
@@ -58,7 +58,7 @@ export function FoldersView({ inv }: { inv: Inventory }) {
     // `nav.item` are re-clamped against fresh rows on the next render — so a
     // stale snapshot from rapid input self-corrects (never crashes).
     setNav((s) => folderNav(s, action, { folderRows, rows }));
-  });
+  }, { isActive: inputActive });
 
   const detailRow =
     nav.focus === 'detail' && nav.detailItem !== null ? rows[clampIndex(nav.detailItem, rows.length)] : undefined;

@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Box, useApp, useInput } from 'ink';
 import chokidar from 'chokidar';
-import type { Inventory } from '../../types.js';
+import type { Inventory, Runtime, Kind } from '../../types.js';
 import { scan, type ScanOptions } from '../../index.js';
 import { filterInventory, type FilterOptions } from '../../filter.js';
 import { computeWatchPaths } from './watchpaths.js';
+import { clampIndex } from './scroll.js';
+import { chips as buildChips, toggleChip } from './filterChips.js';
 import { Header } from './Header.js';
 import { TabBar, type TabId } from './TabBar.js';
+import { FilterBar } from './FilterBar.js';
 import { FoldersView } from './FoldersView.js';
 import { GlobalView } from './GlobalView.js';
 import { LeaderboardView } from './LeaderboardView.js';
@@ -27,13 +30,24 @@ export function App({
   const [raw, setRaw] = useState<Inventory>(initial);
   const [status, setStatus] = useState<'idle' | 'rescanning'>('idle');
   const [tab, setTab] = useState<TabId>('folders');
+  const [runtimes, setRuntimes] = useState<Set<Runtime>>(() => new Set(filter.runtimes ?? []));
+  const [kinds, setKinds] = useState<Set<Kind>>(() => new Set(filter.kinds ?? []));
+  const [filtering, setFiltering] = useState(false);
+  const [cursor, setCursor] = useState(0);
   const { exit } = useApp();
 
-  const inv = filterInventory(raw, filter);
+  const inv = filterInventory(raw, { runtimes: [...runtimes], kinds: [...kinds] });
+  const chipList = buildChips(raw.runtimesDetected);
+  const safeCursor = clampIndex(cursor, chipList.length);
 
   useInput((input, key) => {
     if (input === 'q') {
       exit();
+      return;
+    }
+    if (!filtering && input === 'f') {
+      setCursor((c) => clampIndex(c, chipList.length));
+      setFiltering(true);
       return;
     }
     if (input === '1') setTab('folders');
@@ -42,6 +56,37 @@ export function App({
     if (key.tab && !key.shift) setTab((t) => TABS[(TABS.indexOf(t) + 1) % TABS.length]!);
     if (key.tab && key.shift) setTab((t) => TABS[(TABS.indexOf(t) + TABS.length - 1) % TABS.length]!);
   });
+
+  useInput(
+    (input, key) => {
+      if (key.escape || key.return || input === 'f') {
+        setFiltering(false);
+        return;
+      }
+      if (key.leftArrow || input === 'h') {
+        setCursor((c) => clampIndex(c - 1, chipList.length));
+        return;
+      }
+      if (key.rightArrow || input === 'l') {
+        setCursor((c) => clampIndex(c + 1, chipList.length));
+        return;
+      }
+      if (input === ' ') {
+        const chip = chipList[safeCursor];
+        if (chip) {
+          const next = toggleChip(chip, runtimes, kinds);
+          setRuntimes(next.runtimes);
+          setKinds(next.kinds);
+        }
+        return;
+      }
+      if (input === 'a') {
+        setRuntimes(new Set());
+        setKinds(new Set());
+      }
+    },
+    { isActive: filtering },
+  );
 
   useEffect(() => {
     const watcher = chokidar.watch(computeWatchPaths(homeRoot, raw, opts.env ?? process.env), {
@@ -67,9 +112,10 @@ export function App({
     <Box flexDirection="column">
       <Header inv={inv} status={status} />
       <TabBar active={tab} />
-      {tab === 'folders' ? <FoldersView inv={inv} /> : null}
-      {tab === 'global' ? <GlobalView inv={inv} /> : null}
-      {tab === 'leaderboard' ? <LeaderboardView inv={inv} /> : null}
+      <FilterBar chips={chipList} runtimes={runtimes} kinds={kinds} cursor={safeCursor} filtering={filtering} />
+      {tab === 'folders' ? <FoldersView inv={inv} inputActive={!filtering} /> : null}
+      {tab === 'global' ? <GlobalView inv={inv} inputActive={!filtering} /> : null}
+      {tab === 'leaderboard' ? <LeaderboardView inv={inv} inputActive={!filtering} /> : null}
     </Box>
   );
 }
