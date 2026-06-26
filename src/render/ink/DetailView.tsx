@@ -1,6 +1,21 @@
 import { Box, Text } from 'ink';
+import terminalLink from 'terminal-link';
 import type { ItemRow } from './rows.js';
-import { detailFields } from './detail.js';
+import { detailFields, type DetailField } from './detail.js';
+import { Badges } from './Badges.js';
+import { marksFor, otherCount } from './runtimeMark.js';
+
+function FieldValue({ f }: { f: DetailField }) {
+  if (f.runtimes && f.runtimes.length > 0) {
+    return <Badges marks={marksFor(f.runtimes)} plus={otherCount(f.runtimes)} />;
+  }
+  const value = f.link ? terminalLink(f.value, f.value, { fallback: (t) => t }) : f.value;
+  return (
+    <Text wrap="truncate-end" dimColor={f.dim}>
+      {value}
+    </Text>
+  );
+}
 
 export function DetailView({ row }: { row: ItemRow | undefined }) {
   if (!row) {
@@ -23,9 +38,7 @@ export function DetailView({ row }: { row: ItemRow | undefined }) {
             <Text dimColor>{f.label}</Text>
           </Box>
           <Box flexGrow={1}>
-            <Text wrap="truncate-end" dimColor={f.dim}>
-              {f.value}
-            </Text>
+            <FieldValue f={f} />
           </Box>
         </Box>
       ))}
