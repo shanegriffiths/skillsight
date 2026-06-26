@@ -43,7 +43,9 @@ Foundational; the Global and Leaderboard views hang off this. **Shipped 2026-06-
 
 ## Epic E — Interactive filtering
 
-- [ ] **E1. In-dashboard runtime filter** — toggle chips to filter by runtime (cc, codex, …) live, reusing the existing `filterInventory`. _(M · engine filter exists; needs UI)_ — from "filter by cc, codex etc"
+**E1 shipped 2026-06-26** (`epic-e-filter`, merged to `main` @ `bb198e2`) — see `docs/superpowers/specs/2026-06-26-runtime-filter-design.md` + `docs/superpowers/plans/2026-06-26-runtime-filter.md`. Presentation-only: filter state lifted into `App`, applied via the existing `filterInventory` live; a `f`-toggled filter bar owns the chips while view input is gated with Ink's `useInput({ isActive })`. **Kind chips (skill/plugin/mcp) folded in** alongside runtimes. Folder-tree counts / GlobalBand / stats re-derive from the filtered inventory for free.
+
+- [x] **E1. In-dashboard runtime + kind filter** — `f` opens a chip bar; `←/→` move, `Space` toggles, `a` clears; runtimes (by `usedBy`/producing runtime) **and** kinds, ANDed. _(M · reused `filterInventory`; new `filterChips.ts` + `FilterBar.tsx`)_ — from "filter by cc, codex etc"
 
 ## Epic F — Drill navigation (left-to-right focus / Miller columns)
 
