@@ -22,10 +22,12 @@ Foundational; the Global and Leaderboard views hang off this. **Shipped 2026-06-
 
 ## Epic B — Folder list UX
 
-- [ ] **B1. Tree view for nested folders** — replace the flat grouped list with a hierarchy showing real nesting (e.g. `Developer/Projects/foo` under `Developer/Projects`). Collapsible nodes. _(L · needs discovery to emit parent/child or render to build the tree)_ — from "tree structure to show nested folders"
-- [ ] **B2. Remove the trailing dots** — drop the `·` "global only" marker after folders; convey it more subtly (dim name / no marker). _(S · quick win)_ — from "remove the dots after the folders"
-- [ ] **B3. Show/hide hidden folders** — a toggle to include/exclude hidden folders. _(M · needs a definition of "hidden" — see open questions)_ — from "show hide hidden folders"
-- [ ] **B4. Sort options** — sortable folder list: default **most items first**, plus name and others; visible sort indicator. _(M · data exists)_ — from "order by most within a folder. sort options"
+**B1/B3/B4 shipped 2026-06-26** (`epic-b-folder-ux`) — see `docs/superpowers/specs/2026-06-26-folder-ux-design.md` + `docs/superpowers/plans/2026-06-26-folder-ux.md`. Turned out **presentation-only**: a new pure `render/ink/tree.ts` builds the tree from `folders[].path` (verified against the live 31-folder disk) — **no `discovery.ts` change**. "Hidden" resolved to **dot-segment** paths (any home-relative segment starting with `.`), hidden by default. Counts are **aggregate subtree totals**; single-child synthetic chains are **compressed**.
+
+- [x] **B1. Tree view for nested folders** — replace the flat grouped list with a hierarchy showing real nesting (e.g. `Developer/Projects/foo` under `Developer/Projects`). Collapsible nodes. _(L · render builds the tree; synthetic intermediates + single-child compression)_ — from "tree structure to show nested folders"
+- [ ] **B2. Remove the trailing dots** — drop the `·` "global only" marker after folders; convey it more subtly (dim name / no marker). _(S · quick win)_ — from "remove the dots after the folders" — **note:** the current `FolderList` already has no `·` marker (dim + cyan `+N` only), so this appears effectively done; verify and close.
+- [x] **B3. Show/hide hidden folders** — `.` toggles dot-segment folders (default hidden); footer shows state. _(M · render predicate `isHiddenPath`)_ — from "show hide hidden folders"
+- [x] **B4. Sort options** — `s` cycles **items** (aggregate desc, ties→name) and **name**; default most-items-first; footer shows the mode. _(M · sort siblings at every tree level)_ — from "order by most within a folder. sort options"
 
 ## Epic C — Skill presentation & grouping
 
@@ -67,11 +69,11 @@ A keyboard focus model that lets you move *into* a folder, walk its contents, ex
 4. **Navigation depth**: B1 tree, B4 sort, B3 hidden toggle.
 5. **Cross-cutting last** (touches every view): D1 icons, E1 filter chips.
 
-Most of this is **presentation-layer** (`render/ink/*`, `render/plain.ts`) — the engine already captures `usedBy`, `sourceUrl`, `bundledInPlugin`, `provider.kind`, and supports filtering. B1 (tree) and B3 (hidden) are the main items that may touch `discovery.ts`.
+Most of this is **presentation-layer** (`render/ink/*`, `render/plain.ts`) — the engine already captures `usedBy`, `sourceUrl`, `bundledInPlugin`, `provider.kind`, and supports filtering. (B1/B3 were expected to maybe touch `discovery.ts`, but shipped purely in `render/ink/*` — the tree, hidden filter, and sort are all pure functions of `folders[].path`.)
 
 ## Open questions (resolve in the planning session)
 
-- **"Hidden folders"** — define it: dot-folders? trees currently pruned by the walk (`Library`, `node_modules`)? folders that are "global only"? The toggle's meaning shapes B3.
+- ~~**"Hidden folders"** — define it: dot-folders? trees currently pruned by the walk (`Library`, `node_modules`)? folders that are "global only"?~~ **Resolved (B3):** dot-segment paths (any home-relative segment starting with `.`), hidden by default. On the live disk only 3 of 31 qualify (`.config`, `.config/sketchybar`, `…/.od/projects/<uuid>`), all from the registry since the walk already skips dot-dirs.
 - **Icons (D1)** — Nerd Fonts (not universally installed) vs ASCII/letter badges vs colored initials? Suggest graceful default (colored initials) with optional glyphs.
 - **"Used times" (C3/A3)** — confirm this means *number of runtimes that use the skill* (we have that), not invocation counts (we don't track those).
 - **Leaderboard scope (A3)** — skills only, or plugins/MCP too? Global, or filterable by runtime?
