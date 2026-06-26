@@ -1,5 +1,6 @@
 import { Box, Text } from 'ink';
 import type { Inventory } from '../../types.js';
+import { theme } from './theme.js';
 
 export function Header({ inv, status }: { inv: Inventory; status: 'idle' | 'rescanning' }) {
   return (
@@ -9,11 +10,11 @@ export function Header({ inv, status }: { inv: Inventory; status: 'idle' | 'resc
       </Text>
       <Text>
         {status === 'rescanning' ? (
-          <Text color="yellow">● rescanning</Text>
+          <Text color={theme.warn}>● rescanning</Text>
         ) : (
-          <Text color="green">● live</Text>
+          <Text color={theme.good}>● live</Text>
         )}
-        {inv.warnings.length > 0 ? <Text color="yellow"> · ⚠ {inv.warnings.length}</Text> : null}
+        {inv.warnings.length > 0 ? <Text color={theme.warn}> · ⚠ {inv.warnings.length}</Text> : null}
       </Text>
     </Box>
   );
