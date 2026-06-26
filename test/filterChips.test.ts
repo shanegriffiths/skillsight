@@ -57,6 +57,7 @@ describe('toggleChip', () => {
     expect(out.runtimes).not.toBe(rt);
     expect(out.kinds).not.toBe(kd);
     expect([...rt]).toEqual(['codex']); // input untouched
+    expect([...kd]).toEqual(['skill']); // kinds input also untouched by a runtime toggle
     expect([...out.runtimes].sort()).toEqual(['claude-code', 'codex']);
   });
 });

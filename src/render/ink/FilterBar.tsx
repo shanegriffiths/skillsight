@@ -48,7 +48,7 @@ export function FilterBar({
   const hint = filtering
     ? '   ←→ move · space toggle · a clear · esc done'
     : active
-      ? '   f filter'
+      ? '   f filter · filtered'
       : '   f filter · showing all';
 
   return (

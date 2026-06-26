@@ -38,6 +38,7 @@ export function App({
 
   const inv = filterInventory(raw, { runtimes: [...runtimes], kinds: [...kinds] });
   const chipList = buildChips(raw.runtimesDetected);
+  const safeCursor = clampIndex(cursor, chipList.length);
 
   useInput((input, key) => {
     if (input === 'q') {
@@ -71,7 +72,7 @@ export function App({
         return;
       }
       if (input === ' ') {
-        const chip = chipList[clampIndex(cursor, chipList.length)];
+        const chip = chipList[safeCursor];
         if (chip) {
           const next = toggleChip(chip, runtimes, kinds);
           setRuntimes(next.runtimes);
@@ -111,7 +112,7 @@ export function App({
     <Box flexDirection="column">
       <Header inv={inv} status={status} />
       <TabBar active={tab} />
-      <FilterBar chips={chipList} runtimes={runtimes} kinds={kinds} cursor={cursor} filtering={filtering} />
+      <FilterBar chips={chipList} runtimes={runtimes} kinds={kinds} cursor={safeCursor} filtering={filtering} />
       {tab === 'folders' ? <FoldersView inv={inv} inputActive={!filtering} /> : null}
       {tab === 'global' ? <GlobalView inv={inv} inputActive={!filtering} /> : null}
       {tab === 'leaderboard' ? <LeaderboardView inv={inv} inputActive={!filtering} /> : null}
