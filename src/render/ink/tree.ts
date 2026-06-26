@@ -8,7 +8,7 @@
  * sort siblings → flatten honoring the `collapsed` set.
  */
 import { relative, sep } from 'node:path';
-import type { FolderReport } from '../../types.js';
+import type { FolderReport, Runtime } from '../../types.js';
 import { bucketCounts } from '../../resolve.js';
 
 export type SortMode = 'items' | 'name';
@@ -22,6 +22,8 @@ export interface FolderRow {
   depth: number;
   /** Aggregate subtree delta (own + all descendants). */
   count: number;
+  /** Union of `folder.runtimes` over this subtree, sorted asc (render intersects with the six). */
+  runtimes: Runtime[];
   hasChildren: boolean;
   collapsed: boolean;
   /** The discovered folder, or null for a synthetic intermediate node. */
@@ -46,6 +48,7 @@ interface TreeNode {
   folder: FolderReport | null;
   children: Map<string, TreeNode>;
   count: number; // aggregate, filled post-order
+  runtimes: Set<Runtime>; // aggregate, filled post-order
 }
 
 function relSegments(homeRoot: string, path: string): { outside: boolean; segs: string[] } {
@@ -65,7 +68,7 @@ function buildTrie(folders: FolderReport[], homeRoot: string): Map<string, TreeN
       acc = outside ? seg : `${acc}/${seg}`;
       node = level.get(seg);
       if (!node) {
-        node = { path: acc, segments: [seg], folder: null, children: new Map(), count: 0 };
+        node = { path: acc, segments: [seg], folder: null, children: new Map(), count: 0, runtimes: new Set() };
         level.set(seg, node);
       }
       level = node.children;
@@ -86,6 +89,7 @@ function compress(node: TreeNode): TreeNode {
       folder: child.folder,
       children: child.children,
       count: 0,
+      runtimes: new Set(),
     };
   }
   const children = new Map<string, TreeNode>();
@@ -93,12 +97,18 @@ function compress(node: TreeNode): TreeNode {
   return { ...n, children };
 }
 
-/** Post-order: count = ownDelta(self) + Σ count(children). */
-function aggregate(node: TreeNode): number {
+/** Post-order: count = ownDelta(self) + Σ count(children); runtimes = ∪ subtree folder.runtimes. */
+function aggregate(node: TreeNode): { count: number; runtimes: Set<Runtime> } {
   let sum = node.folder ? ownDelta(node.folder) : 0;
-  for (const c of node.children.values()) sum += aggregate(c);
+  const runtimes = new Set<Runtime>(node.folder?.runtimes ?? []);
+  for (const c of node.children.values()) {
+    const r = aggregate(c);
+    sum += r.count;
+    for (const id of r.runtimes) runtimes.add(id);
+  }
   node.count = sum;
-  return sum;
+  node.runtimes = runtimes;
+  return { count: sum, runtimes };
 }
 
 const labelOf = (n: TreeNode) => n.segments.join('/');
@@ -136,6 +146,7 @@ export function buildFolderRows(
         hasChildren,
         collapsed,
         folder: n.folder,
+        runtimes: [...n.runtimes].sort(),
       });
       if (hasChildren && !collapsed) emit([...n.children.values()], depth + 1);
     }

@@ -19,7 +19,7 @@ const fakeFolder = {} as FolderReport; // folderNav only checks truthiness of `f
 
 /** An openable leaf folder row by default; override for synthetic/parent rows. */
 function fRow(label: string, over: Partial<FolderRow> = {}): FolderRow {
-  return { nodeId: label, label, depth: 0, count: 1, hasChildren: false, collapsed: false, folder: fakeFolder, ...over };
+  return { nodeId: label, label, depth: 0, count: 1, runtimes: [], hasChildren: false, collapsed: false, folder: fakeFolder, ...over };
 }
 
 const ctxOf = (rows: ItemRow[], over: Partial<NavContext> = {}): NavContext => ({
