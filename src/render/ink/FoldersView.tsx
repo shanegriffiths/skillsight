@@ -91,7 +91,12 @@ export function FoldersView({ inv, inputActive = true }: { inv: Inventory; input
               <Text dimColor>global only — adds nothing beyond the inherited layer</Text>
             ) : (
               <>
-                <ItemTable rows={rows.slice(start, end)} selectedIndex={nav.focus === 'items' ? itemIdx - start : undefined} />
+                <ItemTable
+                  rows={rows.slice(start, end)}
+                  showMarks
+                  dense
+                  selectedIndex={nav.focus === 'items' ? itemIdx - start : undefined}
+                />
                 {rows.length > height ? (
                   <Text dimColor>
                     {start + 1}–{end} of {rows.length}
