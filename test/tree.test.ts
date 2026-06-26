@@ -15,12 +15,12 @@ function skill(name: string): SkillRecord {
 }
 
 /** A folder whose project-scoped layer holds `delta` skills (so ownDelta === delta). */
-function folder(path: string, delta = 0): FolderReport {
+function folder(path: string, delta = 0, runtimes: string[] = []): FolderReport {
   const ps: Bucket = { ...emptyBucket(), skills: Array.from({ length: delta }, (_, i) => skill(`${path}#${i}`)) };
   return {
     path,
     group: '',
-    runtimes: [],
+    runtimes,
     global: emptyBucket(),
     projectScoped: ps,
     local: emptyBucket(),
@@ -160,5 +160,31 @@ describe('buildFolderRows — collapse & edges', () => {
   it('returns [] for no folders and for all-hidden + showHidden:false', () => {
     expect(buildFolderRows([], '/home', opts())).toEqual([]);
     expect(buildFolderRows([folder('/home/.x', 1)], '/home', opts({ showHidden: false }))).toEqual([]);
+  });
+});
+
+describe('buildFolderRows — runtime aggregation', () => {
+  it('unions a subtree\'s folder runtimes, sorted', () => {
+    const rows = buildFolderRows(
+      [
+        folder('/home/Dev', 0, ['claude-code']),
+        folder('/home/Dev/Proj/a', 3, ['codex']),
+        folder('/home/Dev/Proj/b', 1, ['claude-code', 'gemini-cli']),
+      ],
+      '/home',
+      opts(),
+    );
+    expect(byLabel(rows, 'Dev')!.runtimes).toEqual(['claude-code', 'codex', 'gemini-cli']);
+    expect(byLabel(rows, 'a')!.runtimes).toEqual(['codex']);
+  });
+
+  it('carries runtimes across a compressed single-child chain', () => {
+    const rows = buildFolderRows([folder('/home/a/b/leaf', 2, ['cursor'])], '/home', opts());
+    expect(rows[0]!.runtimes).toEqual(['cursor']);
+  });
+
+  it('is [] for a folder with no runtimes', () => {
+    const rows = buildFolderRows([folder('/home/x', 1, [])], '/home', opts());
+    expect(rows[0]!.runtimes).toEqual([]);
   });
 });

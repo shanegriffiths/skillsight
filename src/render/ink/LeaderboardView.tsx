@@ -5,20 +5,34 @@ import { ItemTable } from './ItemTable.js';
 import { DetailView } from './DetailView.js';
 import { leaderboard, summaryStats, type SummaryStats } from './stats.js';
 import { useScroll } from './scroll.js';
+import { Badges } from './Badges.js';
+import { marksFor } from './runtimeMark.js';
+import { theme } from './theme.js';
 
 // Header + tab bar + view title + position line + stats band (~5 lines) + footer.
 const CHROME = 13;
 
 function StatsBand({ stats }: { stats: SummaryStats }) {
-  const runtimes = stats.perRuntime.map((r) => `${r.runtime} ${r.skills}`).join(' · ') || 'none';
   const providers = stats.perProvider.map((p) => `${p.kind} ${p.skills}`).join(' · ') || 'none';
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="gray" paddingX={1} marginTop={1}>
+    <Box flexDirection="column" borderStyle="round" borderColor={theme.border} paddingX={1} marginTop={1}>
       <Text>
         <Text bold>STATS</Text> {stats.totals.skills} skills · {stats.totals.plugins} plugins ·{' '}
         {stats.totals.mcp} mcp
       </Text>
-      <Text dimColor>by runtime {runtimes}</Text>
+      <Text>
+        <Text dimColor>by runtime </Text>
+        {stats.perRuntime.length === 0 ? (
+          <Text dimColor>none</Text>
+        ) : (
+          stats.perRuntime.map((r, i) => (
+            <Text key={r.runtime}>
+              {i ? '  ' : ''}
+              <Badges marks={marksFor([r.runtime])} /> <Text dimColor>{r.skills}</Text>
+            </Text>
+          ))
+        )}
+      </Text>
       <Text dimColor>by source {providers}</Text>
     </Box>
   );
@@ -60,7 +74,7 @@ export function LeaderboardView({ inv, inputActive = true }: { inv: Inventory; i
       {rows.length === 0 ? (
         <Text dimColor>no skills</Text>
       ) : (
-        <ItemTable rows={shown} showKind={false} selectedIndex={selected - start} />
+        <ItemTable rows={shown} showKind={false} showMarks selectedIndex={selected - start} />
       )}
       {rows.length > height ? (
         <Text dimColor>

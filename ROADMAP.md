@@ -33,13 +33,15 @@ Foundational; the Global and Leaderboard views hang off this. **Shipped 2026-06-
 
 - [x] **C1. Group plugin-bundled skills under their plugin** — collapse/expand a plugin to reveal the skills it ships (e.g. all `gsap-skills` together). _(M · `bundledInPlugin` already on records; the expand/collapse interaction lives in **F2**)_ — from "better grouping of skills if they live under a plugin… collapsed and expanded view" **Shipped 2026-06-25** with Epic F (`grouping.ts` + F2).
 - [ ] **C2. Skills table/grid layout** — restructure the detail pane into a proper table/grid (name · kind · provider · used-by · source) instead of flat lines. _(M · render work)_ — from "improve layout of the list of skills data table, grid"
-- [ ] **C3. Show "used N times"** — surface the usedBy count per skill; make it a sort key. _(S · data exists)_ — from "show count of used times" / "sort options"
-- [ ] **C4. Show origin URL** — display where a skill lives (GitHub repo / website) from `provider.sourceUrl`; make it copyable/openable. _(S · data exists)_ — from "url of where the skills lives (ie the website, gh repo)"
+- [x] **C3. Show "used N times"** — surface the usedBy count per skill; make it a sort key. _(S · data exists)_ — from "show count of used times" / "sort options" **Shipped 2026-06-26** with Epic D (`sortItemRows` + `s` toggle on the Global list).
+- [x] **C4. Show origin URL** — display where a skill lives (GitHub repo / website) from `provider.sourceUrl`; make it copyable/openable. _(S · data exists)_ — from "url of where the skills lives (ie the website, gh repo)" **Shipped 2026-06-26** with Epic D (detail `url` as a `terminal-link` hyperlink).
 
 ## Epic D — Visual identity & iconography
 
-- [ ] **D1. Runtime icons/glyphs** — per-runtime marks (claude-code, cursor, codex, …) to show origin and usedBy at a glance. Needs an icon strategy (see open questions). _(M · cross-cutting)_ — from "folder icons, perhaps claude code, cursor, codex icons for where the skills originated"
-- [ ] **D2. Interface polish** — overall richness: spacing, color hierarchy, density of the lists. _(M · render work)_ — from "richer interface"
+**Shipped 2026-06-26** (`epic-d-visual-identity`) — see `docs/superpowers/specs/2026-06-26-visual-identity-design.md` + `docs/superpowers/plans/2026-06-26-visual-identity.md`. Presentation-only (`render/ink/*`): one pure `runtimeMark.ts` maps the 6 detected runtimes (claude-code `C`, codex `X`, hermes-agent `H`, gemini-cli `G`, cursor `U`, opencode `O`) to reverse-video colored letter **badges**, surfaced via `Badges.tsx` across the detail `used by` line (+ dim `+N` remainder), the Leaderboard/Global `USES` column, the Folders items column (a `dense` ItemTable mode) and folder-tree rows, and the GLOBAL/STATS bands. Icon strategy resolved to **colored letters, Nerd Fonts deferred**. Folded in **C3** + **C4**.
+
+- [x] **D1. Runtime icons/glyphs** — per-runtime marks (claude-code, cursor, codex, …) to show origin and usedBy at a glance. Needs an icon strategy (see open questions). _(M · cross-cutting)_ — from "folder icons, perhaps claude code, cursor, codex icons for where the skills originated"
+- [x] **D2. Interface polish** — overall richness: spacing, color hierarchy, density of the lists. _(M · render work)_ — from "richer interface"
 
 ## Epic E — Interactive filtering
 
@@ -76,8 +78,8 @@ Most of this is **presentation-layer** (`render/ink/*`, `render/plain.ts`) — t
 ## Open questions (resolve in the planning session)
 
 - ~~**"Hidden folders"** — define it: dot-folders? trees currently pruned by the walk (`Library`, `node_modules`)? folders that are "global only"?~~ **Resolved (B3):** dot-segment paths (any home-relative segment starting with `.`), hidden by default. On the live disk only 3 of 31 qualify (`.config`, `.config/sketchybar`, `…/.od/projects/<uuid>`), all from the registry since the walk already skips dot-dirs.
-- **Icons (D1)** — Nerd Fonts (not universally installed) vs ASCII/letter badges vs colored initials? Suggest graceful default (colored initials) with optional glyphs.
-- **"Used times" (C3/A3)** — confirm this means *number of runtimes that use the skill* (we have that), not invocation counts (we don't track those).
+- ~~**Icons (D1)** — Nerd Fonts (not universally installed) vs ASCII/letter badges vs colored initials?~~ **Resolved (D1):** reverse-video **colored single-letter badges** (one ASCII cell each, truecolor bg + contrast letter), bounded to the 6 detected runtimes; Nerd-Font glyphs deferred (module shaped for a later opt-in). Verified rendering in-terminal (single-cell, correct hues/contrast, aligned columns).
+- ~~**"Used times" (C3/A3)** — confirm this means *number of runtimes that use the skill* (we have that), not invocation counts (we don't track those).~~ **Resolved (C3):** yes — `usedBy.length` (registry-wide runtime reach); the `USED` count + `s` sort key both use it, while badges show the installed subset (detail adds a dim `+N` for the rest).
 - **Leaderboard scope (A3)** — skills only, or plugins/MCP too? Global, or filterable by runtime?
 - **Scope of the table/grid (C2)** — dashboard only for now, or also feed the `--report` output and the eventual web UI?
 - **Skill detail (F3) presentation** — a third Miller column, a modal overlay, or replace the items pane?

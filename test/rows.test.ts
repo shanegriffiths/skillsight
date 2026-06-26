@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { itemRows } from '../src/render/ink/rows.js';
+import { itemRows, sortItemRows, type ItemRow } from '../src/render/ink/rows.js';
 import type { Bucket, SkillRecord, PluginRecord, McpRecord } from '../src/types.js';
 import { emptyBucket } from '../src/types.js';
 
@@ -43,7 +43,7 @@ describe('itemRows', () => {
     const s = skill('systematic-debugging', ['cc', 'codex'], 'obra/superpowers');
     const b: Bucket = { ...emptyBucket(), skills: [s] };
     expect(itemRows(b)).toEqual([
-      { kind: 'skill', name: 'systematic-debugging', used: 2, source: 'obra/superpowers', sourceDim: false, record: s },
+      { kind: 'skill', name: 'systematic-debugging', used: 2, source: 'obra/superpowers', sourceDim: false, record: s, usedRuntimes: ['cc', 'codex'] },
     ]);
   });
 
@@ -51,7 +51,7 @@ describe('itemRows', () => {
     const s = skill('local-thing', []);
     const b: Bucket = { ...emptyBucket(), skills: [s] };
     expect(itemRows(b)).toEqual([
-      { kind: 'skill', name: 'local-thing', used: 0, source: 'project-local', sourceDim: true, record: s },
+      { kind: 'skill', name: 'local-thing', used: 0, source: 'project-local', sourceDim: true, record: s, usedRuntimes: [] },
     ]);
   });
 
@@ -59,7 +59,7 @@ describe('itemRows', () => {
     const p = plugin('chrome-devtools', 'anthropics/claude-code');
     const b: Bucket = { ...emptyBucket(), plugins: [p] };
     expect(itemRows(b)).toEqual([
-      { kind: 'plugin', name: 'chrome-devtools', used: null, source: 'anthropics/claude-code', sourceDim: false, record: p },
+      { kind: 'plugin', name: 'chrome-devtools', used: null, source: 'anthropics/claude-code', sourceDim: false, record: p, usedRuntimes: [] },
     ]);
   });
 
@@ -67,7 +67,7 @@ describe('itemRows', () => {
     const p = plugin('local-plugin');
     const b: Bucket = { ...emptyBucket(), plugins: [p] };
     expect(itemRows(b)).toEqual([
-      { kind: 'plugin', name: 'local-plugin', used: null, source: 'official', sourceDim: true, record: p },
+      { kind: 'plugin', name: 'local-plugin', used: null, source: 'official', sourceDim: true, record: p, usedRuntimes: [] },
     ]);
   });
 
@@ -75,7 +75,7 @@ describe('itemRows', () => {
     const m = mcp('linear', 'http');
     const b: Bucket = { ...emptyBucket(), mcp: [m] };
     expect(itemRows(b)).toEqual([
-      { kind: 'mcp', name: 'linear', used: null, source: 'http', sourceDim: true, record: m },
+      { kind: 'mcp', name: 'linear', used: null, source: 'http', sourceDim: true, record: m, usedRuntimes: [] },
     ]);
   });
 
@@ -91,5 +91,47 @@ describe('itemRows', () => {
       mcp: [mcp('m', 'stdio')],
     };
     expect(itemRows(b).map((r) => r.kind)).toEqual(['skill', 'plugin', 'mcp']);
+  });
+
+  it('sets usedRuntimes from a skill usedBy list', () => {
+    const s = skill('x', ['claude-code', 'codex']);
+    expect(itemRows({ ...emptyBucket(), skills: [s] })[0]!.usedRuntimes).toEqual(['claude-code', 'codex']);
+  });
+
+  it('sets usedRuntimes to the single declaring runtime for a plugin', () => {
+    const p = { ...plugin('p', 'o/r'), runtime: 'claude-code' as const };
+    expect(itemRows({ ...emptyBucket(), plugins: [p] })[0]!.usedRuntimes).toEqual(['claude-code']);
+  });
+
+  it('sets usedRuntimes to the single declaring runtime for an mcp server', () => {
+    const m = { ...mcp('m', 'stdio' as const), runtime: 'codex' as const };
+    expect(itemRows({ ...emptyBucket(), mcp: [m] })[0]!.usedRuntimes).toEqual(['codex']);
+  });
+
+  it('sets usedRuntimes to [] for a plugin/mcp with no declaring runtime', () => {
+    expect(itemRows({ ...emptyBucket(), plugins: [plugin('p')] })[0]!.usedRuntimes).toEqual([]);
+    expect(itemRows({ ...emptyBucket(), mcp: [mcp('m', 'stdio')] })[0]!.usedRuntimes).toEqual([]);
+  });
+});
+
+describe('sortItemRows', () => {
+  const r = (name: string, used: number | null): ItemRow => ({
+    kind: 'skill', name, used, source: null, sourceDim: false, usedRuntimes: [],
+  });
+
+  it('used: descending, null last, ties broken by name asc', () => {
+    const rows = [r('b', 3), r('a', 3), r('z', null), r('m', 5)];
+    expect(sortItemRows(rows, 'used').map((x) => x.name)).toEqual(['m', 'a', 'b', 'z']);
+  });
+
+  it('name: alphabetical asc', () => {
+    const rows = [r('b', 3), r('a', 9), r('c', 1)];
+    expect(sortItemRows(rows, 'name').map((x) => x.name)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('does not mutate the input array', () => {
+    const rows = [r('b', 1), r('a', 2)];
+    sortItemRows(rows, 'used');
+    expect(rows.map((x) => x.name)).toEqual(['b', 'a']);
   });
 });

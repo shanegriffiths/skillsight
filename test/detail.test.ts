@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { detailFields } from '../src/render/ink/detail.js';
 import type { ItemRow } from '../src/render/ink/rows.js';
-import type { McpRecord, PluginRecord, SkillRecord } from '../src/types.js';
+import type { McpRecord, PluginRecord, SkillRecord, Runtime } from '../src/types.js';
 
 function skillRow(s: Partial<SkillRecord>): ItemRow {
   const record: SkillRecord = {
@@ -72,6 +72,16 @@ describe('detailFields — skill', () => {
   it('marks an empty used-by list as dim "none"', () => {
     const f = detailFields(skillRow({ usedBy: [] }));
     expect(f.find((x) => x.label === 'used by')).toMatchObject({ value: 'none', dim: true });
+  });
+
+  it('carries the raw usedBy on the used-by field for badge rendering', () => {
+    const f = detailFields(skillRow({ usedBy: ['claude-code', 'codex', 'amp'] as Runtime[] }));
+    expect(f.find((x) => x.label === 'used by')?.runtimes).toEqual(['claude-code', 'codex', 'amp']);
+  });
+
+  it('flags the url field as a link', () => {
+    const f = detailFields(skillRow({}));
+    expect(f.find((x) => x.label === 'url')).toMatchObject({ value: 'https://github.com/h/animejs', link: true });
   });
 });
 

@@ -5,6 +5,10 @@ export interface DetailField {
   label: string;
   value: string;
   dim?: boolean;
+  /** When present, the view renders runtime badges instead of `value`. */
+  runtimes?: Runtime[];
+  /** When true, the view renders `value` as a terminal hyperlink. */
+  link?: boolean;
 }
 
 function fmtRuntimes(r: Runtime[]): string {
@@ -17,10 +21,10 @@ function shortId(id: string): string {
 
 function skillFields(s: SkillRecord): DetailField[] {
   const f: DetailField[] = [{ label: 'kind', value: 'skill' }];
-  f.push({ label: 'used by', value: fmtRuntimes(s.usedBy), dim: s.usedBy.length === 0 });
+  f.push({ label: 'used by', value: fmtRuntimes(s.usedBy), runtimes: s.usedBy, dim: s.usedBy.length === 0 });
   if (s.provider.source) {
     f.push({ label: 'source', value: s.provider.source });
-    if (s.provider.sourceUrl) f.push({ label: 'url', value: s.provider.sourceUrl, dim: true });
+    if (s.provider.sourceUrl) f.push({ label: 'url', value: s.provider.sourceUrl, dim: true, link: true });
   } else {
     f.push({ label: 'source', value: s.provider.kind, dim: true });
   }
@@ -52,7 +56,7 @@ function mcpFields(m: McpRecord): DetailField[] {
     { label: 'transport', value: t.kind },
   ];
   if (t.command) f.push({ label: 'command', value: [t.command, ...(t.args ?? [])].join(' ') });
-  if (t.url) f.push({ label: 'url', value: t.url });
+  if (t.url) f.push({ label: 'url', value: t.url, link: true });
   // PRIVACY: names only — the records never carry env/header values.
   if (t.envKeys?.length) f.push({ label: 'env', value: t.envKeys.join(', '), dim: true });
   if (t.headerKeys?.length) f.push({ label: 'headers', value: t.headerKeys.join(', '), dim: true });
