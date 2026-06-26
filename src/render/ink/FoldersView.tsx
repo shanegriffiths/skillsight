@@ -8,6 +8,7 @@ import { DetailView } from './DetailView.js';
 import { groupedRows } from './grouping.js';
 import { clampIndex, scrollWindow } from './scroll.js';
 import { folderNav, initialNav, type NavAction } from './folderNav.js';
+import { buildFolderRows } from './tree.js';
 
 // Header + tab bar + global band + position line + footer + margins (heuristic).
 const CHROME = 11;
@@ -32,8 +33,15 @@ export function FoldersView({ inv }: { inv: Inventory }) {
   const folders = inv.folders;
   const [nav, setNav] = useState(initialNav);
 
-  const folderIdx = clampIndex(nav.folder, folders.length);
-  const folder = folders[folderIdx];
+  const folderRows = buildFolderRows(folders, inv.homeRoot, {
+    sort: 'name',
+    showHidden: false,
+    collapsed: nav.folderCollapsed,
+  });
+
+  const folderIdx = clampIndex(nav.folder, folderRows.length);
+  const folderRow = folderRows[folderIdx];
+  const folder = folderRow?.folder ?? folders[0];
   const rows = folder ? groupedRows(folder.projectScoped, folder.local, nav.expanded) : [];
 
   const height = Math.max(3, useWindowSize().rows - CHROME);
@@ -43,7 +51,7 @@ export function FoldersView({ inv }: { inv: Inventory }) {
   useInput((input, key) => {
     const action = toAction(input, key);
     if (!action) return;
-    setNav((s) => folderNav(s, action, { folderCount: folders.length, folderHasItems: rows.length > 0, rows }));
+    setNav((s) => folderNav(s, action, { folderRows, rows }));
   });
 
   const detailRow = nav.focus === 'detail' && nav.detailItem !== null ? rows[clampIndex(nav.detailItem, rows.length)] : undefined;
