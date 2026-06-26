@@ -1,40 +1,40 @@
 import { Box, Text } from 'ink';
-import type { FolderReport } from '../../types.js';
-import { bucketCounts } from '../../resolve.js';
+import type { FolderRow } from './tree.js';
 
-function delta(f: FolderReport): number {
-  const ps = bucketCounts(f.projectScoped);
-  const lo = bucketCounts(f.local);
-  return ps.skills + ps.plugins + ps.mcp + lo.skills + lo.plugins + lo.mcp;
-}
-
+/**
+ * The folder-tree column. Renders pre-windowed `FolderRow[]`: indent by depth,
+ * a chevron for nodes with children, the `›` active cursor, and a cyan `+N`
+ * aggregate count. `selected` is the in-window index (or out of range when the
+ * column is unfocused).
+ */
 export function FolderList({
-  folders,
+  rows,
   selected,
   dimmed = false,
 }: {
-  folders: FolderReport[];
+  rows: FolderRow[];
   selected: number;
   dimmed?: boolean;
 }) {
   return (
     <Box flexDirection="column" width={42} marginRight={1}>
-      {folders.length === 0 ? <Text dimColor>no folders discovered</Text> : null}
-      {folders.map((f, i) => {
-        const name = f.path.split('/').pop() || f.path;
-        const d = delta(f);
+      {rows.length === 0 ? <Text dimColor>no folders discovered</Text> : null}
+      {rows.map((r, i) => {
         const active = i === selected;
-        const globalOnly = d === 0;
+        const chevron = r.hasChildren ? (r.collapsed ? '▸' : '▾') : ' ';
+        const indent = '  '.repeat(r.depth);
+        const globalOnly = r.count === 0;
+        const prefix = `${active ? '›' : ' '} ${indent}${chevron} `;
         return (
           <Text
-            key={f.path}
+            key={r.nodeId}
             inverse={active && !dimmed}
             dimColor={dimmed || (globalOnly && !active)}
             wrap="truncate-end"
           >
-            {active ? '› ' : '  '}
-            {name}
-            {d > 0 ? <Text color="cyan"> +{d}</Text> : null}
+            {prefix}
+            {r.label}
+            {r.count > 0 ? <Text color="cyan"> +{r.count}</Text> : null}
           </Text>
         );
       })}
