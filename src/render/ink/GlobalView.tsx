@@ -7,9 +7,9 @@ import { DetailView } from './DetailView.js';
 import { useScroll } from './scroll.js';
 
 // Header + tab bar + view title + position line + footer + margins.
-const CHROME = 8;
+const CHROME = 9;
 
-export function GlobalView({ inv }: { inv: Inventory }) {
+export function GlobalView({ inv, inputActive = true }: { inv: Inventory; inputActive?: boolean }) {
   const rows = itemRows(inv.global);
   const height = Math.max(3, useWindowSize().rows - CHROME);
   const { selected, start, end, moveUp, moveDown } = useScroll(rows.length, height);
@@ -23,7 +23,7 @@ export function GlobalView({ inv }: { inv: Inventory }) {
     if (key.downArrow || input === 'j') moveDown();
     if (key.upArrow || input === 'k') moveUp();
     if (key.return || key.rightArrow) setDetail(true);
-  });
+  }, { isActive: inputActive });
 
   if (detail) {
     return (

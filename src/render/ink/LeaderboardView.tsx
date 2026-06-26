@@ -7,7 +7,7 @@ import { leaderboard, summaryStats, type SummaryStats } from './stats.js';
 import { useScroll } from './scroll.js';
 
 // Header + tab bar + view title + position line + stats band (~5 lines) + footer.
-const CHROME = 12;
+const CHROME = 13;
 
 function StatsBand({ stats }: { stats: SummaryStats }) {
   const runtimes = stats.perRuntime.map((r) => `${r.runtime} ${r.skills}`).join(' · ') || 'none';
@@ -24,7 +24,7 @@ function StatsBand({ stats }: { stats: SummaryStats }) {
   );
 }
 
-export function LeaderboardView({ inv }: { inv: Inventory }) {
+export function LeaderboardView({ inv, inputActive = true }: { inv: Inventory; inputActive?: boolean }) {
   const rows = leaderboard(inv);
   const stats = summaryStats(inv);
   const height = Math.max(3, useWindowSize().rows - CHROME);
@@ -39,7 +39,7 @@ export function LeaderboardView({ inv }: { inv: Inventory }) {
     if (key.downArrow || input === 'j') moveDown();
     if (key.upArrow || input === 'k') moveUp();
     if (key.return || key.rightArrow) setDetail(true);
-  });
+  }, { isActive: inputActive });
 
   if (detail) {
     return (
