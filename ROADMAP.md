@@ -12,6 +12,10 @@ Each task notes its size (S/M/L), whether the data already exists in the engine,
 
 ---
 
+## Consolidation pass — codebase review (2026-07-03)
+
+**Shipped 2026-07-03** (`code-review-cleanup`) — see `docs/superpowers/specs/2026-07-03-codebase-review-design.md` + `docs/superpowers/plans/2026-07-03-codebase-review.md`. Five parallel review agents over engine/adapters/CLI/render → 38 findings → 22 tasks. Fixed 8 root-caused bugs (`--dir` flag swallowing, `enableAllProjectMcpServers` ignoring `settings.local.json`, Codex disable matching frontmatter names instead of dir names, plugin-bundled skills never reading SKILL.md, latent plain-report delta drift, loose frontmatter fence, missing CLI error boundary, empty-list detail guard). Four spec'd behavior changes: **hub-direct-only skills now visible** (usedBy from the lock's universal agents, no owner fallback), plain report hides dot-path folders (dashboard parity), CLI warns on unknown args, `--provenance` expands MCP (key names only). Consolidation: characterization snapshots for `--report`/`--json`, tabs/keymap/list-detail/band/position single-sourced, one `universe()` per leaderboard render, per-keypress pipelines memoized, claude-code global reads cached per scan, dead `projectSkills` registry field removed. 130 → 183 tests.
+
 ## Epic A — Dashboard shell: tabbed navigation
 
 Foundational; the Global and Leaderboard views hang off this. **Shipped 2026-06-25** (`epic-a-dashboard-shell`, merged to `main` @ `3de5c25`) — see `docs/superpowers/specs/2026-06-24-dashboard-shell-design.md` + `docs/superpowers/plans/2026-06-25-dashboard-shell.md`.
@@ -89,6 +93,8 @@ Most of this is **presentation-layer** (`render/ink/*`, `render/plain.ts`) — t
 ## Beyond v0.2 (carried from v1 plan)
 
 - Web UI consuming `skillsight --json` (React port of the Ink components)
+- Project-level `.agents/skills` hub scanning (deferred from the 2026-07-03 consolidation pass — needs usedBy semantics + fixtures; `runtimes.ts`'s dead `projectSkills` field was removed, codex comment fixed)
+- Configurable personal-repo path (`~/Developer/Skills` is a hardcoded personal convention in `skillscan.ts` — other users' repos classify as user/project-local)
 - First-class non-skill units: Cursor **rules**, Gemini **extensions**, Codex/OpenCode **agents**
 - Windows path/symlink + managed-settings handling
 - Publish: GitHub repo + push + `npm publish`
