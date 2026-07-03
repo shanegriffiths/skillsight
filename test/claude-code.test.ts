@@ -143,6 +143,18 @@ describe('claude-code adapter: collectForDirectory', () => {
     expect(mcp.localSrv!.scope).toBe('local');
     expect(mcp.localSrv!.enabled).toBe(true);
   });
+
+  it('honors enableAllProjectMcpServers from settings.local.json', () => {
+    const { home: h, proj } = buildHome();
+    home = h;
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.local.json'),
+      JSON.stringify({ enableAllProjectMcpServers: true }),
+    );
+    const d = claudeCodeAdapter.collectForDirectory(proj, ctxOf(h), []);
+    const mcp = Object.fromEntries(d.mcp.map((m) => [m.name, m]));
+    expect(mcp.pendingSrv!.enabled).toBe(true); // was false: flag only read from settings.json
+  });
 });
 
 describe('claude-code adapter: coverage extras', () => {

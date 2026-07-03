@@ -226,10 +226,11 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     const home = claudeHome(ctx);
     const bucket: Bucket = emptyBucket();
 
-    const projEnabled = mergeEnabled(
+    const settingsFiles = [
       readJson<SettingsFile>(join(dir, '.claude', 'settings.json'), warnings),
       readJson<SettingsFile>(join(dir, '.claude', 'settings.local.json'), warnings),
-    );
+    ];
+    const projEnabled = mergeEnabled(...settingsFiles);
 
     // project-scoped plugins installed for this directory
     const installed = readJson<InstalledPlugins>(join(home, 'plugins', 'installed_plugins.json'), warnings);
@@ -254,8 +255,7 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     const projState = claudeJson?.projects?.[dir] ?? claudeJson?.projects?.[realpathSafe(dir)];
     const enabledSet = new Set(projState?.enabledMcpjsonServers ?? []);
     const disabledSet = new Set(projState?.disabledMcpjsonServers ?? []);
-    const settingsForDir = readJson<SettingsFile>(join(dir, '.claude', 'settings.json'));
-    const enableAll = settingsForDir?.enableAllProjectMcpServers === true;
+    const enableAll = settingsFiles.some((f) => f?.enableAllProjectMcpServers === true);
 
     const mcpJson = readJson<{ mcpServers?: Record<string, Record<string, unknown>> }>(
       join(dir, '.mcp.json'),
