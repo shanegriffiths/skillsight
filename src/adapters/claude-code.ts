@@ -55,22 +55,34 @@ interface GlobalConfig {
   installed: InstalledPlugins | undefined;
   marketplaces: Record<string, MarketplaceEntry> | undefined;
   claudeJson: ClaudeJson | undefined;
+  /** Warnings captured at read time, delivered to the first caller that provides a sink. */
+  pendingWarnings: Warning[];
 }
 
 // The three global files are needed for every directory pass; read once per scan
-// (scan() shares one HomeCtx) and emit warnings only from the first (global) read.
+// (scan() shares one HomeCtx). Whichever call reads the files first captures any
+// warnings; they're held in `pendingWarnings` and flushed to the first caller
+// that passes a `warnings` sink, so call order (collectGlobal vs.
+// collectForDirectory) can't silently swallow a malformed-file warning.
 const globalConfigCache = new WeakMap<HomeCtx, GlobalConfig>();
 
 function globalConfig(ctx: HomeCtx, warnings?: Warning[]): GlobalConfig {
-  const hit = globalConfigCache.get(ctx);
-  if (hit) return hit;
-  const home = claudeHome(ctx);
-  const cfg: GlobalConfig = {
-    installed: readJson<InstalledPlugins>(join(home, 'plugins', 'installed_plugins.json'), warnings),
-    marketplaces: readJson<Record<string, MarketplaceEntry>>(join(home, 'plugins', 'known_marketplaces.json'), warnings),
-    claudeJson: readJson<ClaudeJson>(claudeJsonPath(ctx), warnings),
-  };
-  globalConfigCache.set(ctx, cfg);
+  let cfg = globalConfigCache.get(ctx);
+  if (!cfg) {
+    const pending: Warning[] = [];
+    const home = claudeHome(ctx);
+    cfg = {
+      installed: readJson<InstalledPlugins>(join(home, 'plugins', 'installed_plugins.json'), pending),
+      marketplaces: readJson<Record<string, MarketplaceEntry>>(join(home, 'plugins', 'known_marketplaces.json'), pending),
+      claudeJson: readJson<ClaudeJson>(claudeJsonPath(ctx), pending),
+      pendingWarnings: pending,
+    };
+    globalConfigCache.set(ctx, cfg);
+  }
+  if (warnings && cfg.pendingWarnings.length) {
+    warnings.push(...cfg.pendingWarnings);
+    cfg.pendingWarnings = [];
+  }
   return cfg;
 }
 

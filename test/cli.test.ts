@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decideMode } from '../src/cli.js';
+import { decideMode, parseArgs } from '../src/cliArgs.js';
 
 const flags = (o: Partial<{ json: boolean; watch: boolean; report: boolean }> = {}) => ({
   json: false,
@@ -35,8 +35,6 @@ describe('decideMode — dashboard is the default', () => {
     expect(decideMode(flags({ watch: true, report: true }), false)).toBe('dashboard');
   });
 });
-
-import { parseArgs } from '../src/cli.js';
 
 describe('parseArgs hardening', () => {
   it('--dir does not swallow a following flag; missing path is a fatal error', () => {

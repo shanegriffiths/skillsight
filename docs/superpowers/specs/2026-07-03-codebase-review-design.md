@@ -45,7 +45,9 @@ which was decided explicitly (see §Decisions).
    `--full` alike — plain has no toggle; the dashboard's `.` toggle remains the
    way to see them).
 3. **Unrecognized flags/positionals warn on stderr**; `--kind`/`--runtime`
-   values matching nothing warn on stderr. Stdout and exit codes unchanged.
+   values not in the known kind list / runtime registry warn on stderr at
+   parse time. (A registry-valid but undetected runtime still yields empty
+   output silently — future hardening.) Stdout and exit codes unchanged.
 4. **`--provenance` expands MCP lines** (transport detail + env/header key
    *names* + scope), consistent with skills/plugins. Key names only — the
    privacy invariant already guarantees values are never stored.

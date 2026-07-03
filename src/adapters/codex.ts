@@ -53,7 +53,6 @@ function disabledSkillNames(config: CodexConfig | undefined): Set<string> {
 
 function scanSystemSkills(
   systemDir: string,
-  ctx: HomeCtx,
   enabledFor: (dirName: string) => boolean,
 ): SkillRecord[] {
   const out: SkillRecord[] = [];
@@ -117,7 +116,7 @@ export const codexAdapter: RuntimeAdapter = {
     const enabledFor = (dirName: string) => !disabled.has(dirName);
     bucket.skills.push(
       ...scanSkillsDir(join(home, 'skills'), ctx, 'global', enabledFor),
-      ...scanSystemSkills(join(home, 'skills', '.system'), ctx, enabledFor),
+      ...scanSystemSkills(join(home, 'skills', '.system'), enabledFor),
     );
 
     return bucket;

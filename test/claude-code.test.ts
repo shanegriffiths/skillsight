@@ -220,4 +220,14 @@ describe('claude-code adapter: global-file reads', () => {
     claudeCodeAdapter.collectForDirectory(join(home, 'p2'), ctx, warnings);
     expect(warnings.filter((w) => w.path.includes('installed_plugins')).length).toBe(1);
   });
+
+  it('delivers global-file warnings even when a directory pass runs first', () => {
+    home = makeTempHome();
+    writeFileEnsured(join(home, '.claude', 'plugins', 'installed_plugins.json'), '{nope');
+    const warnings: Warning[] = [];
+    const ctx = ctxOf(home);
+    claudeCodeAdapter.collectForDirectory(join(home, 'p1'), ctx, warnings); // caches with no sink
+    claudeCodeAdapter.collectGlobal(ctx, warnings); // must still receive the warning
+    expect(warnings.filter((w) => w.path.includes('installed_plugins')).length).toBe(1);
+  });
 });
