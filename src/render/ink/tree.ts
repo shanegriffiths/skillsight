@@ -9,7 +9,7 @@
  */
 import { relative, sep } from 'node:path';
 import type { FolderReport, Runtime } from '../../types.js';
-import { bucketCounts } from '../../resolve.js';
+import { bucketTotal } from '../../resolve.js';
 
 export type SortMode = 'items' | 'name';
 
@@ -37,9 +37,7 @@ export function isHiddenPath(relPath: string): boolean {
 
 /** project-scoped ∪ local item count — what a folder adds beyond the global layer. */
 function ownDelta(f: FolderReport): number {
-  const ps = bucketCounts(f.projectScoped);
-  const lo = bucketCounts(f.local);
-  return ps.skills + ps.plugins + ps.mcp + lo.skills + lo.plugins + lo.mcp;
+  return bucketTotal(f.projectScoped) + bucketTotal(f.local);
 }
 
 interface TreeNode {

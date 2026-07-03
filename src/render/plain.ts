@@ -6,7 +6,7 @@
  */
 import pc from 'picocolors';
 import type { Bucket, Inventory, McpRecord, PluginRecord, SkillRecord } from '../types.js';
-import { bucketCounts } from '../resolve.js';
+import { bucketCounts, bucketTotal } from '../resolve.js';
 
 export interface PlainOptions {
   full?: boolean;
@@ -70,9 +70,7 @@ export function renderPlain(inv: Inventory, opts: PlainOptions = {}): string {
       group = f.group;
       out.push('', pc.bold(group));
     }
-    const delta = bucketCounts(f.projectScoped).skills + bucketCounts(f.local).skills +
-      bucketCounts(f.projectScoped).plugins + bucketCounts(f.projectScoped).mcp +
-      bucketCounts(f.local).mcp;
+    const delta = bucketTotal(f.projectScoped) + bucketTotal(f.local);
     const name = f.path.split('/').pop() || f.path;
     if (delta === 0 && !opts.full) {
       out.push(`  ${name}  ${pc.dim('global only')}`);

@@ -1,6 +1,6 @@
 // test/resolve.test.ts
 import { describe, it, expect } from 'vitest';
-import { mergeBuckets, splitByScope, bucketCounts } from '../src/resolve.js';
+import { mergeBuckets, splitByScope, bucketCounts, bucketTotal } from '../src/resolve.js';
 import { emptyBucket } from '../src/types.js';
 import type { Bucket, SkillRecord } from '../src/types.js';
 
@@ -76,5 +76,20 @@ describe('splitByScope', () => {
     expect(projectScoped.skills).toHaveLength(1);
     expect(projectScoped.plugins).toHaveLength(1);
     expect(bucketCounts(local)).toEqual({ skills: 1, plugins: 0, mcp: 1 });
+  });
+});
+
+describe('bucketTotal', () => {
+  it('sums skills + plugins + mcp', () => {
+    const b = {
+      skills: [sk({}), sk({ contentId: 'c2' })],
+      plugins: [],
+      mcp: [{
+        name: 'm', transport: { kind: 'stdio' as const }, scope: 'global' as const,
+        enabled: true, provider: { kind: 'user' as const, path: '/x' },
+      }],
+    };
+    expect(bucketTotal(b)).toBe(3);
+    expect(bucketTotal(emptyBucket())).toBe(0);
   });
 });

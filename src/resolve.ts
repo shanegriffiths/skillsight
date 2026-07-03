@@ -99,3 +99,9 @@ export function splitByScope(bucket: Bucket): { projectScoped: Bucket; local: Bu
 export function bucketCounts(b: Bucket): { skills: number; plugins: number; mcp: number } {
   return { skills: b.skills.length, plugins: b.plugins.length, mcp: b.mcp.length };
 }
+
+/** Total record count of a bucket (skills + plugins + mcp). */
+export function bucketTotal(b: Bucket): number {
+  const c = bucketCounts(b);
+  return c.skills + c.plugins + c.mcp;
+}
