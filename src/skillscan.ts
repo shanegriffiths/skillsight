@@ -15,10 +15,27 @@ export function isInside(p: string, dir: string): boolean {
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }
 
+// Hub + personal-repo realpaths are stable per scan; resolving them per skill
+// costs two realpath syscalls each — memoize per HomeCtx.
+// NOTE: `~/Developer/Skills` is a personal-repo convention, not a cross-runtime
+// standard; other setups classify as user/project-local (see ROADMAP "Beyond v0.2").
+const classifierRootsCache = new WeakMap<HomeCtx, { hub: string; personal: string }>();
+
+function classifierRoots(ctx: HomeCtx): { hub: string; personal: string } {
+  const hit = classifierRootsCache.get(ctx);
+  if (hit) return hit;
+  const roots = {
+    hub: realpathSafe(sharedHubDir(ctx)),
+    personal: realpathSafe(join(ctx.homeRoot, 'Developer', 'Skills')),
+  };
+  classifierRootsCache.set(ctx, roots);
+  return roots;
+}
+
 /** Classify a skill's provider from where its real content lives. */
 export function providerForRealpath(real: string, ctx: HomeCtx, scope: Scope): Provider {
-  if (isInside(real, realpathSafe(sharedHubDir(ctx)))) return { kind: 'shared-store', path: real };
-  const personal = realpathSafe(join(ctx.homeRoot, 'Developer', 'Skills'));
+  const { hub, personal } = classifierRoots(ctx);
+  if (isInside(real, hub)) return { kind: 'shared-store', path: real };
   if (isInside(real, personal)) return { kind: 'personal-repo', path: real };
   return { kind: scope === 'global' ? 'user' : 'project-local', path: real };
 }
