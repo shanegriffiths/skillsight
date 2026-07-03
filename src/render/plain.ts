@@ -7,6 +7,7 @@
 import pc from 'picocolors';
 import type { Bucket, Inventory, McpRecord, PluginRecord, SkillRecord } from '../types.js';
 import { bucketCounts, bucketTotal } from '../resolve.js';
+import { isHiddenFolder } from './hidden.js';
 
 export interface PlainOptions {
   full?: boolean;
@@ -49,7 +50,8 @@ function renderBucket(b: Bucket, opts: PlainOptions, prefix: string): string[] {
 
 export function renderPlain(inv: Inventory, opts: PlainOptions = {}): string {
   const out: string[] = [];
-  const folderCount = inv.folders.length;
+  const folders = inv.folders.filter((f) => !isHiddenFolder(f.path, inv.homeRoot));
+  const folderCount = folders.length;
   out.push(
     `${pc.bold('skillsight')}  ${pc.dim(inv.homeRoot)}  ·  runtimes: ${
       inv.runtimesDetected.join(', ') || pc.dim('none')
@@ -65,7 +67,7 @@ export function renderPlain(inv: Inventory, opts: PlainOptions = {}): string {
   if (opts.globalOnly) return out.join('\n');
 
   let group = '';
-  for (const f of inv.folders) {
+  for (const f of folders) {
     if (f.group !== group) {
       group = f.group;
       out.push('', pc.bold(group));

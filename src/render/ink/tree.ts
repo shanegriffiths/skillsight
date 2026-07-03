@@ -10,6 +10,8 @@
 import { relative, sep } from 'node:path';
 import type { FolderReport, Runtime } from '../../types.js';
 import { bucketTotal } from '../../resolve.js';
+import { isHiddenPath } from '../hidden.js';
+export { isHiddenPath };
 
 export type SortMode = 'items' | 'name';
 
@@ -28,11 +30,6 @@ export interface FolderRow {
   collapsed: boolean;
   /** The discovered folder, or null for a synthetic intermediate node. */
   folder: FolderReport | null;
-}
-
-/** A folder is hidden if any segment of its home-relative path starts with '.'. */
-export function isHiddenPath(relPath: string): boolean {
-  return relPath.split('/').some((seg) => seg.startsWith('.'));
 }
 
 /** project-scoped ∪ local item count — what a folder adds beyond the global layer. */
