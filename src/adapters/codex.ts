@@ -51,7 +51,11 @@ function disabledSkillNames(config: CodexConfig | undefined): Set<string> {
   return out;
 }
 
-function scanSystemSkills(systemDir: string, ctx: HomeCtx): SkillRecord[] {
+function scanSystemSkills(
+  systemDir: string,
+  ctx: HomeCtx,
+  enabledFor: (dirName: string) => boolean,
+): SkillRecord[] {
   const out: SkillRecord[] = [];
   for (const e of readDirEntries(systemDir)) {
     if (e.name.startsWith('.') || (!e.isDir && !e.isSymlink)) continue;
@@ -63,7 +67,7 @@ function scanSystemSkills(systemDir: string, ctx: HomeCtx): SkillRecord[] {
       contentId: real,
       provider: { kind: 'runtime-builtin', path: real },
       usedBy: [],
-      enabled: true,
+      enabled: enabledFor(e.name),
       scope: 'global',
     });
   }
@@ -107,14 +111,14 @@ export const codexAdapter: RuntimeAdapter = {
       bucket.plugins.push(plugin);
     }
 
-    // skills: user dir (symlinks -> hub) + bundled .system
+    // skills: user dir (symlinks -> hub) + bundled .system.
+    // `[[skills.config]]` stores PATHS; disablement matches the directory name.
     const disabled = disabledSkillNames(config);
-    const userSkills = scanSkillsDir(join(home, 'skills'), ctx, 'global');
-    const systemSkills = scanSystemSkills(join(home, 'skills', '.system'), ctx);
-    for (const s of [...userSkills, ...systemSkills]) {
-      if (disabled.has(s.name)) s.enabled = false;
-      bucket.skills.push(s);
-    }
+    const enabledFor = (dirName: string) => !disabled.has(dirName);
+    bucket.skills.push(
+      ...scanSkillsDir(join(home, 'skills'), ctx, 'global', enabledFor),
+      ...scanSystemSkills(join(home, 'skills', '.system'), ctx, enabledFor),
+    );
 
     return bucket;
   },

@@ -27,7 +27,13 @@ export function providerForRealpath(real: string, ctx: HomeCtx, scope: Scope): P
  * Scan a skills directory. Each child entry is a skill dir (possibly a symlink
  * into the hub); content is read through the link via realpath.
  */
-export function scanSkillsDir(dir: string, ctx: HomeCtx, scope: Scope): SkillRecord[] {
+export function scanSkillsDir(
+  dir: string,
+  ctx: HomeCtx,
+  scope: Scope,
+  /** Enablement by DIRECTORY entry name (e.g. Codex `[[skills.config]]` stores paths, matched by basename). */
+  enabledFor?: (dirName: string) => boolean,
+): SkillRecord[] {
   const out: SkillRecord[] = [];
   for (const e of readDirEntries(dir)) {
     if (e.name.startsWith('.')) continue;
@@ -42,7 +48,7 @@ export function scanSkillsDir(dir: string, ctx: HomeCtx, scope: Scope): SkillRec
       contentId: real,
       provider: providerForRealpath(real, ctx, scope),
       usedBy: [],
-      enabled: true,
+      enabled: enabledFor ? enabledFor(e.name) : true,
       scope,
     });
   }
