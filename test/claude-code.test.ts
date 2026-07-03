@@ -144,3 +144,42 @@ describe('claude-code adapter: collectForDirectory', () => {
     expect(mcp.localSrv!.enabled).toBe(true);
   });
 });
+
+describe('claude-code adapter: coverage extras', () => {
+  it('plugin with no settings entry and no defaultEnabled is enabled by default', () => {
+    const { home: h } = buildHome();
+    home = h;
+    // delta: registry entry + minimal manifest (no defaultEnabled), no settings entry
+    writeFileEnsured(
+      join(h, '.claude', 'plugins', 'installed_plugins.json'),
+      JSON.stringify({
+        version: 2,
+        plugins: { 'delta@official': [{ scope: 'user', installPath: cacheDir(h, 'delta'), version: '1.0.0' }] },
+      }),
+    );
+    writeFileEnsured(join(cacheDir(h, 'delta'), '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'delta' }));
+    const g = claudeCodeAdapter.collectGlobal(ctxOf(h), []);
+    expect(g.plugins.find((p) => p.id === 'delta@official')!.enabled).toBe(true);
+  });
+
+  it('gemini-extension.json marks gemini-cli support', () => {
+    const { home: h } = buildHome();
+    home = h;
+    writeFileEnsured(join(cacheDir(h, 'alpha'), 'gemini-extension.json'), JSON.stringify({ name: 'alpha' }));
+    const g = claudeCodeAdapter.collectGlobal(ctxOf(h), []);
+    expect(g.plugins.find((p) => p.id === 'alpha@official')!.supportsRuntimes).toContain('gemini-cli');
+  });
+
+  it('merges manifest mcpServers with the .mcp.json sidecar', () => {
+    const { home: h } = buildHome();
+    home = h;
+    writeFileEnsured(
+      join(cacheDir(h, 'alpha'), '.claude-plugin', 'plugin.json'),
+      JSON.stringify({ name: 'alpha', mcpServers: { fromManifest: {} } }),
+    );
+    const g = claudeCodeAdapter.collectGlobal(ctxOf(h), []);
+    const provides = g.plugins.find((p) => p.id === 'alpha@official')!.provides.mcpServers;
+    expect(provides).toContain('fromManifest');
+    expect(provides).toContain('srv'); // sidecar (from buildHome)
+  });
+});
