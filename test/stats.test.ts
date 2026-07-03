@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { leaderboard, summaryStats } from '../src/render/ink/stats.js';
+import { formatCounts } from '../src/render/format.js';
 import type {
   Bucket,
   FolderReport,
@@ -148,5 +149,11 @@ describe('summaryStats', () => {
       { kind: 'shared-store', skills: 2 },
       { kind: 'project-local', skills: 1 },
     ]);
+  });
+});
+
+describe('formatCounts', () => {
+  it('formats the counts triple', () => {
+    expect(formatCounts({ skills: 2, plugins: 1, mcp: 3 })).toBe('2 skills · 1 plugins · 3 mcp');
   });
 });

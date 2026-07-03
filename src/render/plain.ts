@@ -8,6 +8,7 @@ import pc from 'picocolors';
 import type { Bucket, Inventory, McpRecord, PluginRecord, SkillRecord } from '../types.js';
 import { bucketCounts, bucketTotal } from '../resolve.js';
 import { isHiddenFolder } from './hidden.js';
+import { formatCounts } from './format.js';
 
 export interface PlainOptions {
   full?: boolean;
@@ -16,8 +17,7 @@ export interface PlainOptions {
 }
 
 function counts(b: Bucket): string {
-  const c = bucketCounts(b);
-  return `${c.skills} skills · ${c.plugins} plugins · ${c.mcp} mcp`;
+  return formatCounts(bucketCounts(b));
 }
 
 function skillLine(s: SkillRecord, prov: boolean, prefix: string): string {

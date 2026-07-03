@@ -5,6 +5,7 @@ import { itemRows, sortItemRows, type ItemSort } from './rows.js';
 import { ItemTable } from './ItemTable.js';
 import { DetailView } from './DetailView.js';
 import { useListDetail } from './listDetail.js';
+import { Position } from './Position.js';
 
 // Header + tab bar + view title + position line + footer + margins.
 const CHROME = 9;
@@ -44,11 +45,7 @@ export function GlobalView({ inv, inputActive = true }: { inv: Inventory; inputA
       ) : (
         <ItemTable rows={shown} showMarks selectedIndex={selected - start} />
       )}
-      {rows.length > height ? (
-        <Text dimColor>
-          {start + 1}–{end} of {rows.length}
-        </Text>
-      ) : null}
+      <Position start={start} end={end} total={rows.length} height={height} />
       <Text dimColor>↑/↓ scroll · Enter detail · s sort ({sort}) · 1/2/3 or Tab switch · q quit</Text>
     </Box>
   );

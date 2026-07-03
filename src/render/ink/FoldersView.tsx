@@ -9,6 +9,7 @@ import { groupedRows } from './grouping.js';
 import { clampIndex, scrollWindow } from './scroll.js';
 import { folderNav, initialNav, toAction } from './folderNav.js';
 import { buildFolderRows, type SortMode } from './tree.js';
+import { Position } from './Position.js';
 
 // Header + tab bar + global band + position line + footer + margins (heuristic).
 const CHROME = 12;
@@ -84,11 +85,7 @@ export function FoldersView({ inv, inputActive = true }: { inv: Inventory; input
                   dense
                   selectedIndex={nav.focus === 'items' ? itemIdx - start : undefined}
                 />
-                {rows.length > height ? (
-                  <Text dimColor>
-                    {start + 1}–{end} of {rows.length}
-                  </Text>
-                ) : null}
+                <Position start={start} end={end} total={rows.length} height={height} />
               </>
             )}
           </Box>

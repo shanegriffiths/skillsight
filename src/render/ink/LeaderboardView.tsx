@@ -6,7 +6,9 @@ import { leaderboard, summaryStats, type SummaryStats } from './stats.js';
 import { useListDetail } from './listDetail.js';
 import { Badges } from './Badges.js';
 import { marksFor } from './runtimeMark.js';
-import { theme } from './theme.js';
+import { Band } from './Band.js';
+import { Position } from './Position.js';
+import { formatCounts } from '../format.js';
 
 // Header + tab bar + view title + position line + stats band (~5 lines) + footer.
 const CHROME = 13;
@@ -14,10 +16,9 @@ const CHROME = 13;
 function StatsBand({ stats }: { stats: SummaryStats }) {
   const providers = stats.perProvider.map((p) => `${p.kind} ${p.skills}`).join(' · ') || 'none';
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor={theme.border} paddingX={1} marginTop={1}>
+    <Band marginTop={1}>
       <Text>
-        <Text bold>STATS</Text> {stats.totals.skills} skills · {stats.totals.plugins} plugins ·{' '}
-        {stats.totals.mcp} mcp
+        <Text bold>STATS</Text> {formatCounts(stats.totals)}
       </Text>
       <Text>
         <Text dimColor>by runtime </Text>
@@ -33,7 +34,7 @@ function StatsBand({ stats }: { stats: SummaryStats }) {
         )}
       </Text>
       <Text dimColor>by source {providers}</Text>
-    </Box>
+    </Band>
   );
 }
 
@@ -68,11 +69,7 @@ export function LeaderboardView({ inv, inputActive = true }: { inv: Inventory; i
       ) : (
         <ItemTable rows={shown} showKind={false} showMarks selectedIndex={selected - start} />
       )}
-      {rows.length > height ? (
-        <Text dimColor>
-          {start + 1}–{end} of {rows.length}
-        </Text>
-      ) : null}
+      <Position start={start} end={end} total={rows.length} height={height} />
       <StatsBand stats={stats} />
       <Text dimColor>↑/↓ scroll · Enter detail · 1/2/3 or Tab switch · q quit</Text>
     </Box>
