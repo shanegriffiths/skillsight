@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Box, useApp, useInput } from 'ink';
 import chokidar from 'chokidar';
 import type { Inventory, Runtime, Kind } from '../../types.js';
@@ -35,8 +35,11 @@ export function App({
   const [cursor, setCursor] = useState(0);
   const { exit } = useApp();
 
-  const inv = filterInventory(raw, { runtimes: [...runtimes], kinds: [...kinds] });
-  const chipList = buildChips(raw.runtimesDetected);
+  const inv = useMemo(
+    () => filterInventory(raw, { runtimes: [...runtimes], kinds: [...kinds] }),
+    [raw, runtimes, kinds],
+  );
+  const chipList = useMemo(() => buildChips(raw.runtimesDetected), [raw.runtimesDetected]);
   const safeCursor = clampIndex(cursor, chipList.length);
 
   useInput((input, key) => {

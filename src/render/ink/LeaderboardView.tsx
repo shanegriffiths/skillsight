@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { ItemTable } from './ItemTable.js';
@@ -39,7 +40,7 @@ function StatsBand({ stats }: { stats: SummaryStats }) {
 }
 
 export function LeaderboardView({ inv, inputActive = true }: { inv: Inventory; inputActive?: boolean }) {
-  const { rows, stats } = leaderboardStats(inv);
+  const { rows, stats } = useMemo(() => leaderboardStats(inv), [inv]);
   const height = Math.max(3, useWindowSize().rows - CHROME);
   const { detail, selected, start, end, onInput } = useListDetail(rows.length, height);
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { GlobalBand } from './GlobalBand.js';
@@ -19,11 +19,18 @@ export function FoldersView({ inv, inputActive = true }: { inv: Inventory; input
   const [sort, setSort] = useState<SortMode>('items');
   const [showHidden, setShowHidden] = useState(false);
 
-  const folderRows = buildFolderRows(inv.folders, inv.homeRoot, { sort, showHidden, collapsed: nav.folderCollapsed });
+  const folderRows = useMemo(
+    () => buildFolderRows(inv.folders, inv.homeRoot, { sort, showHidden, collapsed: nav.folderCollapsed }),
+    [inv.folders, inv.homeRoot, sort, showHidden, nav.folderCollapsed],
+  );
 
   const folderIdx = clampIndex(nav.folder, folderRows.length);
   const sel = folderRows[folderIdx];
-  const rows = sel?.folder ? groupedRows(sel.folder.projectScoped, sel.folder.local, nav.expanded) : [];
+  const selFolder = sel?.folder ?? null;
+  const rows = useMemo(
+    () => (selFolder ? groupedRows(selFolder.projectScoped, selFolder.local, nav.expanded) : []),
+    [selFolder, nav.expanded],
+  );
 
   const height = Math.max(3, useWindowSize().rows - CHROME);
   const itemIdx = clampIndex(nav.item, rows.length);

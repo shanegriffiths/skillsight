@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { itemRows, sortItemRows, type ItemSort } from './rows.js';
@@ -12,7 +12,7 @@ const CHROME = 9;
 
 export function GlobalView({ inv, inputActive = true }: { inv: Inventory; inputActive?: boolean }) {
   const [sort, setSort] = useState<ItemSort>('used');
-  const rows = sortItemRows(itemRows(inv.global), sort);
+  const rows = useMemo(() => sortItemRows(itemRows(inv.global), sort), [inv.global, sort]);
   const height = Math.max(3, useWindowSize().rows - CHROME);
   const { detail, selected, start, end, onInput } = useListDetail(rows.length, height);
 
