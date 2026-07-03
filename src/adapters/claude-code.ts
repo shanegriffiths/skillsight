@@ -51,6 +51,29 @@ interface ProjectState {
   disabledMcpjsonServers?: string[];
 }
 
+interface GlobalConfig {
+  installed: InstalledPlugins | undefined;
+  marketplaces: Record<string, MarketplaceEntry> | undefined;
+  claudeJson: ClaudeJson | undefined;
+}
+
+// The three global files are needed for every directory pass; read once per scan
+// (scan() shares one HomeCtx) and emit warnings only from the first (global) read.
+const globalConfigCache = new WeakMap<HomeCtx, GlobalConfig>();
+
+function globalConfig(ctx: HomeCtx, warnings?: Warning[]): GlobalConfig {
+  const hit = globalConfigCache.get(ctx);
+  if (hit) return hit;
+  const home = claudeHome(ctx);
+  const cfg: GlobalConfig = {
+    installed: readJson<InstalledPlugins>(join(home, 'plugins', 'installed_plugins.json'), warnings),
+    marketplaces: readJson<Record<string, MarketplaceEntry>>(join(home, 'plugins', 'known_marketplaces.json'), warnings),
+    claudeJson: readJson<ClaudeJson>(claudeJsonPath(ctx), warnings),
+  };
+  globalConfigCache.set(ctx, cfg);
+  return cfg;
+}
+
 const RUNTIME_PLUGIN_SIBLINGS: Record<string, Runtime> = {
   '.codex-plugin': 'codex',
   '.cursor-plugin': 'cursor',
@@ -182,11 +205,7 @@ export const claudeCodeAdapter: RuntimeAdapter = {
       readJson<SettingsFile>(join(home, 'settings.json'), warnings),
       readJson<SettingsFile>(join(home, 'settings.local.json'), warnings),
     );
-    const installed = readJson<InstalledPlugins>(join(home, 'plugins', 'installed_plugins.json'), warnings);
-    const marketplaces = readJson<Record<string, MarketplaceEntry>>(
-      join(home, 'plugins', 'known_marketplaces.json'),
-      warnings,
-    );
+    const { installed, marketplaces, claudeJson } = globalConfig(ctx, warnings);
 
     for (const [key, entries] of Object.entries(installed?.plugins ?? {})) {
       for (const entry of entries) {
@@ -201,7 +220,6 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     bucket.skills.push(...scanSkillsDir(join(home, 'skills'), ctx, 'global'));
 
     // user-scope MCP servers (~/.claude.json top-level mcpServers)
-    const claudeJson = readJson<ClaudeJson>(claudeJsonPath(ctx), warnings);
     bucket.mcp.push(
       ...buildMcpRecords(claudeJson?.mcpServers, normalizeClaudeTransport, 'global', {
         kind: 'user',
@@ -213,7 +231,6 @@ export const claudeCodeAdapter: RuntimeAdapter = {
   },
 
   collectForDirectory(dir, ctx, warnings) {
-    const home = claudeHome(ctx);
     const bucket: Bucket = emptyBucket();
 
     const settingsFiles = [
@@ -223,10 +240,7 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     const projEnabled = mergeEnabled(...settingsFiles);
 
     // project-scoped plugins installed for this directory
-    const installed = readJson<InstalledPlugins>(join(home, 'plugins', 'installed_plugins.json'), warnings);
-    const marketplaces = readJson<Record<string, MarketplaceEntry>>(
-      join(home, 'plugins', 'known_marketplaces.json'),
-    );
+    const { installed, marketplaces, claudeJson } = globalConfig(ctx);
     for (const [key, entries] of Object.entries(installed?.plugins ?? {})) {
       for (const entry of entries) {
         if (entry.scope !== 'project') continue;
@@ -241,7 +255,6 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     bucket.skills.push(...scanSkillsDir(join(dir, '.claude', 'skills'), ctx, 'project-scoped'));
 
     // project-scope MCP (.mcp.json) gated by approval state in ~/.claude.json
-    const claudeJson = readJson<ClaudeJson>(claudeJsonPath(ctx));
     const projState = claudeJson?.projects?.[dir] ?? claudeJson?.projects?.[realpathSafe(dir)];
     const enabledSet = new Set(projState?.enabledMcpjsonServers ?? []);
     const disabledSet = new Set(projState?.disabledMcpjsonServers ?? []);

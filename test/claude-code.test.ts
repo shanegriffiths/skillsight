@@ -208,3 +208,16 @@ describe('claude-code adapter: coverage extras', () => {
     expect(provides).toContain('srv'); // sidecar (from buildHome)
   });
 });
+
+describe('claude-code adapter: global-file reads', () => {
+  it('warns once on a malformed plugin registry, not once per directory', () => {
+    home = makeTempHome();
+    writeFileEnsured(join(home, '.claude', 'plugins', 'installed_plugins.json'), '{nope');
+    const warnings: Warning[] = [];
+    const ctx = ctxOf(home);
+    claudeCodeAdapter.collectGlobal(ctx, warnings);
+    claudeCodeAdapter.collectForDirectory(join(home, 'p1'), ctx, warnings);
+    claudeCodeAdapter.collectForDirectory(join(home, 'p2'), ctx, warnings);
+    expect(warnings.filter((w) => w.path.includes('installed_plugins')).length).toBe(1);
+  });
+});
