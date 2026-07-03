@@ -14,6 +14,7 @@ import { runtimeById, runtimeHome, type HomeCtx } from '../runtimes.js';
 import { readJson, readDirEntries, exists, isDir } from '../fsread.js';
 import { realpathSafe } from '../symlinks.js';
 import { scanSkillsDir } from '../skillscan.js';
+import { readFrontmatterFile } from '../frontmatter.js';
 import { normalizeClaudeTransport } from '../mcp.js';
 import type { RuntimeAdapter } from './index.js';
 
@@ -149,8 +150,10 @@ function pluginRecordAndSkills(
 
   const skills: SkillRecord[] = skillDirs.map((sName) => {
     const real = realpathSafe(join(installPath, 'skills', sName));
+    const fm = readFrontmatterFile(join(installPath, 'skills', sName, 'SKILL.md'));
     return {
-      name: sName,
+      name: typeof fm.name === 'string' ? fm.name : sName,
+      description: typeof fm.description === 'string' ? fm.description : undefined,
       contentId: real,
       provider: { kind: 'plugin', pluginId: key, marketplace, marketplaceRepo, path: real },
       usedBy: [],

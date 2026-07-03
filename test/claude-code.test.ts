@@ -115,6 +115,19 @@ describe('claude-code adapter: collectGlobal', () => {
     expect(byName.localskill!.provider.kind).toBe('user');
   });
 
+  it('plugin-bundled skills read SKILL.md frontmatter (name + description)', () => {
+    const { home: h } = buildHome();
+    home = h;
+    writeSkillDir(join(cacheDir(h, 'alpha'), 'skills'), 'fancy', {
+      name: 'fancy-pants',
+      description: 'Does fancy things',
+    });
+    const g = claudeCodeAdapter.collectGlobal(ctxOf(h), []);
+    const s = g.skills.find((x) => x.bundledInPlugin === 'alpha@official' && x.name === 'fancy-pants');
+    expect(s).toBeDefined();
+    expect(s!.description).toBe('Does fancy things');
+  });
+
   it('reads user-scope MCP servers (normalized)', () => {
     const { home: h } = buildHome();
     home = h;
