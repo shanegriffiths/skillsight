@@ -8,13 +8,12 @@ import { computeWatchPaths } from './watchpaths.js';
 import { clampIndex } from './scroll.js';
 import { chips as buildChips, toggleChip } from './filterChips.js';
 import { Header } from './Header.js';
-import { TabBar, type TabId } from './TabBar.js';
+import { TabBar } from './TabBar.js';
+import { tabForKey, nextTab, type TabId } from './tabs.js';
 import { FilterBar } from './FilterBar.js';
 import { FoldersView } from './FoldersView.js';
 import { GlobalView } from './GlobalView.js';
 import { LeaderboardView } from './LeaderboardView.js';
-
-const TABS: TabId[] = ['folders', 'global', 'leaderboard'];
 
 export function App({
   homeRoot,
@@ -50,11 +49,9 @@ export function App({
       setFiltering(true);
       return;
     }
-    if (input === '1') setTab('folders');
-    if (input === '2') setTab('global');
-    if (input === '3') setTab('leaderboard');
-    if (key.tab && !key.shift) setTab((t) => TABS[(TABS.indexOf(t) + 1) % TABS.length]!);
-    if (key.tab && key.shift) setTab((t) => TABS[(TABS.indexOf(t) + TABS.length - 1) % TABS.length]!);
+    const t = tabForKey(input);
+    if (t) setTab(t);
+    if (key.tab) setTab((cur) => nextTab(cur, key.shift ? -1 : 1));
   });
 
   useInput(
