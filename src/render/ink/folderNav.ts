@@ -1,8 +1,22 @@
+import type { Key } from 'ink';
 import type { ItemRow } from './rows.js';
 import type { FolderRow } from './tree.js';
 
 export type Focus = 'folders' | 'items' | 'detail';
 export type NavAction = 'up' | 'down' | 'enter' | 'right' | 'left' | 'escape';
+
+export type NavKey = Pick<Key, 'upArrow' | 'downArrow' | 'leftArrow' | 'rightArrow' | 'return' | 'escape'>;
+
+/** Keypress → NavAction mapping (pure; lives here so it's testable next to the reducer). */
+export function toAction(input: string, key: NavKey): NavAction | null {
+  if (key.downArrow || input === 'j') return 'down';
+  if (key.upArrow || input === 'k') return 'up';
+  if (key.return) return 'enter';
+  if (key.rightArrow) return 'right';
+  if (key.leftArrow) return 'left';
+  if (key.escape) return 'escape';
+  return null;
+}
 
 export interface NavState {
   focus: Focus;
@@ -126,6 +140,8 @@ export function folderNav(state: NavState, action: NavAction, ctx: NavContext): 
       }
       case 'escape':
         return { ...s, focus: 'folders' };
+      default:
+        return s;
     }
   }
 

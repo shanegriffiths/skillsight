@@ -7,24 +7,11 @@ import { ItemTable } from './ItemTable.js';
 import { DetailView } from './DetailView.js';
 import { groupedRows } from './grouping.js';
 import { clampIndex, scrollWindow } from './scroll.js';
-import { folderNav, initialNav, type NavAction } from './folderNav.js';
+import { folderNav, initialNav, toAction } from './folderNav.js';
 import { buildFolderRows, type SortMode } from './tree.js';
 
 // Header + tab bar + global band + position line + footer + margins (heuristic).
 const CHROME = 12;
-
-function toAction(
-  input: string,
-  key: { upArrow: boolean; downArrow: boolean; leftArrow: boolean; rightArrow: boolean; return: boolean; escape: boolean },
-): NavAction | null {
-  if (key.downArrow || input === 'j') return 'down';
-  if (key.upArrow || input === 'k') return 'up';
-  if (key.return) return 'enter';
-  if (key.rightArrow) return 'right';
-  if (key.leftArrow) return 'left';
-  if (key.escape) return 'escape';
-  return null;
-}
 
 export function FoldersView({ inv, inputActive = true }: { inv: Inventory; inputActive?: boolean }) {
   const [nav, setNav] = useState(initialNav);
