@@ -15,7 +15,7 @@ import { readJson, readDirEntries, exists, isDir } from '../fsread.js';
 import { realpathSafe } from '../symlinks.js';
 import { scanSkillsDir } from '../skillscan.js';
 import { readFrontmatterFile } from '../frontmatter.js';
-import { normalizeClaudeTransport } from '../mcp.js';
+import { normalizeClaudeTransport, buildMcpRecords } from '../mcp.js';
 import type { RuntimeAdapter } from './index.js';
 
 const DEF = runtimeById('claude-code')!;
@@ -167,22 +167,6 @@ function pluginRecordAndSkills(
   return { plugin, skills };
 }
 
-function mcpFromMap(
-  servers: Record<string, Record<string, unknown>> | undefined,
-  scope: McpRecord['scope'],
-  providerPath: string,
-  enabledFor: (name: string, raw: Record<string, unknown>) => boolean,
-): McpRecord[] {
-  if (!servers) return [];
-  return Object.entries(servers).map(([name, raw]) => ({
-    name,
-    transport: normalizeClaudeTransport(raw),
-    provider: { kind: scope === 'global' ? 'user' : 'project-local', path: providerPath },
-    scope,
-    enabled: enabledFor(name, raw),
-  }));
-}
-
 export const claudeCodeAdapter: RuntimeAdapter = {
   id: 'claude-code',
 
@@ -219,7 +203,10 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     // user-scope MCP servers (~/.claude.json top-level mcpServers)
     const claudeJson = readJson<ClaudeJson>(claudeJsonPath(ctx), warnings);
     bucket.mcp.push(
-      ...mcpFromMap(claudeJson?.mcpServers, 'global', claudeJsonPath(ctx), () => true),
+      ...buildMcpRecords(claudeJson?.mcpServers, normalizeClaudeTransport, 'global', {
+        kind: 'user',
+        path: claudeJsonPath(ctx),
+      }, () => true),
     );
 
     return bucket;
@@ -265,14 +252,18 @@ export const claudeCodeAdapter: RuntimeAdapter = {
       warnings,
     );
     bucket.mcp.push(
-      ...mcpFromMap(mcpJson?.mcpServers, 'project-scoped', join(dir, '.mcp.json'), (name) =>
-        enableAll || (enabledSet.has(name) && !disabledSet.has(name)),
-      ),
+      ...buildMcpRecords(mcpJson?.mcpServers, normalizeClaudeTransport, 'project-scoped', {
+        kind: 'project-local',
+        path: join(dir, '.mcp.json'),
+      }, (name) => enableAll || (enabledSet.has(name) && !disabledSet.has(name))),
     );
 
     // local-scope MCP (~/.claude.json projects[dir].mcpServers)
     bucket.mcp.push(
-      ...mcpFromMap(projState?.mcpServers, 'local', claudeJsonPath(ctx), () => true),
+      ...buildMcpRecords(projState?.mcpServers, normalizeClaudeTransport, 'local', {
+        kind: 'project-local',
+        path: claudeJsonPath(ctx),
+      }, () => true),
     );
 
     return bucket;
