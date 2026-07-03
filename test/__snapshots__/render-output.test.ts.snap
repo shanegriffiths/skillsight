@@ -52,13 +52,16 @@ GLOBAL  inherited everywhere  (2 skills · 1 plugins · 2 mcp)
   - super [official@1.2.3]
       supports: claude-code, codex
   - stdio-srv [mcp stdio]
+      npx -y srv · env keys: API_KEY · scope: global
   - http-srv [mcp http] (pending/disabled)
+      https://example.com/mcp · header keys: Authorization · scope: global
 
 Developer/Projects
   full
     + proj-skill [project-local]
       used by: claude-code
     + local-srv [mcp stdio]
+      y · scope: local
   quiet  global only"
 `;
 
