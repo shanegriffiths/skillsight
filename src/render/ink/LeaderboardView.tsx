@@ -2,7 +2,7 @@ import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { ItemTable } from './ItemTable.js';
 import { DetailView } from './DetailView.js';
-import { leaderboard, summaryStats, type SummaryStats } from './stats.js';
+import { leaderboardStats, type SummaryStats } from './stats.js';
 import { useListDetail } from './listDetail.js';
 import { Badges } from './Badges.js';
 import { marksFor } from './runtimeMark.js';
@@ -39,8 +39,7 @@ function StatsBand({ stats }: { stats: SummaryStats }) {
 }
 
 export function LeaderboardView({ inv, inputActive = true }: { inv: Inventory; inputActive?: boolean }) {
-  const rows = leaderboard(inv);
-  const stats = summaryStats(inv);
+  const { rows, stats } = leaderboardStats(inv);
   const height = Math.max(3, useWindowSize().rows - CHROME);
   const { detail, selected, start, end, onInput } = useListDetail(rows.length, height);
 

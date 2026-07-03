@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { leaderboard, summaryStats } from '../src/render/ink/stats.js';
+import { leaderboard, leaderboardStats, summaryStats } from '../src/render/ink/stats.js';
 import { formatCounts } from '../src/render/format.js';
 import type {
   Bucket,
@@ -149,6 +149,19 @@ describe('summaryStats', () => {
       { kind: 'shared-store', skills: 2 },
       { kind: 'project-local', skills: 1 },
     ]);
+  });
+});
+
+describe('leaderboardStats', () => {
+  it('returns the same rows and stats as the two single-purpose functions', () => {
+    const inventory = inv({
+      global: bucket({ skills: [skill('a', [])] }),
+      folders: [folder({ projectScoped: bucket({ skills: [skill('b', [])] }) })],
+      runtimes: ['claude-code'],
+    });
+    const { rows, stats } = leaderboardStats(inventory);
+    expect(rows).toEqual(leaderboard(inventory));
+    expect(stats).toEqual(summaryStats(inventory));
   });
 });
 
