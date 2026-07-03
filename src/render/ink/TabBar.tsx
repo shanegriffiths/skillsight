@@ -1,12 +1,5 @@
 import { Box, Text } from 'ink';
-
-export type TabId = 'folders' | 'global' | 'leaderboard';
-
-const TABS: { id: TabId; key: string; label: string }[] = [
-  { id: 'folders', key: '1', label: 'Folders' },
-  { id: 'global', key: '2', label: 'Global' },
-  { id: 'leaderboard', key: '3', label: 'Leaderboard' },
-];
+import { TABS, type TabId } from './tabs.js';
 
 export function TabBar({ active }: { active: TabId }) {
   return (

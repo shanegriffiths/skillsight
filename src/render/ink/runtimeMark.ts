@@ -32,6 +32,8 @@ const MARKS: RuntimeMark[] = [
 const BY_ID = new Map(MARKS.map((m) => [m.id, m]));
 const ORDER = new Map(MARKS.map((m, i) => [m.id, i]));
 
+export const MARK_COUNT = MARKS.length;
+
 export function runtimeMark(id: Runtime): RuntimeMark | undefined {
   return BY_ID.get(id);
 }

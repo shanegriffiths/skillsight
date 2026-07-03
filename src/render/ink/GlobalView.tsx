@@ -1,33 +1,27 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { itemRows, sortItemRows, type ItemSort } from './rows.js';
 import { ItemTable } from './ItemTable.js';
 import { DetailView } from './DetailView.js';
-import { useScroll } from './scroll.js';
+import { useListDetail } from './listDetail.js';
+import { Position } from './Position.js';
 
 // Header + tab bar + view title + position line + footer + margins.
 const CHROME = 9;
 
 export function GlobalView({ inv, inputActive = true }: { inv: Inventory; inputActive?: boolean }) {
   const [sort, setSort] = useState<ItemSort>('used');
-  const rows = sortItemRows(itemRows(inv.global), sort);
+  const rows = useMemo(() => sortItemRows(itemRows(inv.global), sort), [inv.global, sort]);
   const height = Math.max(3, useWindowSize().rows - CHROME);
-  const { selected, start, end, moveUp, moveDown } = useScroll(rows.length, height);
-  const [detail, setDetail] = useState(false);
+  const { detail, selected, start, end, onInput } = useListDetail(rows.length, height);
 
   useInput((input, key) => {
-    if (detail) {
-      if (key.escape || key.leftArrow) setDetail(false);
-      return;
-    }
-    if (input === 's') {
+    if (!detail && input === 's') {
       setSort((m) => (m === 'used' ? 'name' : 'used'));
       return;
     }
-    if (key.downArrow || input === 'j') moveDown();
-    if (key.upArrow || input === 'k') moveUp();
-    if (key.return || key.rightArrow) setDetail(true);
+    onInput(input, key);
   }, { isActive: inputActive });
 
   if (detail) {
@@ -51,11 +45,7 @@ export function GlobalView({ inv, inputActive = true }: { inv: Inventory; inputA
       ) : (
         <ItemTable rows={shown} showMarks selectedIndex={selected - start} />
       )}
-      {rows.length > height ? (
-        <Text dimColor>
-          {start + 1}–{end} of {rows.length}
-        </Text>
-      ) : null}
+      <Position start={start} end={end} total={rows.length} height={height} />
       <Text dimColor>↑/↓ scroll · Enter detail · s sort ({sort}) · 1/2/3 or Tab switch · q quit</Text>
     </Box>
   );

@@ -55,6 +55,34 @@ export function enrichBucket(bucket: Bucket, owner: Runtime, enr: EnrichContext)
   return bucket;
 }
 
+/**
+ * Every hub skill as a `shared-store` SkillRecord — including hub-direct-only
+ * skills that no runtime symlinks (e.g. installed for warp/zed/cline only).
+ * No owner fallback: an unused hub skill honestly reports `usedBy: []`.
+ */
+export function sharedStoreBucket(shared: SharedSkill[], enr: EnrichContext): Bucket {
+  const skills: SkillRecord[] = shared.map((info) => {
+    const used = new Set<Runtime>(lookupUsedBy(enr.reverseIndex, info.realPath));
+    for (const u of universalUsedBy(enr.lastSelectedAgents)) used.add(u);
+    return {
+      name: info.name,
+      description: info.description,
+      contentId: info.contentId,
+      provider: {
+        kind: 'shared-store',
+        path: info.realPath,
+        source: info.source,
+        sourceUrl: info.sourceUrl,
+        skillFolderHash: info.skillFolderHash,
+      },
+      usedBy: [...used].sort(),
+      enabled: true,
+      scope: 'global',
+    };
+  });
+  return { ...emptyBucket(), skills };
+}
+
 function mergeSkill(into: Map<string, SkillRecord>, s: SkillRecord): void {
   const existing = into.get(s.contentId);
   if (!existing) {
@@ -69,7 +97,7 @@ function mergeSkill(into: Map<string, SkillRecord>, s: SkillRecord): void {
   into.set(s.contentId, base);
 }
 
-/** Merge buckets, deduping skills by contentId, plugins by id, mcp by name+scope. */
+/** Merge buckets, deduping skills by contentId, plugins by id, mcp by name+scope+provider path. */
 export function mergeBuckets(...buckets: Bucket[]): Bucket {
   const skills = new Map<string, SkillRecord>();
   const plugins = new Map<string, PluginRecord>();
@@ -98,4 +126,10 @@ export function splitByScope(bucket: Bucket): { projectScoped: Bucket; local: Bu
 
 export function bucketCounts(b: Bucket): { skills: number; plugins: number; mcp: number } {
   return { skills: b.skills.length, plugins: b.plugins.length, mcp: b.mcp.length };
+}
+
+/** Total record count of a bucket (skills + plugins + mcp). */
+export function bucketTotal(b: Bucket): number {
+  const c = bucketCounts(b);
+  return c.skills + c.plugins + c.mcp;
 }

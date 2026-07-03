@@ -8,13 +8,14 @@
  * config — they only inform a plugin's `supportsRuntimes`.
  */
 import { join, basename } from 'node:path';
-import type { Bucket, McpRecord, PluginRecord, Runtime, SkillRecord, Warning } from '../types.js';
+import type { Bucket, PluginRecord, Runtime, SkillRecord, Warning } from '../types.js';
 import { emptyBucket } from '../types.js';
 import { runtimeById, runtimeHome, type HomeCtx } from '../runtimes.js';
-import { readJson, readDirEntries, exists, isDir } from '../fsread.js';
+import { readJson, readDirEntries, exists } from '../fsread.js';
 import { realpathSafe } from '../symlinks.js';
 import { scanSkillsDir } from '../skillscan.js';
-import { normalizeClaudeTransport } from '../mcp.js';
+import { readFrontmatterFile } from '../frontmatter.js';
+import { normalizeClaudeTransport, buildMcpRecords } from '../mcp.js';
 import type { RuntimeAdapter } from './index.js';
 
 const DEF = runtimeById('claude-code')!;
@@ -48,6 +49,41 @@ interface ProjectState {
   mcpServers?: Record<string, Record<string, unknown>>;
   enabledMcpjsonServers?: string[];
   disabledMcpjsonServers?: string[];
+}
+
+interface GlobalConfig {
+  installed: InstalledPlugins | undefined;
+  marketplaces: Record<string, MarketplaceEntry> | undefined;
+  claudeJson: ClaudeJson | undefined;
+  /** Warnings captured at read time, delivered to the first caller that provides a sink. */
+  pendingWarnings: Warning[];
+}
+
+// The three global files are needed for every directory pass; read once per scan
+// (scan() shares one HomeCtx). Whichever call reads the files first captures any
+// warnings; they're held in `pendingWarnings` and flushed to the first caller
+// that passes a `warnings` sink, so call order (collectGlobal vs.
+// collectForDirectory) can't silently swallow a malformed-file warning.
+const globalConfigCache = new WeakMap<HomeCtx, GlobalConfig>();
+
+function globalConfig(ctx: HomeCtx, warnings?: Warning[]): GlobalConfig {
+  let cfg = globalConfigCache.get(ctx);
+  if (!cfg) {
+    const pending: Warning[] = [];
+    const home = claudeHome(ctx);
+    cfg = {
+      installed: readJson<InstalledPlugins>(join(home, 'plugins', 'installed_plugins.json'), pending),
+      marketplaces: readJson<Record<string, MarketplaceEntry>>(join(home, 'plugins', 'known_marketplaces.json'), pending),
+      claudeJson: readJson<ClaudeJson>(claudeJsonPath(ctx), pending),
+      pendingWarnings: pending,
+    };
+    globalConfigCache.set(ctx, cfg);
+  }
+  if (warnings && cfg.pendingWarnings.length) {
+    warnings.push(...cfg.pendingWarnings);
+    cfg.pendingWarnings = [];
+  }
+  return cfg;
 }
 
 const RUNTIME_PLUGIN_SIBLINGS: Record<string, Runtime> = {
@@ -149,8 +185,10 @@ function pluginRecordAndSkills(
 
   const skills: SkillRecord[] = skillDirs.map((sName) => {
     const real = realpathSafe(join(installPath, 'skills', sName));
+    const fm = readFrontmatterFile(join(installPath, 'skills', sName, 'SKILL.md'));
     return {
-      name: sName,
+      name: typeof fm.name === 'string' ? fm.name : sName,
+      description: typeof fm.description === 'string' ? fm.description : undefined,
       contentId: real,
       provider: { kind: 'plugin', pluginId: key, marketplace, marketplaceRepo, path: real },
       usedBy: [],
@@ -162,22 +200,6 @@ function pluginRecordAndSkills(
   });
 
   return { plugin, skills };
-}
-
-function mcpFromMap(
-  servers: Record<string, Record<string, unknown>> | undefined,
-  scope: McpRecord['scope'],
-  providerPath: string,
-  enabledFor: (name: string, raw: Record<string, unknown>) => boolean,
-): McpRecord[] {
-  if (!servers) return [];
-  return Object.entries(servers).map(([name, raw]) => ({
-    name,
-    transport: normalizeClaudeTransport(raw),
-    provider: { kind: scope === 'global' ? 'user' : 'project-local', path: providerPath },
-    scope,
-    enabled: enabledFor(name, raw),
-  }));
 }
 
 export const claudeCodeAdapter: RuntimeAdapter = {
@@ -195,11 +217,7 @@ export const claudeCodeAdapter: RuntimeAdapter = {
       readJson<SettingsFile>(join(home, 'settings.json'), warnings),
       readJson<SettingsFile>(join(home, 'settings.local.json'), warnings),
     );
-    const installed = readJson<InstalledPlugins>(join(home, 'plugins', 'installed_plugins.json'), warnings);
-    const marketplaces = readJson<Record<string, MarketplaceEntry>>(
-      join(home, 'plugins', 'known_marketplaces.json'),
-      warnings,
-    );
+    const { installed, marketplaces, claudeJson } = globalConfig(ctx, warnings);
 
     for (const [key, entries] of Object.entries(installed?.plugins ?? {})) {
       for (const entry of entries) {
@@ -214,28 +232,27 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     bucket.skills.push(...scanSkillsDir(join(home, 'skills'), ctx, 'global'));
 
     // user-scope MCP servers (~/.claude.json top-level mcpServers)
-    const claudeJson = readJson<ClaudeJson>(claudeJsonPath(ctx), warnings);
     bucket.mcp.push(
-      ...mcpFromMap(claudeJson?.mcpServers, 'global', claudeJsonPath(ctx), () => true),
+      ...buildMcpRecords(claudeJson?.mcpServers, normalizeClaudeTransport, 'global', {
+        kind: 'user',
+        path: claudeJsonPath(ctx),
+      }, () => true),
     );
 
     return bucket;
   },
 
   collectForDirectory(dir, ctx, warnings) {
-    const home = claudeHome(ctx);
     const bucket: Bucket = emptyBucket();
 
-    const projEnabled = mergeEnabled(
+    const settingsFiles = [
       readJson<SettingsFile>(join(dir, '.claude', 'settings.json'), warnings),
       readJson<SettingsFile>(join(dir, '.claude', 'settings.local.json'), warnings),
-    );
+    ];
+    const projEnabled = mergeEnabled(...settingsFiles);
 
     // project-scoped plugins installed for this directory
-    const installed = readJson<InstalledPlugins>(join(home, 'plugins', 'installed_plugins.json'), warnings);
-    const marketplaces = readJson<Record<string, MarketplaceEntry>>(
-      join(home, 'plugins', 'known_marketplaces.json'),
-    );
+    const { installed, marketplaces, claudeJson } = globalConfig(ctx);
     for (const [key, entries] of Object.entries(installed?.plugins ?? {})) {
       for (const entry of entries) {
         if (entry.scope !== 'project') continue;
@@ -250,26 +267,28 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     bucket.skills.push(...scanSkillsDir(join(dir, '.claude', 'skills'), ctx, 'project-scoped'));
 
     // project-scope MCP (.mcp.json) gated by approval state in ~/.claude.json
-    const claudeJson = readJson<ClaudeJson>(claudeJsonPath(ctx));
     const projState = claudeJson?.projects?.[dir] ?? claudeJson?.projects?.[realpathSafe(dir)];
     const enabledSet = new Set(projState?.enabledMcpjsonServers ?? []);
     const disabledSet = new Set(projState?.disabledMcpjsonServers ?? []);
-    const settingsForDir = readJson<SettingsFile>(join(dir, '.claude', 'settings.json'));
-    const enableAll = settingsForDir?.enableAllProjectMcpServers === true;
+    const enableAll = settingsFiles.some((f) => f?.enableAllProjectMcpServers === true);
 
     const mcpJson = readJson<{ mcpServers?: Record<string, Record<string, unknown>> }>(
       join(dir, '.mcp.json'),
       warnings,
     );
     bucket.mcp.push(
-      ...mcpFromMap(mcpJson?.mcpServers, 'project-scoped', join(dir, '.mcp.json'), (name) =>
-        enableAll || (enabledSet.has(name) && !disabledSet.has(name)),
-      ),
+      ...buildMcpRecords(mcpJson?.mcpServers, normalizeClaudeTransport, 'project-scoped', {
+        kind: 'project-local',
+        path: join(dir, '.mcp.json'),
+      }, (name) => enableAll || (enabledSet.has(name) && !disabledSet.has(name))),
     );
 
     // local-scope MCP (~/.claude.json projects[dir].mcpServers)
     bucket.mcp.push(
-      ...mcpFromMap(projState?.mcpServers, 'local', claudeJsonPath(ctx), () => true),
+      ...buildMcpRecords(projState?.mcpServers, normalizeClaudeTransport, 'local', {
+        kind: 'project-local',
+        path: claudeJsonPath(ctx),
+      }, () => true),
     );
 
     return bucket;

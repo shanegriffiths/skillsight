@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
 import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { ItemTable } from './ItemTable.js';
 import { DetailView } from './DetailView.js';
-import { leaderboard, summaryStats, type SummaryStats } from './stats.js';
-import { useScroll } from './scroll.js';
+import { leaderboardStats, type SummaryStats } from './stats.js';
+import { useListDetail } from './listDetail.js';
 import { Badges } from './Badges.js';
 import { marksFor } from './runtimeMark.js';
-import { theme } from './theme.js';
+import { Band } from './Band.js';
+import { Position } from './Position.js';
+import { formatCounts } from '../format.js';
 
 // Header + tab bar + view title + position line + stats band (~5 lines) + footer.
 const CHROME = 13;
@@ -15,10 +17,9 @@ const CHROME = 13;
 function StatsBand({ stats }: { stats: SummaryStats }) {
   const providers = stats.perProvider.map((p) => `${p.kind} ${p.skills}`).join(' · ') || 'none';
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor={theme.border} paddingX={1} marginTop={1}>
+    <Band marginTop={1}>
       <Text>
-        <Text bold>STATS</Text> {stats.totals.skills} skills · {stats.totals.plugins} plugins ·{' '}
-        {stats.totals.mcp} mcp
+        <Text bold>STATS</Text> {formatCounts(stats.totals)}
       </Text>
       <Text>
         <Text dimColor>by runtime </Text>
@@ -34,25 +35,17 @@ function StatsBand({ stats }: { stats: SummaryStats }) {
         )}
       </Text>
       <Text dimColor>by source {providers}</Text>
-    </Box>
+    </Band>
   );
 }
 
 export function LeaderboardView({ inv, inputActive = true }: { inv: Inventory; inputActive?: boolean }) {
-  const rows = leaderboard(inv);
-  const stats = summaryStats(inv);
+  const { rows, stats } = useMemo(() => leaderboardStats(inv), [inv]);
   const height = Math.max(3, useWindowSize().rows - CHROME);
-  const { selected, start, end, moveUp, moveDown } = useScroll(rows.length, height);
-  const [detail, setDetail] = useState(false);
+  const { detail, selected, start, end, onInput } = useListDetail(rows.length, height);
 
   useInput((input, key) => {
-    if (detail) {
-      if (key.escape || key.leftArrow) setDetail(false);
-      return;
-    }
-    if (key.downArrow || input === 'j') moveDown();
-    if (key.upArrow || input === 'k') moveUp();
-    if (key.return || key.rightArrow) setDetail(true);
+    onInput(input, key);
   }, { isActive: inputActive });
 
   if (detail) {
@@ -76,11 +69,7 @@ export function LeaderboardView({ inv, inputActive = true }: { inv: Inventory; i
       ) : (
         <ItemTable rows={shown} showKind={false} showMarks selectedIndex={selected - start} />
       )}
-      {rows.length > height ? (
-        <Text dimColor>
-          {start + 1}–{end} of {rows.length}
-        </Text>
-      ) : null}
+      <Position start={start} end={end} total={rows.length} height={height} />
       <StatsBand stats={stats} />
       <Text dimColor>↑/↓ scroll · Enter detail · 1/2/3 or Tab switch · q quit</Text>
     </Box>

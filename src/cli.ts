@@ -9,31 +9,16 @@
  *   skillsight --report   -> plain one-shot report (even on a TTY)
  *   skillsight --json     -> machine-readable
  *   skillsight watch      -> alias for the dashboard
+ *
+ * Pure argument parsing (`parseArgs`, `decideMode`) lives in ./cliArgs.ts so
+ * it can be unit-tested without triggering this module's top-level `main()`.
  */
 import { homedir } from 'node:os';
 import { scan } from './index.js';
-import type { Kind } from './types.js';
 import { filterInventory } from './filter.js';
 import { renderJson } from './render/json.js';
 import { renderPlain } from './render/plain.js';
-
-interface Args {
-  watch: boolean;
-  json: boolean;
-  report: boolean;
-  full: boolean;
-  provenance: boolean;
-  global: boolean;
-  noWalk: boolean;
-  help: boolean;
-  dir?: string;
-  runtimes: string[];
-  kinds: Kind[];
-}
-
-export type Mode = 'json' | 'dashboard' | 'report';
-
-const KINDS: Kind[] = ['skill', 'plugin', 'mcp'];
+import { parseArgs, decideMode } from './cliArgs.js';
 
 const HELP = `skillsight — cross-runtime inventory of agent skills, plugins, and MCP servers
 
@@ -57,59 +42,14 @@ Options:
 
 When output is piped or redirected (non-TTY), skillsight prints the plain report.`;
 
-/**
- * Choose the output mode. `--json` always wins; an explicit `watch`/`--report`
- * forces that mode; otherwise the dashboard is the default on a TTY and the
- * plain report is used when output is non-interactive.
- */
-export function decideMode(
-  args: { json: boolean; watch: boolean; report: boolean },
-  isTTY: boolean,
-): Mode {
-  if (args.json) return 'json';
-  if (args.watch) return 'dashboard';
-  if (args.report) return 'report';
-  return isTTY ? 'dashboard' : 'report';
-}
-
-function isFlag(s: string | undefined): boolean {
-  return s !== undefined && s.startsWith('-');
-}
-
-function parseArgs(argv: string[]): Args {
-  const a: Args = {
-    watch: false, json: false, report: false, full: false, provenance: false,
-    global: false, noWalk: false, help: false, runtimes: [], kinds: [],
-  };
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    switch (arg) {
-      case 'watch': a.watch = true; break;
-      case '--json': a.json = true; break;
-      case '--report': a.report = true; break;
-      case '--full': a.full = true; break;
-      case '--provenance': a.provenance = true; break;
-      case '--global': a.global = true; break;
-      case '--no-walk': a.noWalk = true; break;
-      case '--help': case '-h': a.help = true; break;
-      case '--dir': a.dir = argv[++i]; break;
-      case '--runtime':
-        while (i + 1 < argv.length && !isFlag(argv[i + 1])) a.runtimes.push(argv[++i]!);
-        break;
-      case '--kind':
-        while (i + 1 < argv.length && !isFlag(argv[i + 1])) {
-          for (const k of argv[++i]!.split(',')) {
-            if ((KINDS as string[]).includes(k)) a.kinds.push(k as Kind);
-          }
-        }
-        break;
-    }
-  }
-  return a;
-}
-
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+  for (const w of args.issues) process.stderr.write(`warning: ${w}\n`);
+  if (args.errors.length) {
+    for (const e of args.errors) process.stderr.write(`error: ${e}\n`);
+    process.exitCode = 1;
+    return;
+  }
   if (args.help) {
     process.stdout.write(HELP + '\n');
     return;
@@ -137,4 +77,7 @@ async function main(): Promise<void> {
   );
 }
 
-void main();
+main().catch((err: unknown) => {
+  process.stderr.write(`skillsight: ${err instanceof Error ? err.message : String(err)}\n`);
+  process.exitCode = 1;
+});

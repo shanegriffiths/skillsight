@@ -1,18 +1,21 @@
-import { Box, Text } from 'ink';
+import { Text } from 'ink';
 import type { Inventory } from '../../types.js';
 import { Badges } from './Badges.js';
 import { marksFor } from './runtimeMark.js';
-import { theme } from './theme.js';
+import { Band } from './Band.js';
+import { bucketCounts } from '../../resolve.js';
+import { formatCounts } from '../format.js';
 
 export function GlobalBand({ inv }: { inv: Inventory }) {
   const g = inv.global;
   return (
-    <Box borderStyle="round" borderColor={theme.border} paddingX={1} flexDirection="column">
+    <Band>
       <Text>
         <Text bold>GLOBAL</Text> <Text dimColor>inherited everywhere</Text>
       </Text>
       <Text>
-        {g.skills.length} skills · {g.plugins.length} plugins · {g.mcp.length} mcp{'   '}
+        {formatCounts(bucketCounts(g))}
+        {'   '}
         <Text dimColor>runtimes: </Text>
         {inv.runtimesDetected.length ? (
           <Badges marks={marksFor(inv.runtimesDetected)} />
@@ -20,6 +23,6 @@ export function GlobalBand({ inv }: { inv: Inventory }) {
           <Text dimColor>none</Text>
         )}
       </Text>
-    </Box>
+    </Band>
   );
 }

@@ -1,6 +1,7 @@
 import { Box, Text } from 'ink';
 import type { Runtime, Kind } from '../../types.js';
 import { type Chip, isChipSelected } from './filterChips.js';
+import { theme } from './theme.js';
 
 function ChipText({
   chip,
@@ -18,7 +19,7 @@ function ChipText({
   const onCursor = filtering && index === cursor;
   const marker = selected ? '●' : '○';
   return (
-    <Text inverse={onCursor} color={selected ? 'cyan' : undefined} dimColor={!selected && !onCursor}>
+    <Text inverse={onCursor} color={selected ? theme.accent : undefined} dimColor={!selected && !onCursor}>
       {` ${marker}${chip.id}`}
     </Text>
   );

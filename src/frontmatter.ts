@@ -17,10 +17,10 @@ export interface Frontmatter {
 /** Parse the leading `---`-fenced YAML block from a file's contents. */
 export function parseFrontmatter(content: string): Frontmatter {
   if (!content.startsWith('---')) return {};
-  // closing fence: a line that is exactly `---`
-  const end = content.indexOf('\n---', 3);
-  if (end === -1) return {};
-  const raw = content.slice(3, end).replace(/^\r?\n/, '');
+  // Closing fence: a line that is exactly `---` (tolerating \r\n and EOF).
+  const m = /\r?\n---(?:\r?\n|$)/.exec(content.slice(3));
+  if (!m) return {};
+  const raw = content.slice(3, 3 + m.index).replace(/^\r?\n/, '');
   try {
     const data = parse(raw);
     return data && typeof data === 'object' ? (data as Frontmatter) : {};

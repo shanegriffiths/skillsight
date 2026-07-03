@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Box, useApp, useInput } from 'ink';
 import chokidar from 'chokidar';
 import type { Inventory, Runtime, Kind } from '../../types.js';
@@ -8,13 +8,12 @@ import { computeWatchPaths } from './watchpaths.js';
 import { clampIndex } from './scroll.js';
 import { chips as buildChips, toggleChip } from './filterChips.js';
 import { Header } from './Header.js';
-import { TabBar, type TabId } from './TabBar.js';
+import { TabBar } from './TabBar.js';
+import { tabForKey, nextTab, type TabId } from './tabs.js';
 import { FilterBar } from './FilterBar.js';
 import { FoldersView } from './FoldersView.js';
 import { GlobalView } from './GlobalView.js';
 import { LeaderboardView } from './LeaderboardView.js';
-
-const TABS: TabId[] = ['folders', 'global', 'leaderboard'];
 
 export function App({
   homeRoot,
@@ -36,8 +35,11 @@ export function App({
   const [cursor, setCursor] = useState(0);
   const { exit } = useApp();
 
-  const inv = filterInventory(raw, { runtimes: [...runtimes], kinds: [...kinds] });
-  const chipList = buildChips(raw.runtimesDetected);
+  const inv = useMemo(
+    () => filterInventory(raw, { runtimes: [...runtimes], kinds: [...kinds] }),
+    [raw, runtimes, kinds],
+  );
+  const chipList = useMemo(() => buildChips(raw.runtimesDetected), [raw.runtimesDetected]);
   const safeCursor = clampIndex(cursor, chipList.length);
 
   useInput((input, key) => {
@@ -50,11 +52,9 @@ export function App({
       setFiltering(true);
       return;
     }
-    if (input === '1') setTab('folders');
-    if (input === '2') setTab('global');
-    if (input === '3') setTab('leaderboard');
-    if (key.tab && !key.shift) setTab((t) => TABS[(TABS.indexOf(t) + 1) % TABS.length]!);
-    if (key.tab && key.shift) setTab((t) => TABS[(TABS.indexOf(t) + TABS.length - 1) % TABS.length]!);
+    const t = tabForKey(input);
+    if (t) setTab(t);
+    if (key.tab) setTab((cur) => nextTab(cur, key.shift ? -1 : 1));
   });
 
   useInput(
@@ -88,6 +88,9 @@ export function App({
     { isActive: filtering },
   );
 
+  // Watch set is computed once at mount (from the initial scan); folders discovered by
+  // later rescans aren't added until restart — a deliberate trade-off vs. re-creating
+  // the watcher on every rescan.
   useEffect(() => {
     const watcher = chokidar.watch(computeWatchPaths(homeRoot, raw, opts.env ?? process.env), {
       ignoreInitial: true,

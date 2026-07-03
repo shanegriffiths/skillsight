@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { folderNav, initialNav, type NavContext, type NavState } from '../src/render/ink/folderNav.js';
+import { folderNav, initialNav, toAction, type NavContext, type NavKey, type NavState } from '../src/render/ink/folderNav.js';
 import type { ItemRow } from '../src/render/ink/rows.js';
 import type { FolderRow } from '../src/render/ink/tree.js';
 import type { FolderReport } from '../src/types.js';
@@ -183,5 +183,33 @@ describe('folderNav — folders focus, tree navigation', () => {
     const s = folderNav(at(0), 'left', ctx);
     expect(s.folder).toBe(0);
     expect(s.focus).toBe('folders');
+  });
+});
+
+const keyOf = (over: Partial<NavKey> = {}): NavKey => ({
+  upArrow: false, downArrow: false, leftArrow: false, rightArrow: false, return: false, escape: false,
+  ...over,
+});
+
+describe('toAction', () => {
+  it('maps arrows, vim keys, return, and escape', () => {
+    expect(toAction('', keyOf({ downArrow: true }))).toBe('down');
+    expect(toAction('j', keyOf())).toBe('down');
+    expect(toAction('', keyOf({ upArrow: true }))).toBe('up');
+    expect(toAction('k', keyOf())).toBe('up');
+    expect(toAction('', keyOf({ return: true }))).toBe('enter');
+    expect(toAction('', keyOf({ rightArrow: true }))).toBe('right');
+    expect(toAction('', keyOf({ leftArrow: true }))).toBe('left');
+    expect(toAction('', keyOf({ escape: true }))).toBe('escape');
+    expect(toAction('x', keyOf())).toBeNull();
+  });
+});
+
+describe('items focus is defensive against unknown actions', () => {
+  it('clamps and returns state for an unhandled action (no fall-through to the detail switch)', () => {
+    // item: 3 with empty rows — the items switch clamps to 0; the detail switch would return state untouched.
+    const state = { ...initialNav(), focus: 'items' as const, item: 3 };
+    const ctx = { folderRows: [], rows: [] };
+    expect(folderNav(state, 'bogus' as never, ctx)).toEqual({ ...state, item: 0 });
   });
 });

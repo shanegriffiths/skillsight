@@ -18,7 +18,7 @@ import { geminiAdapter } from './adapters/gemini.js';
 import { cursorAdapter } from './adapters/cursor.js';
 import { opencodeAdapter } from './adapters/opencode.js';
 import type { RuntimeAdapter } from './adapters/index.js';
-import { enrichBucket, mergeBuckets, splitByScope, type EnrichContext } from './resolve.js';
+import { enrichBucket, mergeBuckets, sharedStoreBucket, splitByScope, type EnrichContext } from './resolve.js';
 import { discover, groupFor } from './discovery.js';
 import type { Bucket } from './types.js';
 import type { Runtime as RuntimeId } from './types.js';
@@ -66,6 +66,7 @@ export function scan(homeRoot: string = homedir(), opts: ScanOptions = {}): Inve
 
   const global = mergeBuckets(
     ...active.map((a) => tagBucket(enrichBucket(a.collectGlobal(ctx, warnings), a.id, enr), a.id)),
+    sharedStoreBucket(shared.skills, enr),
   );
 
   const dirs = opts.dir ? [opts.dir] : discover(ctx, { walk: opts.walk ?? true });

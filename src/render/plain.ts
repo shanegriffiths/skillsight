@@ -4,9 +4,12 @@
  * `--full` prints each folder's complete effective set; `--provenance` expands
  * provider + `used by` per item.
  */
+import { basename } from 'node:path';
 import pc from 'picocolors';
 import type { Bucket, Inventory, McpRecord, PluginRecord, SkillRecord } from '../types.js';
-import { bucketCounts } from '../resolve.js';
+import { bucketCounts, bucketTotal } from '../resolve.js';
+import { isHiddenFolder } from './hidden.js';
+import { formatCounts } from './format.js';
 
 export interface PlainOptions {
   full?: boolean;
@@ -15,8 +18,7 @@ export interface PlainOptions {
 }
 
 function counts(b: Bucket): string {
-  const c = bucketCounts(b);
-  return `${c.skills} skills · ${c.plugins} plugins · ${c.mcp} mcp`;
+  return formatCounts(bucketCounts(b));
 }
 
 function skillLine(s: SkillRecord, prov: boolean, prefix: string): string {
@@ -34,22 +36,35 @@ function pluginLine(p: PluginRecord, prov: boolean, prefix: string): string {
   return `${prefix}${p.name} ${tag}${off}${extra}`;
 }
 
-function mcpLine(m: McpRecord, prefix: string): string {
+function mcpLine(m: McpRecord, prov: boolean, prefix: string): string {
   const off = m.enabled ? '' : pc.red(' (pending/disabled)');
-  return `${prefix}${m.name} ${pc.dim(`[mcp ${m.transport.kind}]`)}${off}`;
+  const t = m.transport;
+  let extra = '';
+  if (prov) {
+    const bits: string[] = [];
+    if (t.command) bits.push([t.command, ...(t.args ?? [])].join(' '));
+    if (t.url) bits.push(t.url);
+    // PRIVACY: key NAMES only — the records never carry env/header values.
+    if (t.envKeys?.length) bits.push(`env keys: ${t.envKeys.join(', ')}`);
+    if (t.headerKeys?.length) bits.push(`header keys: ${t.headerKeys.join(', ')}`);
+    bits.push(`scope: ${m.scope}`);
+    extra = pc.dim(`\n      ${bits.join(' · ')}`);
+  }
+  return `${prefix}${m.name} ${pc.dim(`[mcp ${t.kind}]`)}${off}${extra}`;
 }
 
 function renderBucket(b: Bucket, opts: PlainOptions, prefix: string): string[] {
   const lines: string[] = [];
   for (const s of b.skills) lines.push(skillLine(s, !!opts.provenance, `${prefix}`));
   for (const p of b.plugins) lines.push(pluginLine(p, !!opts.provenance, `${prefix}`));
-  for (const m of b.mcp) lines.push(mcpLine(m, `${prefix}`));
+  for (const m of b.mcp) lines.push(mcpLine(m, !!opts.provenance, `${prefix}`));
   return lines;
 }
 
 export function renderPlain(inv: Inventory, opts: PlainOptions = {}): string {
   const out: string[] = [];
-  const folderCount = inv.folders.length;
+  const folders = inv.folders.filter((f) => !isHiddenFolder(f.path, inv.homeRoot));
+  const folderCount = folders.length;
   out.push(
     `${pc.bold('skillsight')}  ${pc.dim(inv.homeRoot)}  ·  runtimes: ${
       inv.runtimesDetected.join(', ') || pc.dim('none')
@@ -65,15 +80,13 @@ export function renderPlain(inv: Inventory, opts: PlainOptions = {}): string {
   if (opts.globalOnly) return out.join('\n');
 
   let group = '';
-  for (const f of inv.folders) {
+  for (const f of folders) {
     if (f.group !== group) {
       group = f.group;
       out.push('', pc.bold(group));
     }
-    const delta = bucketCounts(f.projectScoped).skills + bucketCounts(f.local).skills +
-      bucketCounts(f.projectScoped).plugins + bucketCounts(f.projectScoped).mcp +
-      bucketCounts(f.local).mcp;
-    const name = f.path.split('/').pop() || f.path;
+    const delta = bucketTotal(f.projectScoped) + bucketTotal(f.local);
+    const name = basename(f.path) || f.path;
     if (delta === 0 && !opts.full) {
       out.push(`  ${name}  ${pc.dim('global only')}`);
       continue;

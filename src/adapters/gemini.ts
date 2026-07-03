@@ -62,6 +62,8 @@ export const geminiAdapter: RuntimeAdapter = {
     );
     bucket.mcp.push(...collectExtensionMcp(home));
 
+    // Gemini's `/skills disable <name>` stores skill NAMES (frontmatter-derived),
+    // so matching `s.name` is correct here — unlike Codex, which stores paths.
     const disabled = new Set(settings?.skills?.disabled ?? []);
     for (const s of scanSkillsDir(join(home, 'skills'), ctx, 'global')) {
       if (disabled.has(s.name)) s.enabled = false;

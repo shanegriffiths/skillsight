@@ -9,7 +9,9 @@
  */
 import { relative, sep } from 'node:path';
 import type { FolderReport, Runtime } from '../../types.js';
-import { bucketCounts } from '../../resolve.js';
+import { bucketTotal } from '../../resolve.js';
+import { isHiddenPath } from '../hidden.js';
+export { isHiddenPath };
 
 export type SortMode = 'items' | 'name';
 
@@ -30,16 +32,9 @@ export interface FolderRow {
   folder: FolderReport | null;
 }
 
-/** A folder is hidden if any segment of its home-relative path starts with '.'. */
-export function isHiddenPath(relPath: string): boolean {
-  return relPath.split('/').some((seg) => seg.startsWith('.'));
-}
-
 /** project-scoped ∪ local item count — what a folder adds beyond the global layer. */
 function ownDelta(f: FolderReport): number {
-  const ps = bucketCounts(f.projectScoped);
-  const lo = bucketCounts(f.local);
-  return ps.skills + ps.plugins + ps.mcp + lo.skills + lo.plugins + lo.mcp;
+  return bucketTotal(f.projectScoped) + bucketTotal(f.local);
 }
 
 interface TreeNode {

@@ -115,6 +115,19 @@ describe('claude-code adapter: collectGlobal', () => {
     expect(byName.localskill!.provider.kind).toBe('user');
   });
 
+  it('plugin-bundled skills read SKILL.md frontmatter (name + description)', () => {
+    const { home: h } = buildHome();
+    home = h;
+    writeSkillDir(join(cacheDir(h, 'alpha'), 'skills'), 'fancy', {
+      name: 'fancy-pants',
+      description: 'Does fancy things',
+    });
+    const g = claudeCodeAdapter.collectGlobal(ctxOf(h), []);
+    const s = g.skills.find((x) => x.bundledInPlugin === 'alpha@official' && x.name === 'fancy-pants');
+    expect(s).toBeDefined();
+    expect(s!.description).toBe('Does fancy things');
+  });
+
   it('reads user-scope MCP servers (normalized)', () => {
     const { home: h } = buildHome();
     home = h;
@@ -142,5 +155,79 @@ describe('claude-code adapter: collectForDirectory', () => {
     expect(mcp.pendingSrv!.enabled).toBe(false); // not approved
     expect(mcp.localSrv!.scope).toBe('local');
     expect(mcp.localSrv!.enabled).toBe(true);
+  });
+
+  it('honors enableAllProjectMcpServers from settings.local.json', () => {
+    const { home: h, proj } = buildHome();
+    home = h;
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.local.json'),
+      JSON.stringify({ enableAllProjectMcpServers: true }),
+    );
+    const d = claudeCodeAdapter.collectForDirectory(proj, ctxOf(h), []);
+    const mcp = Object.fromEntries(d.mcp.map((m) => [m.name, m]));
+    expect(mcp.pendingSrv!.enabled).toBe(true); // was false: flag only read from settings.json
+  });
+});
+
+describe('claude-code adapter: coverage extras', () => {
+  it('plugin with no settings entry and no defaultEnabled is enabled by default', () => {
+    const { home: h } = buildHome();
+    home = h;
+    // delta: registry entry + minimal manifest (no defaultEnabled), no settings entry
+    writeFileEnsured(
+      join(h, '.claude', 'plugins', 'installed_plugins.json'),
+      JSON.stringify({
+        version: 2,
+        plugins: { 'delta@official': [{ scope: 'user', installPath: cacheDir(h, 'delta'), version: '1.0.0' }] },
+      }),
+    );
+    writeFileEnsured(join(cacheDir(h, 'delta'), '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'delta' }));
+    const g = claudeCodeAdapter.collectGlobal(ctxOf(h), []);
+    expect(g.plugins.find((p) => p.id === 'delta@official')!.enabled).toBe(true);
+  });
+
+  it('gemini-extension.json marks gemini-cli support', () => {
+    const { home: h } = buildHome();
+    home = h;
+    writeFileEnsured(join(cacheDir(h, 'alpha'), 'gemini-extension.json'), JSON.stringify({ name: 'alpha' }));
+    const g = claudeCodeAdapter.collectGlobal(ctxOf(h), []);
+    expect(g.plugins.find((p) => p.id === 'alpha@official')!.supportsRuntimes).toContain('gemini-cli');
+  });
+
+  it('merges manifest mcpServers with the .mcp.json sidecar', () => {
+    const { home: h } = buildHome();
+    home = h;
+    writeFileEnsured(
+      join(cacheDir(h, 'alpha'), '.claude-plugin', 'plugin.json'),
+      JSON.stringify({ name: 'alpha', mcpServers: { fromManifest: {} } }),
+    );
+    const g = claudeCodeAdapter.collectGlobal(ctxOf(h), []);
+    const provides = g.plugins.find((p) => p.id === 'alpha@official')!.provides.mcpServers;
+    expect(provides).toContain('fromManifest');
+    expect(provides).toContain('srv'); // sidecar (from buildHome)
+  });
+});
+
+describe('claude-code adapter: global-file reads', () => {
+  it('warns once on a malformed plugin registry, not once per directory', () => {
+    home = makeTempHome();
+    writeFileEnsured(join(home, '.claude', 'plugins', 'installed_plugins.json'), '{nope');
+    const warnings: Warning[] = [];
+    const ctx = ctxOf(home);
+    claudeCodeAdapter.collectGlobal(ctx, warnings);
+    claudeCodeAdapter.collectForDirectory(join(home, 'p1'), ctx, warnings);
+    claudeCodeAdapter.collectForDirectory(join(home, 'p2'), ctx, warnings);
+    expect(warnings.filter((w) => w.path.includes('installed_plugins')).length).toBe(1);
+  });
+
+  it('delivers global-file warnings even when a directory pass runs first', () => {
+    home = makeTempHome();
+    writeFileEnsured(join(home, '.claude', 'plugins', 'installed_plugins.json'), '{nope');
+    const warnings: Warning[] = [];
+    const ctx = ctxOf(home);
+    claudeCodeAdapter.collectForDirectory(join(home, 'p1'), ctx, warnings); // caches with no sink
+    claudeCodeAdapter.collectGlobal(ctx, warnings); // must still receive the warning
+    expect(warnings.filter((w) => w.path.includes('installed_plugins')).length).toBe(1);
   });
 });

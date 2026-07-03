@@ -56,6 +56,18 @@ describe('codex adapter', () => {
     expect(skills.imagegen!.provider.kind).toBe('runtime-builtin');
     expect(skills['migrate-to-codex']!.enabled).toBe(false); // disabled via skills.config
   });
+
+  it('disables by directory name even when frontmatter name differs', () => {
+    home = makeTempHome();
+    writeFileEnsured(
+      join(home, '.codex', 'config.toml'),
+      ['[[skills.config]]', 'path = "/somewhere/skills/dir-name"', 'enabled = false', ''].join('\n'),
+    );
+    writeSkillDir(join(home, '.codex', 'skills'), 'dir-name', { name: 'pretty-name' });
+    const g = codexAdapter.collectGlobal(ctxOf(home), []);
+    const s = g.skills.find((x) => x.name === 'pretty-name')!;
+    expect(s.enabled).toBe(false); // was true: disable set holds dir basenames, match used frontmatter name
+  });
 });
 
 describe('hermes adapter', () => {

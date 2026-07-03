@@ -68,4 +68,33 @@ describe('scan() engine integration', () => {
     expect(inv.warnings).toEqual([]);
     expect(typeof inv.generatedAt).toBe('string');
   });
+
+  it('surfaces hub-direct-only skills (no symlinks) with usedBy from lock universal agents', () => {
+    home = makeTempHome();
+    writeSkillDir(join(home, '.agents', 'skills'), 'hubonly', { description: 'Hub only' });
+    writeFileEnsured(
+      join(home, '.agents', '.skill-lock.json'),
+      JSON.stringify({
+        version: 3,
+        skills: { hubonly: { source: 'o/r', sourceUrl: 'https://github.com/o/r', skillFolderHash: 'hh' } },
+        lastSelectedAgents: ['warp', 'zed'],
+      }),
+    );
+    const inv = scan(home, { walk: false, env: {} });
+    const s = inv.global.skills.find((x) => x.name === 'hubonly');
+    expect(s).toBeDefined();
+    expect(s!.provider.kind).toBe('shared-store');
+    expect(s!.contentId).toBe('hh');
+    expect(s!.description).toBe('Hub only');
+    expect(s!.usedBy).toEqual(['warp', 'zed']);
+  });
+
+  it('hub skill with no symlinks and no universal agents reports usedBy [] (no owner fallback)', () => {
+    home = makeTempHome();
+    writeSkillDir(join(home, '.agents', 'skills'), 'idle');
+    const inv = scan(home, { walk: false, env: {} });
+    const s = inv.global.skills.find((x) => x.name === 'idle');
+    expect(s).toBeDefined();
+    expect(s!.usedBy).toEqual([]);
+  });
 });

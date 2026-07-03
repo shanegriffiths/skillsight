@@ -14,7 +14,7 @@ import { emptyBucket } from '../types.js';
 import { runtimeById, runtimeHome, type HomeCtx } from '../runtimes.js';
 import { exists, readText, readDirEntries } from '../fsread.js';
 import { realpathSafe } from '../symlinks.js';
-import { scanSkillsDir, providerForRealpath } from '../skillscan.js';
+import { scanSkillsDir } from '../skillscan.js';
 import { readFrontmatterFile } from '../frontmatter.js';
 import { normalizeCodexTransport, buildMcpRecords } from '../mcp.js';
 import type { RuntimeAdapter } from './index.js';
@@ -42,7 +42,7 @@ function parseConfig(path: string, warnings: Warning[]): CodexConfig | undefined
   }
 }
 
-/** Skill names explicitly disabled via `[[skills.config]]` (matched by basename). */
+/** Skill directory names explicitly disabled via `[[skills.config]]` (matched by path basename). */
 function disabledSkillNames(config: CodexConfig | undefined): Set<string> {
   const out = new Set<string>();
   for (const entry of config?.skills?.config ?? []) {
@@ -51,7 +51,10 @@ function disabledSkillNames(config: CodexConfig | undefined): Set<string> {
   return out;
 }
 
-function scanSystemSkills(systemDir: string, ctx: HomeCtx): SkillRecord[] {
+function scanSystemSkills(
+  systemDir: string,
+  enabledFor: (dirName: string) => boolean,
+): SkillRecord[] {
   const out: SkillRecord[] = [];
   for (const e of readDirEntries(systemDir)) {
     if (e.name.startsWith('.') || (!e.isDir && !e.isSymlink)) continue;
@@ -63,7 +66,7 @@ function scanSystemSkills(systemDir: string, ctx: HomeCtx): SkillRecord[] {
       contentId: real,
       provider: { kind: 'runtime-builtin', path: real },
       usedBy: [],
-      enabled: true,
+      enabled: enabledFor(e.name),
       scope: 'global',
     });
   }
@@ -107,21 +110,21 @@ export const codexAdapter: RuntimeAdapter = {
       bucket.plugins.push(plugin);
     }
 
-    // skills: user dir (symlinks -> hub) + bundled .system
+    // skills: user dir (symlinks -> hub) + bundled .system.
+    // `[[skills.config]]` stores PATHS; disablement matches the directory name.
     const disabled = disabledSkillNames(config);
-    const userSkills = scanSkillsDir(join(home, 'skills'), ctx, 'global');
-    const systemSkills = scanSystemSkills(join(home, 'skills', '.system'), ctx);
-    for (const s of [...userSkills, ...systemSkills]) {
-      if (disabled.has(s.name)) s.enabled = false;
-      bucket.skills.push(s);
-    }
+    const enabledFor = (dirName: string) => !disabled.has(dirName);
+    bucket.skills.push(
+      ...scanSkillsDir(join(home, 'skills'), ctx, 'global', enabledFor),
+      ...scanSystemSkills(join(home, 'skills', '.system'), enabledFor),
+    );
 
     return bucket;
   },
 
   collectForDirectory(dir, ctx) {
     const bucket: Bucket = emptyBucket();
-    // project skills live in `.agents/skills` (shared hub) and `.codex/skills`
+    // project skills live in .codex/skills; the shared .agents/skills project hub is not scanned yet (ROADMAP "Beyond v0.2")
     bucket.skills.push(...scanSkillsDir(join(dir, '.codex', 'skills'), ctx, 'project-scoped'));
     return bucket;
   },
