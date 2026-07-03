@@ -14,7 +14,7 @@ import { emptyBucket } from '../types.js';
 import { runtimeById, runtimeHome, type HomeCtx } from '../runtimes.js';
 import { exists, readText, readDirEntries } from '../fsread.js';
 import { realpathSafe } from '../symlinks.js';
-import { scanSkillsDir, providerForRealpath } from '../skillscan.js';
+import { scanSkillsDir } from '../skillscan.js';
 import { readFrontmatterFile } from '../frontmatter.js';
 import { normalizeCodexTransport, buildMcpRecords } from '../mcp.js';
 import type { RuntimeAdapter } from './index.js';
@@ -42,7 +42,7 @@ function parseConfig(path: string, warnings: Warning[]): CodexConfig | undefined
   }
 }
 
-/** Skill names explicitly disabled via `[[skills.config]]` (matched by basename). */
+/** Skill directory names explicitly disabled via `[[skills.config]]` (matched by path basename). */
 function disabledSkillNames(config: CodexConfig | undefined): Set<string> {
   const out = new Set<string>();
   for (const entry of config?.skills?.config ?? []) {
@@ -125,7 +125,7 @@ export const codexAdapter: RuntimeAdapter = {
 
   collectForDirectory(dir, ctx) {
     const bucket: Bucket = emptyBucket();
-    // project skills live in `.agents/skills` (shared hub) and `.codex/skills`
+    // project skills live in .codex/skills; the shared .agents/skills project hub is not scanned yet (ROADMAP "Beyond v0.2")
     bucket.skills.push(...scanSkillsDir(join(dir, '.codex', 'skills'), ctx, 'project-scoped'));
     return bucket;
   },

@@ -88,6 +88,9 @@ export function App({
     { isActive: filtering },
   );
 
+  // Watch set is computed once at mount (from the initial scan); folders discovered by
+  // later rescans aren't added until restart — a deliberate trade-off vs. re-creating
+  // the watcher on every rescan.
   useEffect(() => {
     const watcher = chokidar.watch(computeWatchPaths(homeRoot, raw, opts.env ?? process.env), {
       ignoreInitial: true,

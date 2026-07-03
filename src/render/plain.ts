@@ -4,6 +4,7 @@
  * `--full` prints each folder's complete effective set; `--provenance` expands
  * provider + `used by` per item.
  */
+import { basename } from 'node:path';
 import pc from 'picocolors';
 import type { Bucket, Inventory, McpRecord, PluginRecord, SkillRecord } from '../types.js';
 import { bucketCounts, bucketTotal } from '../resolve.js';
@@ -85,7 +86,7 @@ export function renderPlain(inv: Inventory, opts: PlainOptions = {}): string {
       out.push('', pc.bold(group));
     }
     const delta = bucketTotal(f.projectScoped) + bucketTotal(f.local);
-    const name = f.path.split('/').pop() || f.path;
+    const name = basename(f.path) || f.path;
     if (delta === 0 && !opts.full) {
       out.push(`  ${name}  ${pc.dim('global only')}`);
       continue;

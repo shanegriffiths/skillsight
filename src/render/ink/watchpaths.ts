@@ -2,6 +2,9 @@
  * Pure helper: the set of config files whose changes should trigger a re-scan
  * in `skillsight watch`. Returns only paths that currently exist (chokidar
  * watches concrete files).
+ *
+ * hermes-agent has no single canonical config file to watch (skills are a
+ * directory tree), so it is deliberately absent here.
  */
 import { join } from 'node:path';
 import type { Inventory } from '../../types.js';

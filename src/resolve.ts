@@ -97,7 +97,7 @@ function mergeSkill(into: Map<string, SkillRecord>, s: SkillRecord): void {
   into.set(s.contentId, base);
 }
 
-/** Merge buckets, deduping skills by contentId, plugins by id, mcp by name+scope. */
+/** Merge buckets, deduping skills by contentId, plugins by id, mcp by name+scope+provider path. */
 export function mergeBuckets(...buckets: Bucket[]): Bucket {
   const skills = new Map<string, SkillRecord>();
   const plugins = new Map<string, PluginRecord>();

@@ -1,13 +1,13 @@
 import { Box, Text } from 'ink';
 import type { ItemRow } from './rows.js';
 import { Badges } from './Badges.js';
-import { marksFor } from './runtimeMark.js';
+import { marksFor, MARK_COUNT } from './runtimeMark.js';
 import { theme } from './theme.js';
 
 const CURSOR_W = 2;
 const KIND_W = 6;
 const USED_W = 4;
-const USES_W = 6; // max 6 badges, one cell each
+const USES_W = MARK_COUNT; // one cell per detected-runtime badge
 const SOURCE_W = 22;
 
 function HeaderRow({

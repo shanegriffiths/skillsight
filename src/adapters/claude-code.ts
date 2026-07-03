@@ -8,10 +8,10 @@
  * config — they only inform a plugin's `supportsRuntimes`.
  */
 import { join, basename } from 'node:path';
-import type { Bucket, McpRecord, PluginRecord, Runtime, SkillRecord, Warning } from '../types.js';
+import type { Bucket, PluginRecord, Runtime, SkillRecord, Warning } from '../types.js';
 import { emptyBucket } from '../types.js';
 import { runtimeById, runtimeHome, type HomeCtx } from '../runtimes.js';
-import { readJson, readDirEntries, exists, isDir } from '../fsread.js';
+import { readJson, readDirEntries, exists } from '../fsread.js';
 import { realpathSafe } from '../symlinks.js';
 import { scanSkillsDir } from '../skillscan.js';
 import { readFrontmatterFile } from '../frontmatter.js';
