@@ -1,0 +1,99 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderPlain characterization > --full 1`] = `
+"skillsight  /home/u  ·  runtimes: claude-code, codex  ·  3 folders
+⚠ 1 unreadable source
+
+GLOBAL  inherited everywhere  (2 skills · 1 plugins · 2 mcp)
+  - alpha-skill [shared-store owner/alpha]
+  - beta-skill [user] (disabled)
+  - super [official@1.2.3]
+  - stdio-srv [mcp stdio]
+  - http-srv [mcp http] (pending/disabled)
+
+.config
+  tool
+    · alpha-skill [shared-store owner/alpha]
+    · beta-skill [user] (disabled)
+    · dot-skill [project-local]
+    · super [official@1.2.3]
+    · stdio-srv [mcp stdio]
+    · http-srv [mcp http] (pending/disabled)
+
+Developer/Projects
+  full
+    · alpha-skill [shared-store owner/alpha]
+    · beta-skill [user] (disabled)
+    · proj-skill [project-local]
+    · super [official@1.2.3]
+    · stdio-srv [mcp stdio]
+    · http-srv [mcp http] (pending/disabled)
+    · local-srv [mcp stdio]
+  quiet
+    · alpha-skill [shared-store owner/alpha]
+    · beta-skill [user] (disabled)
+    · super [official@1.2.3]
+    · stdio-srv [mcp stdio]
+    · http-srv [mcp http] (pending/disabled)"
+`;
+
+exports[`renderPlain characterization > --global 1`] = `
+"skillsight  /home/u  ·  runtimes: claude-code, codex  ·  3 folders
+⚠ 1 unreadable source
+
+GLOBAL  inherited everywhere  (2 skills · 1 plugins · 2 mcp)
+  - alpha-skill [shared-store owner/alpha]
+  - beta-skill [user] (disabled)
+  - super [official@1.2.3]
+  - stdio-srv [mcp stdio]
+  - http-srv [mcp http] (pending/disabled)"
+`;
+
+exports[`renderPlain characterization > --provenance 1`] = `
+"skillsight  /home/u  ·  runtimes: claude-code, codex  ·  3 folders
+⚠ 1 unreadable source
+
+GLOBAL  inherited everywhere  (2 skills · 1 plugins · 2 mcp)
+  - alpha-skill [shared-store owner/alpha]
+      used by: claude-code, codex, warp
+  - beta-skill [user] (disabled)
+      used by: claude-code
+  - super [official@1.2.3]
+      supports: claude-code, codex
+  - stdio-srv [mcp stdio]
+  - http-srv [mcp http] (pending/disabled)
+
+.config
+  tool
+    + dot-skill [project-local]
+      used by: claude-code
+
+Developer/Projects
+  full
+    + proj-skill [project-local]
+      used by: claude-code
+    + local-srv [mcp stdio]
+  quiet  global only"
+`;
+
+exports[`renderPlain characterization > default report 1`] = `
+"skillsight  /home/u  ·  runtimes: claude-code, codex  ·  3 folders
+⚠ 1 unreadable source
+
+GLOBAL  inherited everywhere  (2 skills · 1 plugins · 2 mcp)
+  - alpha-skill [shared-store owner/alpha]
+  - beta-skill [user] (disabled)
+  - super [official@1.2.3]
+  - stdio-srv [mcp stdio]
+  - http-srv [mcp http] (pending/disabled)
+
+.config
+  tool
+    + dot-skill [project-local]
+
+Developer/Projects
+  full
+    + proj-skill [project-local]
+    + local-srv [mcp stdio]
+  quiet  global only"
+`;
