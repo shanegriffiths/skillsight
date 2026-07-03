@@ -16,8 +16,9 @@ import type { Kind } from './types.js';
 import { filterInventory } from './filter.js';
 import { renderJson } from './render/json.js';
 import { renderPlain } from './render/plain.js';
+import { runtimeById } from './runtimes.js';
 
-interface Args {
+export interface Args {
   watch: boolean;
   json: boolean;
   report: boolean;
@@ -29,11 +30,16 @@ interface Args {
   dir?: string;
   runtimes: string[];
   kinds: Kind[];
+  /** Non-fatal parse problems, printed as `warning:` on stderr. */
+  issues: string[];
+  /** Fatal parse problems, printed as `error:` on stderr; exit 1. */
+  errors: string[];
 }
 
 export type Mode = 'json' | 'dashboard' | 'report';
 
 const KINDS: Kind[] = ['skill', 'plugin', 'mcp'];
+const KIND_SET = new Set<string>(KINDS);
 
 const HELP = `skillsight — cross-runtime inventory of agent skills, plugins, and MCP servers
 
@@ -76,13 +82,14 @@ function isFlag(s: string | undefined): boolean {
   return s !== undefined && s.startsWith('-');
 }
 
-function parseArgs(argv: string[]): Args {
+export function parseArgs(argv: string[]): Args {
   const a: Args = {
     watch: false, json: false, report: false, full: false, provenance: false,
     global: false, noWalk: false, help: false, runtimes: [], kinds: [],
+    issues: [], errors: [],
   };
   for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
+    const arg = argv[i]!;
     switch (arg) {
       case 'watch': a.watch = true; break;
       case '--json': a.json = true; break;
@@ -92,17 +99,27 @@ function parseArgs(argv: string[]): Args {
       case '--global': a.global = true; break;
       case '--no-walk': a.noWalk = true; break;
       case '--help': case '-h': a.help = true; break;
-      case '--dir': a.dir = argv[++i]; break;
+      case '--dir':
+        if (i + 1 < argv.length && !isFlag(argv[i + 1])) a.dir = argv[++i];
+        else a.errors.push('--dir requires a path');
+        break;
       case '--runtime':
-        while (i + 1 < argv.length && !isFlag(argv[i + 1])) a.runtimes.push(argv[++i]!);
+        while (i + 1 < argv.length && !isFlag(argv[i + 1])) {
+          const id = argv[++i]!;
+          a.runtimes.push(id);
+          if (!runtimeById(id)) a.issues.push(`unknown runtime: ${id}`);
+        }
         break;
       case '--kind':
         while (i + 1 < argv.length && !isFlag(argv[i + 1])) {
           for (const k of argv[++i]!.split(',')) {
-            if ((KINDS as string[]).includes(k)) a.kinds.push(k as Kind);
+            if (KIND_SET.has(k)) a.kinds.push(k as Kind);
+            else a.issues.push(`unknown kind: ${k} (expected skill|plugin|mcp)`);
           }
         }
         break;
+      default:
+        a.issues.push(`unknown option: ${arg}`);
     }
   }
   return a;
@@ -110,6 +127,12 @@ function parseArgs(argv: string[]): Args {
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+  for (const w of args.issues) process.stderr.write(`warning: ${w}\n`);
+  if (args.errors.length) {
+    for (const e of args.errors) process.stderr.write(`error: ${e}\n`);
+    process.exitCode = 1;
+    return;
+  }
   if (args.help) {
     process.stdout.write(HELP + '\n');
     return;
@@ -137,4 +160,7 @@ async function main(): Promise<void> {
   );
 }
 
-void main();
+main().catch((err: unknown) => {
+  process.stderr.write(`skillsight: ${err instanceof Error ? err.message : String(err)}\n`);
+  process.exitCode = 1;
+});
