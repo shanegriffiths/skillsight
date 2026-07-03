@@ -1,10 +1,9 @@
-import { useState } from 'react';
 import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { ItemTable } from './ItemTable.js';
 import { DetailView } from './DetailView.js';
 import { leaderboard, summaryStats, type SummaryStats } from './stats.js';
-import { useScroll } from './scroll.js';
+import { useListDetail } from './listDetail.js';
 import { Badges } from './Badges.js';
 import { marksFor } from './runtimeMark.js';
 import { theme } from './theme.js';
@@ -42,17 +41,10 @@ export function LeaderboardView({ inv, inputActive = true }: { inv: Inventory; i
   const rows = leaderboard(inv);
   const stats = summaryStats(inv);
   const height = Math.max(3, useWindowSize().rows - CHROME);
-  const { selected, start, end, moveUp, moveDown } = useScroll(rows.length, height);
-  const [detail, setDetail] = useState(false);
+  const { detail, selected, start, end, onInput } = useListDetail(rows.length, height);
 
   useInput((input, key) => {
-    if (detail) {
-      if (key.escape || key.leftArrow) setDetail(false);
-      return;
-    }
-    if (key.downArrow || input === 'j') moveDown();
-    if (key.upArrow || input === 'k') moveUp();
-    if (key.return || key.rightArrow) setDetail(true);
+    onInput(input, key);
   }, { isActive: inputActive });
 
   if (detail) {
