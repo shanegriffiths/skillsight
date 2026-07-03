@@ -55,6 +55,34 @@ export function enrichBucket(bucket: Bucket, owner: Runtime, enr: EnrichContext)
   return bucket;
 }
 
+/**
+ * Every hub skill as a `shared-store` SkillRecord — including hub-direct-only
+ * skills that no runtime symlinks (e.g. installed for warp/zed/cline only).
+ * No owner fallback: an unused hub skill honestly reports `usedBy: []`.
+ */
+export function sharedStoreBucket(shared: SharedSkill[], enr: EnrichContext): Bucket {
+  const skills: SkillRecord[] = shared.map((info) => {
+    const used = new Set<Runtime>(lookupUsedBy(enr.reverseIndex, info.realPath));
+    for (const u of universalUsedBy(enr.lastSelectedAgents)) used.add(u);
+    return {
+      name: info.name,
+      description: info.description,
+      contentId: info.contentId,
+      provider: {
+        kind: 'shared-store',
+        path: info.realPath,
+        source: info.source,
+        sourceUrl: info.sourceUrl,
+        skillFolderHash: info.skillFolderHash,
+      },
+      usedBy: [...used].sort(),
+      enabled: true,
+      scope: 'global',
+    };
+  });
+  return { ...emptyBucket(), skills };
+}
+
 function mergeSkill(into: Map<string, SkillRecord>, s: SkillRecord): void {
   const existing = into.get(s.contentId);
   if (!existing) {
