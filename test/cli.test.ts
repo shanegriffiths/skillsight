@@ -30,4 +30,8 @@ describe('decideMode — dashboard is the default', () => {
   it('--report forces the plain report even on a TTY', () => {
     expect(decideMode(flags({ report: true }), true)).toBe('report');
   });
+
+  it('watch wins over --report when both are given', () => {
+    expect(decideMode(flags({ watch: true, report: true }), false)).toBe('dashboard');
+  });
 });

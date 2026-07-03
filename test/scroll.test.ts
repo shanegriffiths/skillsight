@@ -37,4 +37,7 @@ describe('scrollWindow', () => {
       expect(sel).toBeLessThan(end);
     }
   });
+  it('height === length shows everything (boundary of the short-circuit)', () => {
+    expect(scrollWindow(5, 5, 3)).toEqual({ start: 0, end: 5 });
+  });
 });

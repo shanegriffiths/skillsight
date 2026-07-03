@@ -161,6 +161,17 @@ describe('buildFolderRows — collapse & edges', () => {
     expect(buildFolderRows([], '/home', opts())).toEqual([]);
     expect(buildFolderRows([folder('/home/.x', 1)], '/home', opts({ showHidden: false }))).toEqual([]);
   });
+
+  it('renders folders outside homeRoot flat by full path', () => {
+    const rows = buildFolderRows(
+      [folder('/srv/elsewhere/app')],
+      '/home/u',
+      { sort: 'items', showHidden: false, collapsed: new Set() },
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.label).toBe('/srv/elsewhere/app');
+    expect(rows[0]!.depth).toBe(0);
+  });
 });
 
 describe('buildFolderRows — runtime aggregation', () => {
