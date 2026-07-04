@@ -40,13 +40,17 @@ of the merge, not a new source of truth.
      disablement): `'disabled'`.
    - Plugin / MCP with `enabled: false`: `'disabled'` (covers unapproved
      `.mcp.json` servers).
-   - Everything plainly available: field absent → blank cell, so
-     exceptions pop.
+   - Everything plainly available: field absent.
 2. **`ItemTable` renders a STATE column** between USES and SOURCE, header
    `STATE`, width 11 (`invoke-only` is the longest label). Colors:
    `off` / `disabled` red; `invoke-only` / `name-only` dim. Shown whenever
    the table is not `dense` — which is exactly GlobalView + LeaderboardView
    with no new prop; the cramped Folders column keeps its current shape.
+   **Revised 2026-07-04 (same day, on live data):** an absent `state` no
+   longer renders blank — the cell shows an explicit dim-green `enabled`
+   (render-side fallback only; the `ItemRow` contract is unchanged, and
+   synthetic group-header rows stay blank). Blank-so-exceptions-pop read as
+   ambiguous once most plugin rows carried red `disabled`.
 3. **Parked-row name dimming stays** (unchanged; the column explains it).
 
 ## Out of scope
