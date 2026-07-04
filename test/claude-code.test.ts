@@ -230,6 +230,17 @@ describe('claude-code adapter: global-file reads', () => {
     claudeCodeAdapter.collectGlobal(ctx, warnings); // must still receive the warning
     expect(warnings.filter((w) => w.path.includes('installed_plugins')).length).toBe(1);
   });
+
+  it('warns once on a malformed user settings.json (single read via globalConfig)', () => {
+    home = makeTempHome();
+    writeFileEnsured(join(home, '.claude', 'settings.json'), '{nope');
+    const warnings: Warning[] = [];
+    const ctx = ctxOf(home);
+    claudeCodeAdapter.collectForDirectory(join(home, 'p1'), ctx, warnings); // caches with no sink
+    claudeCodeAdapter.collectGlobal(ctx, warnings); // reads it for enabledPlugins too
+    claudeCodeAdapter.collectForDirectory(join(home, 'p2'), ctx, warnings);
+    expect(warnings.filter((w) => w.path === join(home, '.claude', 'settings.json'))).toHaveLength(1);
+  });
 });
 
 describe('claude-code adapter: skill visibility (user layer)', () => {
