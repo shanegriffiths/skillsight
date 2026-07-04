@@ -7,4 +7,5 @@ export const theme = {
   good: 'green', // live
   warn: 'yellow', // rescanning / warnings
   border: 'gray', // band borders
+  bad: 'red', // off / disabled states
 } as const;
