@@ -96,7 +96,7 @@ function Row({
         </Box>
       ) : null}
       <Box flexGrow={1} marginRight={1}>
-        <Text wrap="truncate-end" inverse={active} bold={active || isGroup}>
+        <Text wrap="truncate-end" inverse={active} bold={active || isGroup} dimColor={!!row.parked && !active}>
           {label}
         </Text>
       </Box>

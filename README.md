@@ -82,7 +82,7 @@ Origin repo (`source`), clone URL, and git tree hash come from `~/.agents/.skill
     }
   ]
 }
-// SkillRecord: { name, description?, contentId, provider, usedBy[], bundledInPlugin?, enabled, scope }
+// SkillRecord: { name, description?, contentId, provider, usedBy[], bundledInPlugin?, supportsRuntimes?, enabled, scope, visibility?, visibilitySource? }
 // McpRecord:   { name, transport: { kind, command?, args?, envKeys?, url?, headerKeys?, timeoutMs? }, provider, scope, enabled, runtime? }
 ```
 

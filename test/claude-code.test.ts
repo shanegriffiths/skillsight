@@ -231,3 +231,118 @@ describe('claude-code adapter: global-file reads', () => {
     expect(warnings.filter((w) => w.path.includes('installed_plugins')).length).toBe(1);
   });
 });
+
+describe('claude-code adapter: skill visibility (user layer)', () => {
+  it('applies user-layer skillOverrides to standalone skills by DIR name', () => {
+    const { home: h } = buildHome();
+    home = h;
+    writeSkillDir(join(h, '.claude', 'skills'), 'dir-x', { name: 'fm-y' });
+    writeFileEnsured(
+      join(h, '.claude', 'settings.json'),
+      JSON.stringify({
+        enabledPlugins: { 'alpha@official': true, 'beta@official': false },
+        skillOverrides: {
+          localskill: 'user-invocable-only',
+          hubskill: 'off',
+          'dir-x': 'off', // dir name — applies
+          'fm-y': 'name-only', // frontmatter name — must NOT apply
+          ghost: 'off', // nonexistent skill — silently ignored
+        },
+      }),
+    );
+    const g = claudeCodeAdapter.collectGlobal(ctxOf(h), []);
+    const byName = Object.fromEntries(g.skills.map((s) => [s.name, s]));
+
+    expect(byName.localskill!.visibility).toBe('user-invocable-only');
+    expect(byName.localskill!.visibilitySource).toBe('user');
+    expect(byName.localskill!.enabled).toBe(true); // parked, still available
+
+    expect(byName.hubskill!.visibility).toBe('off');
+    expect(byName.hubskill!.enabled).toBe(false); // off at user layer -> disabled in global bucket
+
+    expect(byName['fm-y']!.visibility).toBe('off'); // matched via dir-x, not fm-y
+    expect(byName.ghost).toBeUndefined(); // no phantom record
+  });
+
+  it('never applies overrides to plugin-bundled skills', () => {
+    const { home: h } = buildHome();
+    home = h;
+    writeFileEnsured(
+      join(h, '.claude', 'settings.json'),
+      JSON.stringify({
+        enabledPlugins: { 'alpha@official': true },
+        skillOverrides: { foo: 'off' }, // alpha's bundled skill dir name
+      }),
+    );
+    const g = claudeCodeAdapter.collectGlobal(ctxOf(h), []);
+    const foo = g.skills.find((s) => s.bundledInPlugin === 'alpha@official' && s.name === 'foo')!;
+    expect(foo.visibility).toBeUndefined();
+    expect(foo.enabled).toBe(true); // still follows plugin enablement
+  });
+
+  it('warns once per scan on an invalid state value and treats it as on', () => {
+    const { home: h } = buildHome();
+    home = h;
+    writeFileEnsured(
+      join(h, '.claude', 'settings.json'),
+      JSON.stringify({ enabledPlugins: {}, skillOverrides: { localskill: 'sometimes' } }),
+    );
+    const warnings: Warning[] = [];
+    const ctx = ctxOf(h);
+    const g = claudeCodeAdapter.collectGlobal(ctx, warnings);
+    claudeCodeAdapter.collectForDirectory(join(h, 'p1'), ctx, warnings);
+    const visWarnings = warnings.filter((w) => w.reason.includes('skillOverrides'));
+    expect(visWarnings).toHaveLength(1); // flushed once via pendingWarnings
+    const s = g.skills.find((x) => x.name === 'localskill')!;
+    expect(s.visibility).toBe('on');
+    expect(s.visibilitySource).toBe('user');
+    expect(s.enabled).toBe(true);
+  });
+});
+
+describe('claude-code adapter: skill visibility (folder layers)', () => {
+  it('resolves project skills local > project > user', () => {
+    const { home: h, proj } = buildHome();
+    home = h;
+    writeSkillDir(join(proj, '.claude', 'skills'), 'ps2');
+    writeSkillDir(join(proj, '.claude', 'skills'), 'ps3');
+    writeFileEnsured(
+      join(h, '.claude', 'settings.json'),
+      JSON.stringify({ enabledPlugins: {}, skillOverrides: { ps: 'user-invocable-only' } }),
+    );
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.json'),
+      JSON.stringify({ skillOverrides: { ps: 'on', ps2: 'name-only', ps3: 'name-only' } }),
+    );
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.local.json'),
+      JSON.stringify({ skillOverrides: { ps3: 'off' } }),
+    );
+    const d = claudeCodeAdapter.collectForDirectory(proj, ctxOf(h), []);
+    const byName = Object.fromEntries(d.skills.map((s) => [s.name, s]));
+
+    expect(byName.ps!.visibility).toBe('on'); // project promotion beats user park
+    expect(byName.ps!.visibilitySource).toBe('project');
+    expect(byName.ps!.enabled).toBe(true);
+
+    expect(byName.ps2!.visibility).toBe('name-only');
+    expect(byName.ps2!.visibilitySource).toBe('project');
+    expect(byName.ps2!.enabled).toBe(true);
+
+    expect(byName.ps3!.visibility).toBe('off'); // local demotion beats project name-only
+    expect(byName.ps3!.visibilitySource).toBe('local');
+    expect(byName.ps3!.enabled).toBe(false);
+  });
+
+  it('forwards invalid-state warnings for folder settings files', () => {
+    const { home: h, proj } = buildHome();
+    home = h;
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.json'),
+      JSON.stringify({ skillOverrides: { ps: 'nope' } }),
+    );
+    const warnings: Warning[] = [];
+    claudeCodeAdapter.collectForDirectory(proj, ctxOf(h), warnings);
+    expect(warnings.some((w) => w.reason.includes('skillOverrides') && w.path.includes('settings.json'))).toBe(true);
+  });
+});

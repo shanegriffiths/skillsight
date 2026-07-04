@@ -50,6 +50,11 @@ export function scanSkillsDir(
   scope: Scope,
   /** Enablement by DIRECTORY entry name (e.g. Codex `[[skills.config]]` stores paths, matched by basename). */
   enabledFor?: (dirName: string) => boolean,
+  /**
+   * Extra record fields by DIRECTORY entry name (e.g. Claude Code
+   * `skillOverrides` visibility). Merged last, so it may override `enabled`.
+   */
+  overlay?: (dirName: string) => Partial<SkillRecord> | undefined,
 ): SkillRecord[] {
   const out: SkillRecord[] = [];
   for (const e of readDirEntries(dir)) {
@@ -67,6 +72,7 @@ export function scanSkillsDir(
       usedBy: [],
       enabled: enabledFor ? enabledFor(e.name) : true,
       scope,
+      ...overlay?.(e.name),
     });
   }
   return out;

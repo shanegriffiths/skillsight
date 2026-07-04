@@ -16,6 +16,13 @@ import { realpathSafe } from '../symlinks.js';
 import { scanSkillsDir } from '../skillscan.js';
 import { readFrontmatterFile } from '../frontmatter.js';
 import { normalizeClaudeTransport, buildMcpRecords } from '../mcp.js';
+import {
+  parseSkillOverrides,
+  resolveVisibility,
+  visibilityOverlay,
+  type SkillOverrides,
+  type VisibilityLayers,
+} from './claude-code-visibility.js';
 import type { RuntimeAdapter } from './index.js';
 
 const DEF = runtimeById('claude-code')!;
@@ -23,6 +30,7 @@ const DEF = runtimeById('claude-code')!;
 interface SettingsFile {
   enabledPlugins?: Record<string, boolean>;
   enableAllProjectMcpServers?: boolean;
+  skillOverrides?: unknown;
 }
 interface InstalledEntry {
   scope?: 'user' | 'project';
@@ -55,6 +63,8 @@ interface GlobalConfig {
   installed: InstalledPlugins | undefined;
   marketplaces: Record<string, MarketplaceEntry> | undefined;
   claudeJson: ClaudeJson | undefined;
+  /** User-layer `skillOverrides` from `<home>/settings.json`, validated. */
+  userSkillOverrides: SkillOverrides;
   /** Warnings captured at read time, delivered to the first caller that provides a sink. */
   pendingWarnings: Warning[];
 }
@@ -66,15 +76,46 @@ interface GlobalConfig {
 // collectForDirectory) can't silently swallow a malformed-file warning.
 const globalConfigCache = new WeakMap<HomeCtx, GlobalConfig>();
 
+// refineEffective must recover each record's DIRECTORY entry name (the
+// skillOverrides key) from its realpath. The user-skills index is stable per
+// scan — memoize per HomeCtx (same pattern as globalConfigCache).
+const userSkillDirIndexCache = new WeakMap<HomeCtx, Map<string, string>>();
+
+/** realpath -> directory entry name, for one skills dir. */
+function skillDirIndex(dir: string): Map<string, string> {
+  const idx = new Map<string, string>();
+  for (const e of readDirEntries(dir)) {
+    if (e.name.startsWith('.')) continue;
+    if (!e.isDir && !e.isSymlink) continue;
+    idx.set(realpathSafe(join(dir, e.name)), e.name);
+  }
+  return idx;
+}
+
+function userSkillDirIndex(ctx: HomeCtx): Map<string, string> {
+  let idx = userSkillDirIndexCache.get(ctx);
+  if (!idx) {
+    idx = skillDirIndex(join(claudeHome(ctx), 'skills'));
+    userSkillDirIndexCache.set(ctx, idx);
+  }
+  return idx;
+}
+
 function globalConfig(ctx: HomeCtx, warnings?: Warning[]): GlobalConfig {
   let cfg = globalConfigCache.get(ctx);
   if (!cfg) {
     const pending: Warning[] = [];
     const home = claudeHome(ctx);
+    const settingsPath = join(home, 'settings.json');
     cfg = {
       installed: readJson<InstalledPlugins>(join(home, 'plugins', 'installed_plugins.json'), pending),
       marketplaces: readJson<Record<string, MarketplaceEntry>>(join(home, 'plugins', 'known_marketplaces.json'), pending),
       claudeJson: readJson<ClaudeJson>(claudeJsonPath(ctx), pending),
+      userSkillOverrides: parseSkillOverrides(
+        readJson<SettingsFile>(settingsPath)?.skillOverrides,
+        settingsPath,
+        pending,
+      ),
       pendingWarnings: pending,
     };
     globalConfigCache.set(ctx, cfg);
@@ -217,7 +258,7 @@ export const claudeCodeAdapter: RuntimeAdapter = {
       readJson<SettingsFile>(join(home, 'settings.json'), warnings),
       readJson<SettingsFile>(join(home, 'settings.local.json'), warnings),
     );
-    const { installed, marketplaces, claudeJson } = globalConfig(ctx, warnings);
+    const { installed, marketplaces, claudeJson, userSkillOverrides } = globalConfig(ctx, warnings);
 
     for (const [key, entries] of Object.entries(installed?.plugins ?? {})) {
       for (const entry of entries) {
@@ -228,8 +269,12 @@ export const claudeCodeAdapter: RuntimeAdapter = {
       }
     }
 
-    // user skills (~/.claude/skills/*)
-    bucket.skills.push(...scanSkillsDir(join(home, 'skills'), ctx, 'global'));
+    // user skills (~/.claude/skills/*), user-layer visibility resolved by DIR name
+    bucket.skills.push(
+      ...scanSkillsDir(join(home, 'skills'), ctx, 'global', undefined, (dirName) =>
+        visibilityOverlay(resolveVisibility(dirName, { user: userSkillOverrides })),
+      ),
+    );
 
     // user-scope MCP servers (~/.claude.json top-level mcpServers)
     bucket.mcp.push(
@@ -245,14 +290,21 @@ export const claudeCodeAdapter: RuntimeAdapter = {
   collectForDirectory(dir, ctx, warnings) {
     const bucket: Bucket = emptyBucket();
 
+    const projSettingsPath = join(dir, '.claude', 'settings.json');
+    const localSettingsPath = join(dir, '.claude', 'settings.local.json');
     const settingsFiles = [
-      readJson<SettingsFile>(join(dir, '.claude', 'settings.json'), warnings),
-      readJson<SettingsFile>(join(dir, '.claude', 'settings.local.json'), warnings),
+      readJson<SettingsFile>(projSettingsPath, warnings),
+      readJson<SettingsFile>(localSettingsPath, warnings),
     ];
     const projEnabled = mergeEnabled(...settingsFiles);
 
     // project-scoped plugins installed for this directory
-    const { installed, marketplaces, claudeJson } = globalConfig(ctx);
+    const { installed, marketplaces, claudeJson, userSkillOverrides } = globalConfig(ctx);
+    const visLayers: VisibilityLayers = {
+      user: userSkillOverrides,
+      project: parseSkillOverrides(settingsFiles[0]?.skillOverrides, projSettingsPath, warnings),
+      local: parseSkillOverrides(settingsFiles[1]?.skillOverrides, localSettingsPath, warnings),
+    };
     for (const [key, entries] of Object.entries(installed?.plugins ?? {})) {
       for (const entry of entries) {
         if (entry.scope !== 'project') continue;
@@ -263,8 +315,12 @@ export const claudeCodeAdapter: RuntimeAdapter = {
       }
     }
 
-    // project skills
-    bucket.skills.push(...scanSkillsDir(join(dir, '.claude', 'skills'), ctx, 'project-scoped'));
+    // project skills, folder-resolved visibility (local > project > user) by DIR name
+    bucket.skills.push(
+      ...scanSkillsDir(join(dir, '.claude', 'skills'), ctx, 'project-scoped', undefined, (dirName) =>
+        visibilityOverlay(resolveVisibility(dirName, visLayers)),
+      ),
+    );
 
     // project-scope MCP (.mcp.json) gated by approval state in ~/.claude.json
     const projState = claudeJson?.projects?.[dir] ?? claudeJson?.projects?.[realpathSafe(dir)];
@@ -292,5 +348,34 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     );
 
     return bucket;
+  },
+
+  refineEffective(dir, effective, ctx) {
+    const { userSkillOverrides } = globalConfig(ctx);
+    const projSettingsPath = join(dir, '.claude', 'settings.json');
+    const localSettingsPath = join(dir, '.claude', 'settings.local.json');
+    // No warnings sink here: collectForDirectory already reported these
+    // files for this folder in the same scan.
+    const layers: VisibilityLayers = {
+      user: userSkillOverrides,
+      project: parseSkillOverrides(readJson<SettingsFile>(projSettingsPath)?.skillOverrides, projSettingsPath),
+      local: parseSkillOverrides(readJson<SettingsFile>(localSettingsPath)?.skillOverrides, localSettingsPath),
+    };
+    if (
+      !Object.keys(layers.user ?? {}).length &&
+      !Object.keys(layers.project ?? {}).length &&
+      !Object.keys(layers.local ?? {}).length
+    ) {
+      return;
+    }
+    const folderIdx = skillDirIndex(join(dir, '.claude', 'skills'));
+    const userIdx = userSkillDirIndex(ctx);
+    for (const s of effective.skills) {
+      if (s.bundledInPlugin) continue; // plugin skills follow plugin enablement
+      const dirName = folderIdx.get(s.provider.path) ?? userIdx.get(s.provider.path);
+      if (dirName === undefined) continue;
+      const overlay = visibilityOverlay(resolveVisibility(dirName, layers));
+      if (overlay) Object.assign(s, overlay);
+    }
   },
 };

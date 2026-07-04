@@ -19,9 +19,12 @@ export interface ItemRow {
   depth?: number;
   /** Present only on plugin-group header rows. */
   expandState?: 'collapsed' | 'expanded';
+  /** True for a skill parked by Claude Code visibility (`name-only` / `user-invocable-only`): still available, reduced/zero context cost. */
+  parked?: boolean;
 }
 
 function skillRow(s: SkillRecord): ItemRow {
+  const parked = s.visibility === 'name-only' || s.visibility === 'user-invocable-only';
   return {
     kind: 'skill',
     name: s.name,
@@ -30,6 +33,7 @@ function skillRow(s: SkillRecord): ItemRow {
     sourceDim: !s.provider.source,
     record: s,
     usedRuntimes: s.usedBy,
+    ...(parked ? { parked: true } : {}),
   };
 }
 

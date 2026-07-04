@@ -112,6 +112,15 @@ describe('itemRows', () => {
     expect(itemRows({ ...emptyBucket(), plugins: [plugin('p')] })[0]!.usedRuntimes).toEqual([]);
     expect(itemRows({ ...emptyBucket(), mcp: [mcp('m', 'stdio')] })[0]!.usedRuntimes).toEqual([]);
   });
+
+  it('flags parked skills (name-only / user-invocable-only) and only those', () => {
+    const parked = { ...skill('p1', ['cc']), visibility: 'user-invocable-only' as const, visibilitySource: 'user' as const };
+    const nameOnly = { ...skill('p2', ['cc']), visibility: 'name-only' as const, visibilitySource: 'user' as const };
+    const on = { ...skill('p3', ['cc']), visibility: 'on' as const, visibilitySource: 'project' as const };
+    const off = { ...skill('p4', ['cc']), visibility: 'off' as const, visibilitySource: 'user' as const, enabled: false };
+    const rows = itemRows({ ...emptyBucket(), skills: [parked, nameOnly, on, off, skill('p5', ['cc'])] });
+    expect(rows.map((r) => r.parked)).toEqual([true, true, undefined, undefined, undefined]);
+  });
 });
 
 describe('sortItemRows', () => {

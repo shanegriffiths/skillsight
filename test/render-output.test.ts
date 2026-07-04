@@ -70,6 +70,11 @@ export function fixtureInventory(): Inventory {
         provider: { kind: 'user', path: '/home/u/.claude/skills/beta-skill' },
         usedBy: ['claude-code'], enabled: false,
       }),
+      skill({
+        name: 'parked-skill', description: undefined, contentId: '/home/u/.claude/skills/parked-skill',
+        provider: { kind: 'user', path: '/home/u/.claude/skills/parked-skill' },
+        usedBy: ['claude-code'], visibility: 'user-invocable-only', visibilitySource: 'user',
+      }),
     ],
     plugins: [plugin()],
     mcp: [
@@ -98,11 +103,20 @@ export function fixtureInventory(): Inventory {
     usedBy: ['claude-code'], scope: 'project-scoped', description: undefined,
   });
 
+  const promotedSkill = skill({
+    name: 'parked-skill', description: undefined, contentId: '/home/u/.claude/skills/parked-skill',
+    provider: { kind: 'user', path: '/home/u/.claude/skills/parked-skill' },
+    usedBy: ['claude-code'], visibility: 'on', visibilitySource: 'project',
+  });
   const full = folder(
     '/home/u/Developer/Projects/full', 'Developer/Projects',
     { ...emptyBucket(), skills: [projSkill] },
     { ...emptyBucket(), mcp: [localMcp] },
-    { skills: [...globalBucket.skills, projSkill], plugins: globalBucket.plugins, mcp: [...globalBucket.mcp, localMcp] },
+    {
+      skills: [...globalBucket.skills.filter((s) => s.name !== 'parked-skill'), promotedSkill, projSkill],
+      plugins: globalBucket.plugins,
+      mcp: [...globalBucket.mcp, localMcp],
+    },
   );
   const quiet = folder(
     '/home/u/Developer/Projects/quiet', 'Developer/Projects',
