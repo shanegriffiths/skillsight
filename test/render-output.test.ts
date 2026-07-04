@@ -75,6 +75,12 @@ export function fixtureInventory(): Inventory {
         provider: { kind: 'user', path: '/home/u/.claude/skills/parked-skill' },
         usedBy: ['claude-code'], visibility: 'user-invocable-only', visibilitySource: 'user',
       }),
+      // Explicit 'on' override: --provenance must NOT print a visibility line for it.
+      skill({
+        name: 'promoted-skill', description: undefined, contentId: '/home/u/.claude/skills/promoted-skill',
+        provider: { kind: 'user', path: '/home/u/.claude/skills/promoted-skill' },
+        usedBy: ['claude-code'], visibility: 'on', visibilitySource: 'user',
+      }),
     ],
     plugins: [plugin()],
     mcp: [

@@ -9,7 +9,11 @@
  */
 import type { SkillRecord, SkillVisibility, VisibilitySource, Warning } from '../types.js';
 
-const STATES: readonly string[] = ['on', 'name-only', 'user-invocable-only', 'off'];
+const STATES = ['on', 'name-only', 'user-invocable-only', 'off'] as const satisfies readonly SkillVisibility[];
+
+function isSkillVisibility(v: unknown): v is SkillVisibility {
+  return typeof v === 'string' && (STATES as readonly string[]).includes(v);
+}
 
 export type SkillOverrides = Record<string, SkillVisibility>;
 
@@ -37,8 +41,8 @@ export function parseSkillOverrides(raw: unknown, path: string, warnings?: Warni
   }
   const out: SkillOverrides = {};
   for (const [name, state] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof state === 'string' && STATES.includes(state)) {
-      out[name] = state as SkillVisibility;
+    if (isSkillVisibility(state)) {
+      out[name] = state;
     } else {
       warnings?.push({
         path,

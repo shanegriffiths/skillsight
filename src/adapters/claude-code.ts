@@ -63,13 +63,15 @@ interface GlobalConfig {
   installed: InstalledPlugins | undefined;
   marketplaces: Record<string, MarketplaceEntry> | undefined;
   claudeJson: ClaudeJson | undefined;
-  /** User-layer `skillOverrides` from `<home>/settings.json`, validated. */
+  /** Parsed `<home>/settings.json` — the single read per scan. */
+  userSettings: SettingsFile | undefined;
+  /** User-layer `skillOverrides` from `userSettings`, validated. */
   userSkillOverrides: SkillOverrides;
   /** Warnings captured at read time, delivered to the first caller that provides a sink. */
   pendingWarnings: Warning[];
 }
 
-// The three global files are needed for every directory pass; read once per scan
+// The four global files are needed for every directory pass; read once per scan
 // (scan() shares one HomeCtx). Whichever call reads the files first captures any
 // warnings; they're held in `pendingWarnings` and flushed to the first caller
 // that passes a `warnings` sink, so call order (collectGlobal vs.
@@ -107,15 +109,13 @@ function globalConfig(ctx: HomeCtx, warnings?: Warning[]): GlobalConfig {
     const pending: Warning[] = [];
     const home = claudeHome(ctx);
     const settingsPath = join(home, 'settings.json');
+    const userSettings = readJson<SettingsFile>(settingsPath, pending);
     cfg = {
       installed: readJson<InstalledPlugins>(join(home, 'plugins', 'installed_plugins.json'), pending),
       marketplaces: readJson<Record<string, MarketplaceEntry>>(join(home, 'plugins', 'known_marketplaces.json'), pending),
       claudeJson: readJson<ClaudeJson>(claudeJsonPath(ctx), pending),
-      userSkillOverrides: parseSkillOverrides(
-        readJson<SettingsFile>(settingsPath)?.skillOverrides,
-        settingsPath,
-        pending,
-      ),
+      userSettings,
+      userSkillOverrides: parseSkillOverrides(userSettings?.skillOverrides, settingsPath, pending),
       pendingWarnings: pending,
     };
     globalConfigCache.set(ctx, cfg);
@@ -146,6 +146,33 @@ function mergeEnabled(...files: (SettingsFile | undefined)[]): Record<string, bo
   const out: Record<string, boolean> = {};
   for (const f of files) if (f?.enabledPlugins) Object.assign(out, f.enabledPlugins);
   return out;
+}
+
+/** A folder's two settings files, parsed. Pass a sink to report malformed JSON. */
+function folderSettings(dir: string, warnings?: Warning[]): { project?: SettingsFile; local?: SettingsFile } {
+  return {
+    project: readJson<SettingsFile>(join(dir, '.claude', 'settings.json'), warnings),
+    local: readJson<SettingsFile>(join(dir, '.claude', 'settings.local.json'), warnings),
+  };
+}
+
+/**
+ * Folder-resolved visibility layers (`local > project > user`). Pass a sink
+ * to report invalid override values — `collectForDirectory` does;
+ * `refineEffective` re-parses silently because the folder pass already
+ * reported them for this dir in the same scan.
+ */
+function buildVisibilityLayers(
+  dir: string,
+  ctx: HomeCtx,
+  settings: { project?: SettingsFile; local?: SettingsFile },
+  warnings?: Warning[],
+): VisibilityLayers {
+  return {
+    user: globalConfig(ctx).userSkillOverrides,
+    project: parseSkillOverrides(settings.project?.skillOverrides, join(dir, '.claude', 'settings.json'), warnings),
+    local: parseSkillOverrides(settings.local?.skillOverrides, join(dir, '.claude', 'settings.local.json'), warnings),
+  };
 }
 
 function splitKey(key: string): { name: string; marketplace: string } {
@@ -254,11 +281,11 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     const home = claudeHome(ctx);
     const bucket: Bucket = emptyBucket();
 
+    const { installed, marketplaces, claudeJson, userSettings, userSkillOverrides } = globalConfig(ctx, warnings);
     const enabledMap = mergeEnabled(
-      readJson<SettingsFile>(join(home, 'settings.json'), warnings),
+      userSettings,
       readJson<SettingsFile>(join(home, 'settings.local.json'), warnings),
     );
-    const { installed, marketplaces, claudeJson, userSkillOverrides } = globalConfig(ctx, warnings);
 
     for (const [key, entries] of Object.entries(installed?.plugins ?? {})) {
       for (const entry of entries) {
@@ -290,21 +317,12 @@ export const claudeCodeAdapter: RuntimeAdapter = {
   collectForDirectory(dir, ctx, warnings) {
     const bucket: Bucket = emptyBucket();
 
-    const projSettingsPath = join(dir, '.claude', 'settings.json');
-    const localSettingsPath = join(dir, '.claude', 'settings.local.json');
-    const settingsFiles = [
-      readJson<SettingsFile>(projSettingsPath, warnings),
-      readJson<SettingsFile>(localSettingsPath, warnings),
-    ];
-    const projEnabled = mergeEnabled(...settingsFiles);
+    const settings = folderSettings(dir, warnings);
+    const projEnabled = mergeEnabled(settings.project, settings.local);
 
     // project-scoped plugins installed for this directory
-    const { installed, marketplaces, claudeJson, userSkillOverrides } = globalConfig(ctx);
-    const visLayers: VisibilityLayers = {
-      user: userSkillOverrides,
-      project: parseSkillOverrides(settingsFiles[0]?.skillOverrides, projSettingsPath, warnings),
-      local: parseSkillOverrides(settingsFiles[1]?.skillOverrides, localSettingsPath, warnings),
-    };
+    const { installed, marketplaces, claudeJson } = globalConfig(ctx);
+    const visLayers = buildVisibilityLayers(dir, ctx, settings, warnings);
     for (const [key, entries] of Object.entries(installed?.plugins ?? {})) {
       for (const entry of entries) {
         if (entry.scope !== 'project') continue;
@@ -326,7 +344,7 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     const projState = claudeJson?.projects?.[dir] ?? claudeJson?.projects?.[realpathSafe(dir)];
     const enabledSet = new Set(projState?.enabledMcpjsonServers ?? []);
     const disabledSet = new Set(projState?.disabledMcpjsonServers ?? []);
-    const enableAll = settingsFiles.some((f) => f?.enableAllProjectMcpServers === true);
+    const enableAll = [settings.project, settings.local].some((f) => f?.enableAllProjectMcpServers === true);
 
     const mcpJson = readJson<{ mcpServers?: Record<string, Record<string, unknown>> }>(
       join(dir, '.mcp.json'),
@@ -351,16 +369,9 @@ export const claudeCodeAdapter: RuntimeAdapter = {
   },
 
   refineEffective(dir, effective, ctx) {
-    const { userSkillOverrides } = globalConfig(ctx);
-    const projSettingsPath = join(dir, '.claude', 'settings.json');
-    const localSettingsPath = join(dir, '.claude', 'settings.local.json');
-    // No warnings sink here: collectForDirectory already reported these
+    // No warnings sinks here: collectForDirectory already reported these
     // files for this folder in the same scan.
-    const layers: VisibilityLayers = {
-      user: userSkillOverrides,
-      project: parseSkillOverrides(readJson<SettingsFile>(projSettingsPath)?.skillOverrides, projSettingsPath),
-      local: parseSkillOverrides(readJson<SettingsFile>(localSettingsPath)?.skillOverrides, localSettingsPath),
-    };
+    const layers = buildVisibilityLayers(dir, ctx, folderSettings(dir));
     if (
       !Object.keys(layers.user ?? {}).length &&
       !Object.keys(layers.project ?? {}).length &&

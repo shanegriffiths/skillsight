@@ -21,6 +21,13 @@ state> (<layer>)` field as the *mechanism*; the column deliberately
 abbreviates (`invoke-only`) while the detail stays verbatim
 (`user-invocable-only`). Column = summary, detail = cause.
 
+**Leaderboard caveat (pre-existing merge semantics):** the Leaderboard's
+universe merge dedupes by contentId and keeps ONE record's fields wholesale
+(`mergeSkill`, rank/first-insert). A per-folder `off` on a skill that also
+exists globally is shadowed by the global record's state there — identical
+to how `parked` dimming already behaved. STATE is consistent with the rest
+of the merge, not a new source of truth.
+
 ## Behavior (the ONLY intentional output changes)
 
 1. **`ItemRow` gains `state?: 'off' | 'invoke-only' | 'name-only' |

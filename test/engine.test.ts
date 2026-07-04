@@ -195,4 +195,13 @@ describe('scan() skill visibility (per-folder effective)', () => {
     expect(inv.folders[0]!.effective.skills.find((s) => s.name === 'ghost')).toBeUndefined();
     expect(inv.warnings.filter((w) => w.reason.includes('skillOverrides'))).toHaveLength(0);
   });
+
+  it('reports a malformed folder settings.json exactly once per scan (refineEffective stays silent)', () => {
+    const { home: h, proj } = visibilityHome();
+    home = h;
+    writeFileEnsured(join(proj, '.claude', 'settings.json'), '{nope');
+    const inv = scan(h, { walk: false, dir: proj, env: {} });
+    const projSettings = join(proj, '.claude', 'settings.json');
+    expect(inv.warnings.filter((w) => w.path === projSettings)).toHaveLength(1);
+  });
 });
