@@ -265,14 +265,21 @@ export const claudeCodeAdapter: RuntimeAdapter = {
   collectForDirectory(dir, ctx, warnings) {
     const bucket: Bucket = emptyBucket();
 
+    const projSettingsPath = join(dir, '.claude', 'settings.json');
+    const localSettingsPath = join(dir, '.claude', 'settings.local.json');
     const settingsFiles = [
-      readJson<SettingsFile>(join(dir, '.claude', 'settings.json'), warnings),
-      readJson<SettingsFile>(join(dir, '.claude', 'settings.local.json'), warnings),
+      readJson<SettingsFile>(projSettingsPath, warnings),
+      readJson<SettingsFile>(localSettingsPath, warnings),
     ];
     const projEnabled = mergeEnabled(...settingsFiles);
 
     // project-scoped plugins installed for this directory
-    const { installed, marketplaces, claudeJson } = globalConfig(ctx);
+    const { installed, marketplaces, claudeJson, userSkillOverrides } = globalConfig(ctx);
+    const visLayers: VisibilityLayers = {
+      user: userSkillOverrides,
+      project: parseSkillOverrides(settingsFiles[0]?.skillOverrides, projSettingsPath, warnings),
+      local: parseSkillOverrides(settingsFiles[1]?.skillOverrides, localSettingsPath, warnings),
+    };
     for (const [key, entries] of Object.entries(installed?.plugins ?? {})) {
       for (const entry of entries) {
         if (entry.scope !== 'project') continue;
@@ -283,8 +290,12 @@ export const claudeCodeAdapter: RuntimeAdapter = {
       }
     }
 
-    // project skills
-    bucket.skills.push(...scanSkillsDir(join(dir, '.claude', 'skills'), ctx, 'project-scoped'));
+    // project skills, folder-resolved visibility (local > project > user) by DIR name
+    bucket.skills.push(
+      ...scanSkillsDir(join(dir, '.claude', 'skills'), ctx, 'project-scoped', undefined, (dirName) =>
+        visibilityOverlay(resolveVisibility(dirName, visLayers)),
+      ),
+    );
 
     // project-scope MCP (.mcp.json) gated by approval state in ~/.claude.json
     const projState = claudeJson?.projects?.[dir] ?? claudeJson?.projects?.[realpathSafe(dir)];

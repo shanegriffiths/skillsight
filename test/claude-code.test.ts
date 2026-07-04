@@ -299,3 +299,50 @@ describe('claude-code adapter: skill visibility (user layer)', () => {
     expect(s.enabled).toBe(true);
   });
 });
+
+describe('claude-code adapter: skill visibility (folder layers)', () => {
+  it('resolves project skills local > project > user', () => {
+    const { home: h, proj } = buildHome();
+    home = h;
+    writeSkillDir(join(proj, '.claude', 'skills'), 'ps2');
+    writeSkillDir(join(proj, '.claude', 'skills'), 'ps3');
+    writeFileEnsured(
+      join(h, '.claude', 'settings.json'),
+      JSON.stringify({ enabledPlugins: {}, skillOverrides: { ps: 'user-invocable-only' } }),
+    );
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.json'),
+      JSON.stringify({ skillOverrides: { ps: 'on', ps2: 'name-only', ps3: 'name-only' } }),
+    );
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.local.json'),
+      JSON.stringify({ skillOverrides: { ps3: 'off' } }),
+    );
+    const d = claudeCodeAdapter.collectForDirectory(proj, ctxOf(h), []);
+    const byName = Object.fromEntries(d.skills.map((s) => [s.name, s]));
+
+    expect(byName.ps!.visibility).toBe('on'); // project promotion beats user park
+    expect(byName.ps!.visibilitySource).toBe('project');
+    expect(byName.ps!.enabled).toBe(true);
+
+    expect(byName.ps2!.visibility).toBe('name-only');
+    expect(byName.ps2!.visibilitySource).toBe('project');
+    expect(byName.ps2!.enabled).toBe(true);
+
+    expect(byName.ps3!.visibility).toBe('off'); // local demotion beats project name-only
+    expect(byName.ps3!.visibilitySource).toBe('local');
+    expect(byName.ps3!.enabled).toBe(false);
+  });
+
+  it('forwards invalid-state warnings for folder settings files', () => {
+    const { home: h, proj } = buildHome();
+    home = h;
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.json'),
+      JSON.stringify({ skillOverrides: { ps: 'nope' } }),
+    );
+    const warnings: Warning[] = [];
+    claudeCodeAdapter.collectForDirectory(proj, ctxOf(h), warnings);
+    expect(warnings.some((w) => w.reason.includes('skillOverrides') && w.path.includes('settings.json'))).toBe(true);
+  });
+});
