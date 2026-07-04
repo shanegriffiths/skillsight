@@ -121,6 +121,26 @@ describe('itemRows', () => {
     const rows = itemRows({ ...emptyBucket(), skills: [parked, nameOnly, on, off, skill('p5', ['cc'])] });
     expect(rows.map((r) => r.parked)).toEqual([true, true, undefined, undefined, undefined]);
   });
+
+  it('derives state for skills from visibility and enablement', () => {
+    const off = { ...skill('s-off', ['cc']), visibility: 'off' as const, visibilitySource: 'user' as const, enabled: false };
+    const uio = { ...skill('s-uio', ['cc']), visibility: 'user-invocable-only' as const, visibilitySource: 'user' as const };
+    const nameOnly = { ...skill('s-name', ['cc']), visibility: 'name-only' as const, visibilitySource: 'project' as const };
+    const promoted = { ...skill('s-on', ['cc']), visibility: 'on' as const, visibilitySource: 'project' as const };
+    const codexDisabled = { ...skill('s-codex', ['cc']), enabled: false };
+    const plain = skill('s-plain', ['cc']);
+    const rows = itemRows({ ...emptyBucket(), skills: [off, uio, nameOnly, promoted, codexDisabled, plain] });
+    expect(rows.map((r) => r.state)).toEqual(['off', 'invoke-only', 'name-only', undefined, 'disabled', undefined]);
+  });
+
+  it('derives disabled state for plugins and mcp servers', () => {
+    const rows = itemRows({
+      ...emptyBucket(),
+      plugins: [plugin('p-on', 'o/r'), { ...plugin('p-off', 'o/r'), enabled: false }],
+      mcp: [mcp('m-on', 'stdio'), { ...mcp('m-off', 'http'), enabled: false }],
+    });
+    expect(rows.map((r) => r.state)).toEqual([undefined, 'disabled', undefined, 'disabled']);
+  });
 });
 
 describe('sortItemRows', () => {

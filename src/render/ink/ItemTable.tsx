@@ -8,17 +8,20 @@ const CURSOR_W = 2;
 const KIND_W = 6;
 const USED_W = 4;
 const USES_W = MARK_COUNT; // one cell per detected-runtime badge
+const STATE_W = 11; // longest label: 'invoke-only'
 const SOURCE_W = 22;
 
 function HeaderRow({
   showKind,
   showMarks,
   showSource,
+  showState,
   withCursor,
 }: {
   showKind: boolean;
   showMarks: boolean;
   showSource: boolean;
+  showState: boolean;
   withCursor: boolean;
 }) {
   return (
@@ -48,6 +51,13 @@ function HeaderRow({
           </Text>
         </Box>
       ) : null}
+      {showState ? (
+        <Box width={STATE_W} marginRight={1}>
+          <Text dimColor bold>
+            STATE
+          </Text>
+        </Box>
+      ) : null}
       {showSource ? (
         <Box width={SOURCE_W}>
           <Text dimColor bold>
@@ -64,6 +74,7 @@ function Row({
   showKind,
   showMarks,
   showSource,
+  showState,
   withCursor,
   active,
 }: {
@@ -71,6 +82,7 @@ function Row({
   showKind: boolean;
   showMarks: boolean;
   showSource: boolean;
+  showState: boolean;
   withCursor: boolean;
   active: boolean;
 }) {
@@ -108,6 +120,16 @@ function Row({
           <Badges marks={marks} />
         </Box>
       ) : null}
+      {showState ? (
+        <Box width={STATE_W} marginRight={1}>
+          <Text
+            color={row.state === 'off' || row.state === 'disabled' ? theme.bad : undefined}
+            dimColor={row.state === 'invoke-only' || row.state === 'name-only'}
+          >
+            {row.state ?? ''}
+          </Text>
+        </Box>
+      ) : null}
       {showSource ? (
         <Box width={SOURCE_W}>
           <Text wrap="truncate-end" dimColor={row.sourceDim}>
@@ -138,9 +160,10 @@ export function ItemTable({
   const withCursor = selectedIndex !== undefined;
   const effShowKind = showKind && !dense;
   const showSource = !dense;
+  const showState = !dense;
   return (
     <Box flexDirection="column">
-      <HeaderRow showKind={effShowKind} showMarks={showMarks} showSource={showSource} withCursor={withCursor} />
+      <HeaderRow showKind={effShowKind} showMarks={showMarks} showSource={showSource} showState={showState} withCursor={withCursor} />
       {rows.map((r, i) => (
         <Row
           key={i}
@@ -148,6 +171,7 @@ export function ItemTable({
           showKind={effShowKind}
           showMarks={showMarks}
           showSource={showSource}
+          showState={showState}
           withCursor={withCursor}
           active={i === selectedIndex}
         />

@@ -2,6 +2,9 @@ import type { Bucket, SkillRecord, PluginRecord, McpRecord, Runtime } from '../.
 
 export type ItemKind = 'skill' | 'plugin' | 'mcp';
 
+/** STATE column summary — why a row isn't plainly available. */
+export type ItemState = 'off' | 'invoke-only' | 'name-only' | 'disabled';
+
 export interface ItemRow {
   kind: ItemKind;
   name: string;
@@ -21,10 +24,21 @@ export interface ItemRow {
   expandState?: 'collapsed' | 'expanded';
   /** True for a skill parked by Claude Code visibility (`name-only` / `user-invocable-only`): still available, reduced/zero context cost. */
   parked?: boolean;
+  /** STATE column value. Absent = plainly available (blank cell). */
+  state?: ItemState;
+}
+
+function skillState(s: SkillRecord): ItemState | undefined {
+  if (s.visibility === 'off') return 'off';
+  if (s.visibility === 'user-invocable-only') return 'invoke-only';
+  if (s.visibility === 'name-only') return 'name-only';
+  if (!s.enabled) return 'disabled';
+  return undefined;
 }
 
 function skillRow(s: SkillRecord): ItemRow {
   const parked = s.visibility === 'name-only' || s.visibility === 'user-invocable-only';
+  const state = skillState(s);
   return {
     kind: 'skill',
     name: s.name,
@@ -34,6 +48,7 @@ function skillRow(s: SkillRecord): ItemRow {
     record: s,
     usedRuntimes: s.usedBy,
     ...(parked ? { parked: true } : {}),
+    ...(state ? { state } : {}),
   };
 }
 
@@ -46,6 +61,7 @@ function pluginRow(p: PluginRecord): ItemRow {
     sourceDim: !p.marketplaceRepo,
     record: p,
     usedRuntimes: p.runtime ? [p.runtime] : [],
+    ...(p.enabled ? {} : { state: 'disabled' as const }),
   };
 }
 
@@ -58,6 +74,7 @@ function mcpRow(m: McpRecord): ItemRow {
     sourceDim: true,
     record: m,
     usedRuntimes: m.runtime ? [m.runtime] : [],
+    ...(m.enabled ? {} : { state: 'disabled' as const }),
   };
 }
 
