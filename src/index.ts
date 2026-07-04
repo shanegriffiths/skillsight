@@ -30,7 +30,14 @@ function tagBucket(bucket: Bucket, runtime: RuntimeId): Bucket {
   return bucket;
 }
 
-/** Registered adapters (deep: claude-code/codex/hermes; best-effort: gemini/cursor/opencode). */
+/**
+ * Registered adapters (deep: claude-code/codex/hermes; best-effort: gemini/cursor/opencode).
+ *
+ * ORDER MATTERS for skill dedup: `mergeSkill` keeps the first-inserted record
+ * on equal provider rank, so claude-code's position at index 0 is what lets
+ * its visibility/enabled fields survive when the same content is linked into
+ * another runtime's skills dir. Re-check that assumption before reordering.
+ */
 const ADAPTERS: RuntimeAdapter[] = [
   claudeCodeAdapter,
   codexAdapter,
