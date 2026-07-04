@@ -30,6 +30,10 @@ function skillFields(s: SkillRecord): DetailField[] {
   }
   f.push({ label: 'scope', value: s.scope });
   if (s.bundledInPlugin) f.push({ label: 'plugin', value: s.bundledInPlugin });
+  if (s.visibility) {
+    const promoted = s.visibility === 'on' && s.visibilitySource !== 'user' ? ' — promoted' : '';
+    f.push({ label: 'visibility', value: `${s.visibility} (${s.visibilitySource}${promoted})` });
+  }
   if (!s.enabled) f.push({ label: 'enabled', value: 'no', dim: true });
   f.push({ label: 'path', value: s.provider.path, dim: true });
   f.push({ label: 'id', value: shortId(s.contentId), dim: true });

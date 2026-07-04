@@ -83,6 +83,22 @@ describe('detailFields — skill', () => {
     const f = detailFields(skillRow({}));
     expect(f.find((x) => x.label === 'url')).toMatchObject({ value: 'https://github.com/h/animejs', link: true });
   });
+
+  it('shows visibility with its deciding layer', () => {
+    const f = detailFields(skillRow({ visibility: 'user-invocable-only', visibilitySource: 'user' }));
+    expect(valueOf(f, 'visibility')).toBe('user-invocable-only (user)');
+  });
+
+  it('tags an explicit project/local on as promoted', () => {
+    const f = detailFields(skillRow({ visibility: 'on', visibilitySource: 'project' }));
+    expect(valueOf(f, 'visibility')).toBe('on (project — promoted)');
+  });
+
+  it('does not tag a user-layer on as promoted, and omits the field when absent', () => {
+    const f = detailFields(skillRow({ visibility: 'on', visibilitySource: 'user' }));
+    expect(valueOf(f, 'visibility')).toBe('on (user)');
+    expect(valueOf(detailFields(skillRow({})), 'visibility')).toBeUndefined();
+  });
 });
 
 describe('detailFields — plugin', () => {
