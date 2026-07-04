@@ -76,6 +76,31 @@ interface GlobalConfig {
 // collectForDirectory) can't silently swallow a malformed-file warning.
 const globalConfigCache = new WeakMap<HomeCtx, GlobalConfig>();
 
+// refineEffective must recover each record's DIRECTORY entry name (the
+// skillOverrides key) from its realpath. The user-skills index is stable per
+// scan — memoize per HomeCtx (same pattern as globalConfigCache).
+const userSkillDirIndexCache = new WeakMap<HomeCtx, Map<string, string>>();
+
+/** realpath -> directory entry name, for one skills dir. */
+function skillDirIndex(dir: string): Map<string, string> {
+  const idx = new Map<string, string>();
+  for (const e of readDirEntries(dir)) {
+    if (e.name.startsWith('.')) continue;
+    if (!e.isDir && !e.isSymlink) continue;
+    idx.set(realpathSafe(join(dir, e.name)), e.name);
+  }
+  return idx;
+}
+
+function userSkillDirIndex(ctx: HomeCtx): Map<string, string> {
+  let idx = userSkillDirIndexCache.get(ctx);
+  if (!idx) {
+    idx = skillDirIndex(join(claudeHome(ctx), 'skills'));
+    userSkillDirIndexCache.set(ctx, idx);
+  }
+  return idx;
+}
+
 function globalConfig(ctx: HomeCtx, warnings?: Warning[]): GlobalConfig {
   let cfg = globalConfigCache.get(ctx);
   if (!cfg) {
@@ -323,5 +348,34 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     );
 
     return bucket;
+  },
+
+  refineEffective(dir, effective, ctx) {
+    const { userSkillOverrides } = globalConfig(ctx);
+    const projSettingsPath = join(dir, '.claude', 'settings.json');
+    const localSettingsPath = join(dir, '.claude', 'settings.local.json');
+    // No warnings sink here: collectForDirectory already reported these
+    // files for this folder in the same scan.
+    const layers: VisibilityLayers = {
+      user: userSkillOverrides,
+      project: parseSkillOverrides(readJson<SettingsFile>(projSettingsPath)?.skillOverrides, projSettingsPath),
+      local: parseSkillOverrides(readJson<SettingsFile>(localSettingsPath)?.skillOverrides, localSettingsPath),
+    };
+    if (
+      !Object.keys(layers.user ?? {}).length &&
+      !Object.keys(layers.project ?? {}).length &&
+      !Object.keys(layers.local ?? {}).length
+    ) {
+      return;
+    }
+    const folderIdx = skillDirIndex(join(dir, '.claude', 'skills'));
+    const userIdx = userSkillDirIndex(ctx);
+    for (const s of effective.skills) {
+      if (s.bundledInPlugin) continue; // plugin skills follow plugin enablement
+      const dirName = folderIdx.get(s.provider.path) ?? userIdx.get(s.provider.path);
+      if (dirName === undefined) continue;
+      const overlay = visibilityOverlay(resolveVisibility(dirName, layers));
+      if (overlay) Object.assign(s, overlay);
+    }
   },
 };

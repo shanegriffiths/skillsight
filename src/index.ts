@@ -75,6 +75,8 @@ export function scan(homeRoot: string = homedir(), opts: ScanOptions = {}): Inve
       ...active.map((a) => tagBucket(enrichBucket(a.collectForDirectory(dir, ctx, warnings), a.id, enr), a.id)),
     );
     const { projectScoped, local } = splitByScope(folderBucket);
+    const effective = mergeBuckets(global, folderBucket);
+    for (const a of active) a.refineEffective?.(dir, effective, ctx);
     return {
       path: dir,
       group: groupFor(dir, homeRoot),
@@ -82,7 +84,7 @@ export function scan(homeRoot: string = homedir(), opts: ScanOptions = {}): Inve
       global: emptyBucket(), // inherited layer lives at Inventory.global
       projectScoped,
       local,
-      effective: mergeBuckets(global, folderBucket),
+      effective,
     };
   });
 

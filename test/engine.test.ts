@@ -98,3 +98,101 @@ describe('scan() engine integration', () => {
     expect(s!.usedBy).toEqual([]);
   });
 });
+
+describe('scan() skill visibility (per-folder effective)', () => {
+  function visibilityHome(): { home: string; proj: string } {
+    const h = makeTempHome();
+    const proj = join(h, 'proj');
+    writeSkillDir(join(h, '.claude', 'skills'), 'parked1');
+    writeSkillDir(join(h, '.claude', 'skills'), 'plain1');
+    writeFileEnsured(
+      join(h, '.claude', 'settings.json'),
+      JSON.stringify({ skillOverrides: { parked1: 'user-invocable-only' } }),
+    );
+    writeFileEnsured(join(proj, '.claude', 'settings.json'), JSON.stringify({}));
+    return { home: h, proj };
+  }
+
+  it('global bucket keeps user-layer resolution; folder promotion only changes effective', () => {
+    const { home: h, proj } = visibilityHome();
+    home = h;
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.json'),
+      JSON.stringify({ skillOverrides: { parked1: 'on' } }),
+    );
+    const inv = scan(h, { walk: false, dir: proj, env: {} });
+
+    const g = inv.global.skills.find((s) => s.name === 'parked1')!;
+    expect(g.visibility).toBe('user-invocable-only');
+    expect(g.visibilitySource).toBe('user');
+
+    const eff = inv.folders[0]!.effective.skills.find((s) => s.name === 'parked1')!;
+    expect(eff.visibility).toBe('on'); // promoted for this folder
+    expect(eff.visibilitySource).toBe('project');
+    expect(eff.enabled).toBe(true);
+
+    const plain = inv.folders[0]!.effective.skills.find((s) => s.name === 'plain1')!;
+    expect(plain.visibility).toBeUndefined(); // untouched when no layer names it
+  });
+
+  it('local demotion to off disables the skill in that folder effective only', () => {
+    const { home: h, proj } = visibilityHome();
+    home = h;
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.json'),
+      JSON.stringify({ skillOverrides: { parked1: 'on' } }),
+    );
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.local.json'),
+      JSON.stringify({ skillOverrides: { parked1: 'off' } }),
+    );
+    const inv = scan(h, { walk: false, dir: proj, env: {} });
+
+    const eff = inv.folders[0]!.effective.skills.find((s) => s.name === 'parked1')!;
+    expect(eff.visibility).toBe('off');
+    expect(eff.visibilitySource).toBe('local');
+    expect(eff.enabled).toBe(false);
+
+    expect(inv.global.skills.find((s) => s.name === 'parked1')!.enabled).toBe(true);
+  });
+
+  it('matches a hub-symlinked skill by its LINK name in ~/.claude/skills', () => {
+    const { home: h, proj } = visibilityHome();
+    home = h;
+    const hub = writeSkillDir(join(h, '.agents', 'skills'), 'hubbed');
+    symlinkInto(join(h, '.claude', 'skills', 'hubbed'), hub);
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.json'),
+      JSON.stringify({ skillOverrides: { hubbed: 'off' } }),
+    );
+    const inv = scan(h, { walk: false, dir: proj, env: {} });
+    const eff = inv.folders[0]!.effective.skills.find((s) => s.name === 'hubbed')!;
+    expect(eff.provider.kind).toBe('shared-store'); // dedup kept the claude record
+    expect(eff.visibility).toBe('off');
+    expect(eff.enabled).toBe(false);
+  });
+
+  it('surfaces invalid user-layer states as a single scan warning', () => {
+    const { home: h, proj } = visibilityHome();
+    home = h;
+    writeFileEnsured(
+      join(h, '.claude', 'settings.json'),
+      JSON.stringify({ skillOverrides: { parked1: 'sideways' } }),
+    );
+    const inv = scan(h, { walk: false, dir: proj, env: {} });
+    expect(inv.warnings.filter((w) => w.reason.includes('skillOverrides'))).toHaveLength(1);
+    expect(inv.global.skills.find((s) => s.name === 'parked1')!.visibility).toBe('on');
+  });
+
+  it('ignores overrides naming skills that do not exist', () => {
+    const { home: h, proj } = visibilityHome();
+    home = h;
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.json'),
+      JSON.stringify({ skillOverrides: { ghost: 'off' } }),
+    );
+    const inv = scan(h, { walk: false, dir: proj, env: {} });
+    expect(inv.folders[0]!.effective.skills.find((s) => s.name === 'ghost')).toBeUndefined();
+    expect(inv.warnings.filter((w) => w.reason.includes('skillOverrides'))).toHaveLength(0);
+  });
+});
