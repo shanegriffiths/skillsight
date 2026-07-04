@@ -15,6 +15,12 @@ export type Kind = 'skill' | 'plugin' | 'mcp';
 /** Where an item physically lives relative to inheritance. */
 export type Scope = 'global' | 'project-scoped' | 'local';
 
+/** Claude Code per-skill visibility state (settings `skillOverrides`). */
+export type SkillVisibility = 'on' | 'name-only' | 'user-invocable-only' | 'off';
+
+/** The settings layer whose `skillOverrides` entry decided a skill's visibility. */
+export type VisibilitySource = 'user' | 'project' | 'local';
+
 /**
  * Normalized MCP transport across all runtimes. Secret-bearing fields store
  * **key names only** (`envKeys` / `headerKeys`) — never values (privacy rule).
@@ -72,6 +78,13 @@ export interface SkillRecord {
   /** From sibling `.*-plugin/` manifests when the skill ships inside a plugin. */
   supportsRuntimes?: Runtime[];
   enabled: boolean;
+  /**
+   * Claude Code `skillOverrides` visibility (standalone skills only — plugin
+   * skills follow plugin enablement). Absent = no override = `on`.
+   */
+  visibility?: SkillVisibility;
+  /** The layer that decided `visibility` (`local > project > user`). */
+  visibilitySource?: VisibilitySource;
   scope: Scope;
 }
 
