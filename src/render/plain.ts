@@ -26,7 +26,10 @@ function skillLine(s: SkillRecord, prov: boolean, prefix: string): string {
   const tag = pc.dim(`[${s.provider.kind}${src}]`);
   const off = s.enabled ? '' : pc.red(' (disabled)');
   const used = prov ? pc.dim(`\n      used by: ${s.usedBy.join(', ') || '—'}`) : '';
-  return `${prefix}${s.name} ${tag}${off}${used}`;
+  const vis = prov && s.visibility && s.visibility !== 'on'
+    ? pc.dim(`\n      visibility: ${s.visibility} (${s.visibilitySource})`)
+    : '';
+  return `${prefix}${s.name} ${tag}${off}${used}${vis}`;
 }
 
 function pluginLine(p: PluginRecord, prov: boolean, prefix: string): string {

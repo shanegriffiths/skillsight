@@ -4,9 +4,10 @@ exports[`renderPlain characterization > --full 1`] = `
 "skillsight  /home/u  ·  runtimes: claude-code, codex  ·  2 folders
 ⚠ 1 unreadable source
 
-GLOBAL  inherited everywhere  (2 skills · 1 plugins · 2 mcp)
+GLOBAL  inherited everywhere  (3 skills · 1 plugins · 2 mcp)
   - alpha-skill [shared-store owner/alpha]
   - beta-skill [user] (disabled)
+  - parked-skill [user]
   - super [official@1.2.3]
   - stdio-srv [mcp stdio]
   - http-srv [mcp http] (pending/disabled)
@@ -15,6 +16,7 @@ Developer/Projects
   full
     · alpha-skill [shared-store owner/alpha]
     · beta-skill [user] (disabled)
+    · parked-skill [user]
     · proj-skill [project-local]
     · super [official@1.2.3]
     · stdio-srv [mcp stdio]
@@ -23,6 +25,7 @@ Developer/Projects
   quiet
     · alpha-skill [shared-store owner/alpha]
     · beta-skill [user] (disabled)
+    · parked-skill [user]
     · super [official@1.2.3]
     · stdio-srv [mcp stdio]
     · http-srv [mcp http] (pending/disabled)"
@@ -32,9 +35,10 @@ exports[`renderPlain characterization > --global 1`] = `
 "skillsight  /home/u  ·  runtimes: claude-code, codex  ·  2 folders
 ⚠ 1 unreadable source
 
-GLOBAL  inherited everywhere  (2 skills · 1 plugins · 2 mcp)
+GLOBAL  inherited everywhere  (3 skills · 1 plugins · 2 mcp)
   - alpha-skill [shared-store owner/alpha]
   - beta-skill [user] (disabled)
+  - parked-skill [user]
   - super [official@1.2.3]
   - stdio-srv [mcp stdio]
   - http-srv [mcp http] (pending/disabled)"
@@ -44,11 +48,14 @@ exports[`renderPlain characterization > --provenance 1`] = `
 "skillsight  /home/u  ·  runtimes: claude-code, codex  ·  2 folders
 ⚠ 1 unreadable source
 
-GLOBAL  inherited everywhere  (2 skills · 1 plugins · 2 mcp)
+GLOBAL  inherited everywhere  (3 skills · 1 plugins · 2 mcp)
   - alpha-skill [shared-store owner/alpha]
       used by: claude-code, codex, warp
   - beta-skill [user] (disabled)
       used by: claude-code
+  - parked-skill [user]
+      used by: claude-code
+      visibility: user-invocable-only (user)
   - super [official@1.2.3]
       supports: claude-code, codex
   - stdio-srv [mcp stdio]
@@ -69,9 +76,10 @@ exports[`renderPlain characterization > default report 1`] = `
 "skillsight  /home/u  ·  runtimes: claude-code, codex  ·  2 folders
 ⚠ 1 unreadable source
 
-GLOBAL  inherited everywhere  (2 skills · 1 plugins · 2 mcp)
+GLOBAL  inherited everywhere  (3 skills · 1 plugins · 2 mcp)
   - alpha-skill [shared-store owner/alpha]
   - beta-skill [user] (disabled)
+  - parked-skill [user]
   - super [official@1.2.3]
   - stdio-srv [mcp stdio]
   - http-srv [mcp http] (pending/disabled)
