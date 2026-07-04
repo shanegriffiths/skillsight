@@ -1,10 +1,13 @@
 import { describe, it, expect } from 'vitest';
+import { join } from 'node:path';
 import {
   parseSkillOverrides,
   resolveVisibility,
   visibilityOverlay,
 } from '../src/adapters/claude-code-visibility.js';
 import type { Warning } from '../src/types.js';
+import { makeTempHome, cleanup, ctxOf, writeSkillDir } from './helpers.js';
+import { scanSkillsDir } from '../src/skillscan.js';
 
 describe('parseSkillOverrides', () => {
   it('returns {} for undefined without warning', () => {
@@ -103,5 +106,30 @@ describe('visibilityOverlay', () => {
       visibilitySource: 'project',
       enabled: true,
     });
+  });
+});
+
+describe('scanSkillsDir overlay', () => {
+  it('merges overlay fields by DIRECTORY entry name, after enabled default', () => {
+    const home = makeTempHome();
+    try {
+      const skillsDir = join(home, '.claude', 'skills');
+      writeSkillDir(skillsDir, 'dir-x', { name: 'fm-y' });
+      writeSkillDir(skillsDir, 'plain');
+      const out = scanSkillsDir(skillsDir, ctxOf(home), 'global', undefined, (dirName) =>
+        dirName === 'dir-x'
+          ? { visibility: 'off', visibilitySource: 'user', enabled: false }
+          : undefined,
+      );
+      const byName = Object.fromEntries(out.map((s) => [s.name, s]));
+      // overlay keyed by dir name lands on the record whose display name is the frontmatter name
+      expect(byName['fm-y']!.visibility).toBe('off');
+      expect(byName['fm-y']!.visibilitySource).toBe('user');
+      expect(byName['fm-y']!.enabled).toBe(false);
+      expect(byName['plain']!.visibility).toBeUndefined();
+      expect(byName['plain']!.enabled).toBe(true);
+    } finally {
+      cleanup(home);
+    }
   });
 });
