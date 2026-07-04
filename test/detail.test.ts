@@ -94,9 +94,12 @@ describe('detailFields — skill', () => {
     expect(valueOf(f, 'visibility')).toBe('on (project — promoted)');
   });
 
-  it('does not tag a user-layer on as promoted, and omits the field when absent', () => {
+  it('does not tag a user-layer on as promoted', () => {
     const f = detailFields(skillRow({ visibility: 'on', visibilitySource: 'user' }));
     expect(valueOf(f, 'visibility')).toBe('on (user)');
+  });
+
+  it('omits the visibility field when no override applies', () => {
     expect(valueOf(detailFields(skillRow({})), 'visibility')).toBeUndefined();
   });
 });

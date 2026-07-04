@@ -42,7 +42,8 @@ describe('itemRows', () => {
   it('maps a shared-store skill to count + owner/repo source', () => {
     const s = skill('systematic-debugging', ['cc', 'codex'], 'obra/superpowers');
     const b: Bucket = { ...emptyBucket(), skills: [s] };
-    expect(itemRows(b)).toEqual([
+    // toStrictEqual: pins that optional keys (state, parked) are ABSENT, not undefined.
+    expect(itemRows(b)).toStrictEqual([
       { kind: 'skill', name: 'systematic-debugging', used: 2, source: 'obra/superpowers', sourceDim: false, record: s, usedRuntimes: ['cc', 'codex'] },
     ]);
   });
@@ -129,8 +130,11 @@ describe('itemRows', () => {
     const promoted = { ...skill('s-on', ['cc']), visibility: 'on' as const, visibilitySource: 'project' as const };
     const codexDisabled = { ...skill('s-codex', ['cc']), enabled: false };
     const plain = skill('s-plain', ['cc']);
-    const rows = itemRows({ ...emptyBucket(), skills: [off, uio, nameOnly, promoted, codexDisabled, plain] });
-    expect(rows.map((r) => r.state)).toEqual(['off', 'invoke-only', 'name-only', undefined, 'disabled', undefined]);
+    // parked visibility beats the disabled fallback, same as 'off' does
+    const uioDisabled = { ...skill('s-uio-d', ['cc']), visibility: 'user-invocable-only' as const, visibilitySource: 'user' as const, enabled: false };
+    const nameOnlyDisabled = { ...skill('s-name-d', ['cc']), visibility: 'name-only' as const, visibilitySource: 'project' as const, enabled: false };
+    const rows = itemRows({ ...emptyBucket(), skills: [off, uio, nameOnly, promoted, codexDisabled, plain, uioDisabled, nameOnlyDisabled] });
+    expect(rows.map((r) => r.state)).toEqual(['off', 'invoke-only', 'name-only', undefined, 'disabled', undefined, 'invoke-only', 'name-only']);
   });
 
   it('derives disabled state for plugins and mcp servers', () => {
