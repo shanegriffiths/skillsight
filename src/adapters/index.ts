@@ -19,8 +19,8 @@ export interface RuntimeAdapter {
    * Optional post-merge pass over one folder's `effective` bucket, for
    * runtime facts where folder settings re-scope records the folder pass
    * didn't produce (e.g. Claude Code per-folder `skillOverrides` re-resolving
-   * a global skill's visibility). Mutates `effective` records in place; the
-   * engine guarantees they are copies (mergeBuckets), never the global originals.
+   * a global skill's visibility). Mutates effective records in place; the
+   * engine guarantees SKILL records are copies (mergeSkill spreads on insert), but plugin/mcp records are shared references — do not mutate those here.
    */
   refineEffective?(dir: string, effective: Bucket, ctx: HomeCtx): void;
 }
