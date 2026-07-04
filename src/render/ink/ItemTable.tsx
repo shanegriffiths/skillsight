@@ -123,10 +123,17 @@ function Row({
       {showState ? (
         <Box width={STATE_W} marginRight={1}>
           <Text
-            color={row.state === 'off' || row.state === 'disabled' ? theme.bad : undefined}
-            dimColor={row.state === 'invoke-only' || row.state === 'name-only'}
+            color={
+              row.state === 'off' || row.state === 'disabled'
+                ? theme.bad
+                : row.state === undefined && !isGroup
+                  ? theme.good
+                  : undefined
+            }
+            dimColor={row.state !== 'off' && row.state !== 'disabled'}
           >
-            {row.state ?? ''}
+            {/* absent state = plainly available; render an explicit dim-green "enabled" (group headers stay blank) */}
+            {row.state ?? (isGroup ? '' : 'enabled')}
           </Text>
         </Box>
       ) : null}
