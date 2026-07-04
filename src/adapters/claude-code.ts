@@ -16,6 +16,13 @@ import { realpathSafe } from '../symlinks.js';
 import { scanSkillsDir } from '../skillscan.js';
 import { readFrontmatterFile } from '../frontmatter.js';
 import { normalizeClaudeTransport, buildMcpRecords } from '../mcp.js';
+import {
+  parseSkillOverrides,
+  resolveVisibility,
+  visibilityOverlay,
+  type SkillOverrides,
+  type VisibilityLayers,
+} from './claude-code-visibility.js';
 import type { RuntimeAdapter } from './index.js';
 
 const DEF = runtimeById('claude-code')!;
@@ -23,6 +30,7 @@ const DEF = runtimeById('claude-code')!;
 interface SettingsFile {
   enabledPlugins?: Record<string, boolean>;
   enableAllProjectMcpServers?: boolean;
+  skillOverrides?: unknown;
 }
 interface InstalledEntry {
   scope?: 'user' | 'project';
@@ -55,6 +63,8 @@ interface GlobalConfig {
   installed: InstalledPlugins | undefined;
   marketplaces: Record<string, MarketplaceEntry> | undefined;
   claudeJson: ClaudeJson | undefined;
+  /** User-layer `skillOverrides` from `<home>/settings.json`, validated. */
+  userSkillOverrides: SkillOverrides;
   /** Warnings captured at read time, delivered to the first caller that provides a sink. */
   pendingWarnings: Warning[];
 }
@@ -71,10 +81,16 @@ function globalConfig(ctx: HomeCtx, warnings?: Warning[]): GlobalConfig {
   if (!cfg) {
     const pending: Warning[] = [];
     const home = claudeHome(ctx);
+    const settingsPath = join(home, 'settings.json');
     cfg = {
       installed: readJson<InstalledPlugins>(join(home, 'plugins', 'installed_plugins.json'), pending),
       marketplaces: readJson<Record<string, MarketplaceEntry>>(join(home, 'plugins', 'known_marketplaces.json'), pending),
       claudeJson: readJson<ClaudeJson>(claudeJsonPath(ctx), pending),
+      userSkillOverrides: parseSkillOverrides(
+        readJson<SettingsFile>(settingsPath)?.skillOverrides,
+        settingsPath,
+        pending,
+      ),
       pendingWarnings: pending,
     };
     globalConfigCache.set(ctx, cfg);
@@ -217,7 +233,7 @@ export const claudeCodeAdapter: RuntimeAdapter = {
       readJson<SettingsFile>(join(home, 'settings.json'), warnings),
       readJson<SettingsFile>(join(home, 'settings.local.json'), warnings),
     );
-    const { installed, marketplaces, claudeJson } = globalConfig(ctx, warnings);
+    const { installed, marketplaces, claudeJson, userSkillOverrides } = globalConfig(ctx, warnings);
 
     for (const [key, entries] of Object.entries(installed?.plugins ?? {})) {
       for (const entry of entries) {
@@ -228,8 +244,12 @@ export const claudeCodeAdapter: RuntimeAdapter = {
       }
     }
 
-    // user skills (~/.claude/skills/*)
-    bucket.skills.push(...scanSkillsDir(join(home, 'skills'), ctx, 'global'));
+    // user skills (~/.claude/skills/*), user-layer visibility resolved by DIR name
+    bucket.skills.push(
+      ...scanSkillsDir(join(home, 'skills'), ctx, 'global', undefined, (dirName) =>
+        visibilityOverlay(resolveVisibility(dirName, { user: userSkillOverrides })),
+      ),
+    );
 
     // user-scope MCP servers (~/.claude.json top-level mcpServers)
     bucket.mcp.push(
