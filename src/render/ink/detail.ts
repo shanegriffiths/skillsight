@@ -44,13 +44,15 @@ function skillFields(s: SkillRecord): DetailField[] {
 function pluginFields(p: PluginRecord): DetailField[] {
   const pr = p.provides;
   const provides = `${pr.skills.length} skills · ${pr.commands.length} commands · ${pr.agents.length} agents · ${pr.mcpServers.length} mcp`;
-  return [
+  const f: DetailField[] = [
     { label: 'kind', value: 'plugin' },
     { label: 'provides', value: provides },
     { label: 'marketplace', value: p.marketplaceRepo ?? p.marketplace, dim: !p.marketplaceRepo },
     { label: 'scope', value: p.scope },
-    { label: 'version', value: p.version, dim: true },
   ];
+  if (p.override) f.push({ label: 'enabled via', value: `${p.override} settings override` });
+  f.push({ label: 'version', value: p.version, dim: true });
+  return f;
 }
 
 function mcpFields(m: McpRecord): DetailField[] {

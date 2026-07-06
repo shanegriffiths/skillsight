@@ -109,6 +109,12 @@ export interface PluginRecord {
   supportsRuntimes: Runtime[];
   /** The runtime whose config declares this plugin (set by the engine). */
   runtime?: Runtime;
+  /**
+   * Set on a per-folder record that exists to surface an `enabledPlugins`
+   * override of an inherited (user-scope) plugin — the settings layer that
+   * flipped it (`local > project`). `enabled` reflects the override.
+   */
+  override?: 'project' | 'local';
 }
 
 export interface McpRecord {

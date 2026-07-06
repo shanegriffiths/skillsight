@@ -333,6 +333,29 @@ export const claudeCodeAdapter: RuntimeAdapter = {
       }
     }
 
+    // Per-folder enablement OVERRIDES of inherited (user-scope) plugins. Claude
+    // Code layers `enabledPlugins` user→project→local per project, so a plugin
+    // installed at user scope can be flipped on/off by this folder's settings.
+    // Surface each as one plugin row carrying the effective state (no bundled-skill
+    // flood — the skills stay in the global layer). `mergeBuckets(global, folder)`
+    // then lets this record win in the effective set by id.
+    const projectHere = new Set<string>();
+    for (const [key, entries] of Object.entries(installed?.plugins ?? {})) {
+      for (const e of entries) {
+        if (e.scope === 'project' && realpathSafe(e.projectPath ?? '') === realpathSafe(dir)) projectHere.add(key);
+      }
+    }
+    const localKeys = new Set(Object.keys(settings.local?.enabledPlugins ?? {}));
+    for (const key of Object.keys(projEnabled)) {
+      if (projectHere.has(key)) continue; // already surfaced as a project install
+      const entries = installed?.plugins?.[key];
+      const base = entries?.find((e) => e.scope === 'user') ?? entries?.[0];
+      if (!base) continue; // dangling enabledPlugins key — nothing installed to override
+      const { plugin } = pluginRecordAndSkills(key, base, projEnabled, marketplaces, ctx);
+      plugin.override = localKeys.has(key) ? 'local' : 'project';
+      bucket.plugins.push(plugin);
+    }
+
     // project skills, folder-resolved visibility (local > project > user) by DIR name
     bucket.skills.push(
       ...scanSkillsDir(join(dir, '.claude', 'skills'), ctx, 'project-scoped', undefined, (dirName) =>
@@ -371,6 +394,18 @@ export const claudeCodeAdapter: RuntimeAdapter = {
   refineEffective(dir, effective, ctx) {
     // No warnings sinks here: collectForDirectory already reported these
     // files for this folder in the same scan.
+
+    // Cascade each plugin's effective enablement onto its bundled skills. The
+    // merged-in folder override may have flipped a plugin (e.g. user-off,
+    // project-on), and bundled skills follow plugin enablement. `effective`
+    // skills are clones from mergeBuckets, so this can't leak into `global`.
+    const enabledByPlugin = new Map(effective.plugins.map((p) => [p.id, p.enabled]));
+    for (const s of effective.skills) {
+      if (!s.bundledInPlugin) continue;
+      const pe = enabledByPlugin.get(s.bundledInPlugin);
+      if (pe !== undefined && pe !== s.enabled) s.enabled = pe;
+    }
+
     const layers = buildVisibilityLayers(dir, ctx, folderSettings(dir));
     if (
       !Object.keys(layers.user ?? {}).length &&

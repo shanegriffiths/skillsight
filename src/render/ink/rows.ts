@@ -37,6 +37,8 @@ export interface ItemRow {
   visibility?: ItemVisibility;
   /** Absent on synthetic group headers with no record. */
   status?: ItemStatus;
+  /** True when a plugin row is a per-folder enablement override of an inherited plugin. */
+  override?: boolean;
 }
 
 /** The expansion/identity key of a row: group id when present, else the name. */
@@ -82,8 +84,11 @@ function pluginRow(p: PluginRecord): ItemRow {
     sourceDim: !p.marketplaceRepo,
     record: p,
     usedRuntimes: p.runtime ? [p.runtime] : [],
-    scope: p.scope === 'project' ? 'project' : 'user',
+    // An override row shows the layer that flipped it (project/local); a plain
+    // plugin shows its install scope (user/project).
+    scope: p.override ?? (p.scope === 'project' ? 'project' : 'user'),
     status: p.enabled ? 'enabled' : 'disabled',
+    ...(p.override ? { override: true } : {}),
   };
 }
 

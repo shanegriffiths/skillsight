@@ -8,6 +8,8 @@ Each task notes its size (S/M/L), whether the data already exists in the engine,
 
 ## Bugs
 
+- [x] **Per-project plugin enablement overrides were ignored.** A user-scope plugin disabled in `~/.claude/settings.json` but enabled by a project's `.claude/settings.json` (`enabledPlugins`) — the flagship "default-off library, enable per project" pattern — was reported as disabled everywhere, and its bundled skills too. skillsight resolved a plugin's `enabled` only at its install layer and never applied a folder's `enabledPlugins` override to inherited plugins. **Fixed 2026-07-06** — `collectForDirectory` surfaces each override as a folder-delta plugin row (`override: 'project'|'local'`, tagged `(override)`, counting toward `+N`); `mergeBuckets` lets it win in `effective`; `refineEffective` cascades the effective enablement onto bundled skills. Symmetric (project can also disable a user-enabled plugin). Adapter + engine + rows tests in `test/`.
+
 - [x] **Home directory shows as a project with ~99 duplicate "global" skills.** `/Users/<you>` is in Claude's project registry, so it was discovered as a folder; scanning it read `~/.claude/skills`, `~/.agents/skills`, etc. — the global skill dirs — and re-listed them as `project-scoped` (the `shane +99` row). **Fixed 2026-06-24** — `discovery.ts` now excludes `homeRoot` (and `/`); regression test in `test/discovery.test.ts`.
 
 ---

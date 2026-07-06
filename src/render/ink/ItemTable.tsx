@@ -43,7 +43,8 @@ function pad(text: string, width: number, align?: 'right'): string {
 function nameSeg(row: ItemRow): Seg {
   const isGroup = row.expandState !== undefined;
   const marker = row.expandState === 'expanded' ? '▾' : row.expandState === 'collapsed' ? '▸' : '';
-  const label = isGroup ? `${marker} ${row.name} (${row.used})` : row.depth ? `  ${row.name}` : row.name;
+  const suffix = row.override ? ' (override)' : '';
+  const label = isGroup ? `${marker} ${row.name} (${row.used})` : `${row.depth ? '  ' : ''}${row.name}${suffix}`;
   return { text: label, bold: isGroup, dim: !!row.parked };
 }
 

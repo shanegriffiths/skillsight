@@ -202,6 +202,18 @@ describe('itemRows', () => {
     ]);
   });
 
+  it('renders a per-folder plugin override: scope = the override layer, plus an override flag', () => {
+    const p = { ...plugin('posthog', 'o/r'), override: 'project' as const, enabled: true };
+    const row = itemRows({ ...emptyBucket(), plugins: [p] })[0]!;
+    expect(row.scope).toBe('project');
+    expect(row.override).toBe(true);
+    expect(row.status).toBe('enabled');
+
+    const local = itemRows({ ...emptyBucket(), plugins: [{ ...plugin('x', 'o/r'), override: 'local' as const, enabled: false }] })[0]!;
+    expect(local.scope).toBe('local');
+    expect(local.status).toBe('disabled');
+  });
+
   it('gives plugins and mcp servers no visibility (skills-only concept)', () => {
     const rows = itemRows({
       ...emptyBucket(),

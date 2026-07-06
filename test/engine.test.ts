@@ -69,6 +69,44 @@ describe('scan() engine integration', () => {
     expect(typeof inv.generatedAt).toBe('string');
   });
 
+  it('applies a per-project plugin enablement override to the effective set, folder delta, and bundled skills', () => {
+    home = makeTempHome();
+    const proj = join(home, 'proj');
+    const betaCache = join(home, '.claude', 'plugins', 'cache', 'official', 'beta', '1.0.0');
+
+    // user layer: beta installed at user scope and DISABLED
+    writeFileEnsured(join(home, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'beta@official': false } }));
+    writeFileEnsured(
+      join(home, '.claude', 'plugins', 'installed_plugins.json'),
+      JSON.stringify({ version: 2, plugins: { 'beta@official': [{ scope: 'user', installPath: betaCache, version: '1.0.0' }] } }),
+    );
+    writeFileEnsured(
+      join(home, '.claude', 'plugins', 'known_marketplaces.json'),
+      JSON.stringify({ official: { source: { source: 'github', repo: 'org/official' } } }),
+    );
+    writeFileEnsured(join(betaCache, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'beta' }));
+    writeSkillDir(join(betaCache, 'skills'), 'betaskill');
+
+    // project layer: turn beta ON
+    writeFileEnsured(join(proj, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'beta@official': true } }));
+
+    const inv = scan(home, { walk: false, dir: proj, env: {} });
+    const folder = inv.folders.find((f) => f.path === proj)!;
+
+    // global (the inherited default) is untouched — beta stays disabled
+    expect(inv.global.plugins.find((p) => p.id === 'beta@official')!.enabled).toBe(false);
+    expect(inv.global.skills.find((s) => s.name === 'betaskill')!.enabled).toBe(false);
+
+    // effective: enabled by the project override
+    expect(folder.effective.plugins.find((p) => p.id === 'beta@official')!.enabled).toBe(true);
+    // surfaced in the folder delta as an override row
+    const delta = folder.projectScoped.plugins.find((p) => p.id === 'beta@official')!;
+    expect(delta.enabled).toBe(true);
+    expect(delta.override).toBe('project');
+    // cascade: the plugin's bundled skill follows the effective enablement
+    expect(folder.effective.skills.find((s) => s.name === 'betaskill')!.enabled).toBe(true);
+  });
+
   it('surfaces hub-direct-only skills (no symlinks) with usedBy from lock universal agents', () => {
     home = makeTempHome();
     writeSkillDir(join(home, '.agents', 'skills'), 'hubonly', { description: 'Hub only' });

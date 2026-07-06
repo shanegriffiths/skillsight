@@ -157,6 +157,63 @@ describe('claude-code adapter: collectForDirectory', () => {
     expect(mcp.localSrv!.enabled).toBe(true);
   });
 
+  it('surfaces a per-project override that ENABLES a user-scope plugin (no bundled-skill flood)', () => {
+    const { home: h, proj } = buildHome();
+    home = h;
+    // beta is user-scope and disabled at the user layer; the project turns it on.
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.json'),
+      JSON.stringify({ enabledPlugins: { 'beta@official': true } }),
+    );
+    const d = claudeCodeAdapter.collectForDirectory(proj, ctxOf(h), []);
+    const beta = d.plugins.find((p) => p.id === 'beta@official');
+    expect(beta).toBeDefined();
+    expect(beta!.enabled).toBe(true);
+    expect(beta!.override).toBe('project');
+    // the plugin row alone carries the override — its skills stay in the global layer
+    expect(d.skills.some((s) => s.bundledInPlugin === 'beta@official')).toBe(false);
+  });
+
+  it('surfaces a per-project override that DISABLES a user-enabled plugin', () => {
+    const { home: h, proj } = buildHome();
+    home = h;
+    // alpha is user-enabled and ships skill "foo"; the project turns it off.
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.json'),
+      JSON.stringify({ enabledPlugins: { 'alpha@official': false } }),
+    );
+    const d = claudeCodeAdapter.collectForDirectory(proj, ctxOf(h), []);
+    const alpha = d.plugins.find((p) => p.id === 'alpha@official')!;
+    expect(alpha.enabled).toBe(false);
+    expect(alpha.override).toBe('project');
+    expect(d.skills.some((s) => s.bundledInPlugin === 'alpha@official')).toBe(false);
+  });
+
+  it('marks the override layer "local" when settings.local.json decides it (local > project)', () => {
+    const { home: h, proj } = buildHome();
+    home = h;
+    writeFileEnsured(join(proj, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'beta@official': false } }));
+    writeFileEnsured(join(proj, '.claude', 'settings.local.json'), JSON.stringify({ enabledPlugins: { 'beta@official': true } }));
+    const d = claudeCodeAdapter.collectForDirectory(proj, ctxOf(h), []);
+    const beta = d.plugins.find((p) => p.id === 'beta@official')!;
+    expect(beta.enabled).toBe(true); // local wins
+    expect(beta.override).toBe('local');
+  });
+
+  it('does not double-surface a project-installed plugin, nor invent a record for a dangling key', () => {
+    const { home: h, proj } = buildHome();
+    home = h;
+    writeFileEnsured(
+      join(proj, '.claude', 'settings.json'),
+      JSON.stringify({ enabledPlugins: { 'proj@official': true, 'ghost@official': true } }),
+    );
+    const d = claudeCodeAdapter.collectForDirectory(proj, ctxOf(h), []);
+    const projRecords = d.plugins.filter((p) => p.id === 'proj@official');
+    expect(projRecords).toHaveLength(1); // the project install, not also an override
+    expect(projRecords[0]!.override).toBeUndefined();
+    expect(d.plugins.some((p) => p.id === 'ghost@official')).toBe(false); // nothing installed to override
+  });
+
   it('honors enableAllProjectMcpServers from settings.local.json', () => {
     const { home: h, proj } = buildHome();
     home = h;
