@@ -69,7 +69,9 @@ export function FoldersView({ inv, inputActive = true }: { inv: Inventory; input
         ? '↑/↓ move · → expand/open · ← back · Enter open · Esc folders · q quit'
         : 'Esc/← back · 1/2/3 or Tab switch · q quit';
 
-  const isGroup = sel?.kind === 'worktree';
+  // A selected row with no folder is a grouping node (the worktrees group, or a
+  // repo whose main checkout wasn't discovered) — it has no item table.
+  const isGroup = !!sel && !sel.folder;
   const path = selFolder
     ? selFolder.path.replace(inv.homeRoot, '~')
     : isGroup
@@ -102,7 +104,7 @@ export function FoldersView({ inv, inputActive = true }: { inv: Inventory; input
             <Text dimColor>select a folder</Text>
           ) : isGroup ? (
             <Text dimColor>
-              worktree group · {sel!.count > 0 ? `+${sel!.count} across its checkouts · ` : ''}
+              {sel!.kind === 'worktrees' ? 'worktree checkouts' : 'worktree repo'} ·{' '}
               {sel!.collapsed ? '→ expand to drill in' : 'select a checkout below to inspect'}
             </Text>
           ) : rows.length === 0 ? (

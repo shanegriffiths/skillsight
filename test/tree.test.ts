@@ -75,66 +75,50 @@ describe('buildFolderRows — flat projects', () => {
 });
 
 describe('buildFolderRows — worktree grouping', () => {
-  const wt = (checkout: string, delta: number) =>
-    folder(`/home/Projects/snowbridge-media.worktree/${checkout}`, delta);
+  const repoDir = '/home/Projects/snowbridge-media';
+  const container = `${repoDir}.worktree`;
+  const wt = (checkout: string, delta: number) => folder(`${container}/${checkout}`, delta);
 
-  it('collapses checkouts under a synthetic container row (default collapsed)', () => {
-    const rows = buildFolderRows(
-      [folder('/home/Projects/snowbridge-media', 12), wt('case-study', 3), wt('animation', 1)],
-      '/home',
-      opts(),
-    );
-    // main repo stays a flat sibling; the container is one collapsed group row.
-    const group = byLabel(rows, 'snowbridge-media')!; // stripped ".worktree"
-    // two rows share the stripped label (repo + container) → find the worktree one
-    const container = rows.find((r) => r.kind === 'worktree')!;
-    expect(container).toMatchObject({ kind: 'worktree', depth: 0, hasChildren: true, collapsed: true });
-    expect(container.count).toBe(4); // 3 + 1 aggregate
-    expect(group).toBeDefined();
-    // collapsed → children not emitted
-    expect(rows.some((r) => r.depth === 1)).toBe(false);
+  it('folds worktrees under the repo as one top row (default collapsed, no sibling container)', () => {
+    const rows = buildFolderRows([folder(repoDir, 12), wt('case-study', 3), wt('animation', 1)], '/home', opts());
+    expect(rows).toHaveLength(1); // just the repo; descendants hidden while collapsed
+    expect(rows[0]).toMatchObject({ nodeId: repoDir, kind: 'project', depth: 0, hasChildren: true, collapsed: true });
+    expect(rows[0]!.folder).not.toBeNull(); // main checkout discovered → selectable
   });
 
-  it('reveals checkouts at depth 1 when the container is expanded', () => {
-    const container = '/home/Projects/snowbridge-media.worktree';
-    const rows = buildFolderRows(
-      [wt('case-study', 3), wt('animation', 1)],
-      '/home',
-      opts({ expanded: new Set([container]) }),
-    );
-    expect(rows[0]).toMatchObject({ kind: 'worktree', collapsed: false });
-    // children sorted by delta desc within the group
-    expect(rows.slice(1).map((r) => r.label)).toEqual(['case-study', 'animation']);
-    expect(rows.slice(1).every((r) => r.depth === 1 && r.kind === 'project')).toBe(true);
+  it('never aggregates: the repo count is its own delta, not the sum of checkouts', () => {
+    const rows = buildFolderRows([folder(repoDir, 2), wt('a', 5), wt('b', 4)], '/home', opts());
+    expect(rows[0]!.count).toBe(2); // not 11
   });
 
-  it('groups a single checkout too (context beats a bare basename)', () => {
+  it('expanding the repo reveals a worktrees group; expanding that reveals the checkouts', () => {
+    const repoOpen = buildFolderRows([folder(repoDir, 12), wt('case-study', 3)], '/home', opts({ expanded: new Set([repoDir]) }));
+    expect(repoOpen.map((r) => [r.label, r.depth])).toEqual([['snowbridge-media', 0], ['worktrees', 1]]);
+    expect(repoOpen[1]).toMatchObject({ kind: 'worktrees', hasChildren: true, collapsed: true, count: 0, folder: null });
+
+    const allOpen = buildFolderRows(
+      [folder(repoDir, 12), wt('case-study', 3), wt('animation', 1)],
+      '/home',
+      opts({ expanded: new Set([repoDir, container]) }),
+    );
+    expect(allOpen.map((r) => r.label)).toEqual(['snowbridge-media', 'worktrees', 'case-study', 'animation']);
+    // checkouts at depth 2 with their OWN counts, sorted by delta desc
+    expect(allOpen.slice(2).map((r) => [r.label, r.depth, r.count])).toEqual([['case-study', 2, 3], ['animation', 2, 1]]);
+  });
+
+  it('groups a single checkout too, even when the main checkout was not discovered', () => {
     const rows = buildFolderRows([wt('animation', 1)], '/home', opts());
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ kind: 'worktree', label: 'snowbridge-media', hasChildren: true });
+    expect(rows[0]).toMatchObject({ kind: 'project', label: 'snowbridge-media', hasChildren: true, count: 0, folder: null });
   });
 
-  it('does not hint a repo sitting beside its own <repo>.worktree (the ·wt tag distinguishes them)', () => {
-    const rows = buildFolderRows(
-      [folder('/home/Antimony/antimony-resources', 2), folder('/home/Antimony/antimony-resources.worktree/animation', 1)],
-      '/home',
-      opts(),
-    );
-    const project = rows.find((r) => r.kind === 'project' && r.depth === 0)!;
-    const container = rows.find((r) => r.kind === 'worktree')!;
-    expect(project.label).toBe('antimony-resources');
-    expect(container.label).toBe('antimony-resources'); // same stripped name…
-    expect(project.hint).toBeUndefined(); // …but no redundant parent-dir hint
-    expect(container.hint).toBeUndefined();
-  });
-
-  it('uses the nearest .worktree ancestor and labels the child by its relative path', () => {
+  it('uses the nearest .worktree ancestor and labels the checkout by its relative path', () => {
     const rows = buildFolderRows(
       [folder('/home/x.worktree/branch-a', 2)],
       '/home',
-      opts({ expanded: new Set(['/home/x.worktree']) }),
+      opts({ expanded: new Set(['/home/x', '/home/x.worktree']) }),
     );
-    expect(rows[1]).toMatchObject({ label: 'branch-a', depth: 1 });
+    expect(rows.map((r) => [r.label, r.depth])).toEqual([['x', 0], ['worktrees', 1], ['branch-a', 2]]);
   });
 });
 

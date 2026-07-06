@@ -60,10 +60,11 @@ function withFolderExpanded(state: NavState, nodeId: string, on: boolean): NavSt
   return { ...state, folderExpanded };
 }
 
-/** Nearest preceding top-level (depth 0) worktree container row; the index itself if none. */
+/** Nearest preceding row shallower than `from` (its tree parent); the index itself if none. */
 function folderParentIndex(rows: FolderRow[], from: number): number {
+  const depth = rows[from]?.depth ?? 0;
   for (let i = from - 1; i >= 0; i--) {
-    if (rows[i]?.depth === 0 && rows[i]?.hasChildren) return i;
+    if ((rows[i]?.depth ?? 0) < depth) return i;
   }
   return from;
 }
@@ -88,20 +89,23 @@ export function folderNav(state: NavState, action: NavAction, ctx: NavContext): 
         return { ...s, folder: clamp(folder - 1, ctx.folderRows.length) };
       case 'right': {
         if (!row) return s;
-        if (row.hasChildren) return row.collapsed ? withFolderExpanded(s, row.nodeId, true) : s;
+        // Drill the tree first (expand a collapsed node); once open, a real
+        // project row opens its item table.
+        if (row.hasChildren && row.collapsed) return withFolderExpanded(s, row.nodeId, true);
         if (row.folder && ctx.rows.length > 0) return { ...s, focus: 'items', item: 0 };
         return s;
       }
       case 'enter': {
         if (!row) return s;
-        if (row.hasChildren) return withFolderExpanded(s, row.nodeId, row.collapsed);
+        // Enter favours opening a real project; grouping nodes toggle instead.
         if (row.folder && ctx.rows.length > 0) return { ...s, focus: 'items', item: 0 };
+        if (row.hasChildren) return withFolderExpanded(s, row.nodeId, row.collapsed);
         return s;
       }
       case 'left': {
         if (!row) return s;
         if (row.hasChildren && !row.collapsed) return withFolderExpanded(s, row.nodeId, false);
-        if (row.depth === 1) {
+        if (row.depth > 0) {
           const pi = folderParentIndex(ctx.folderRows, folder);
           if (pi !== folder) return { ...s, folder: pi };
         }

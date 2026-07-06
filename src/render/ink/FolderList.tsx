@@ -4,11 +4,11 @@ import { theme } from './theme.js';
 
 /**
  * The project column, boxed to match the item table (header + rule, then one
- * line per row). Plain projects are flat leaves; a `<repo>.worktree` container
- * renders as an expandable group (chevron + dim `·wt` tag) whose checkouts
- * indent one level when open. Each line shows the `+N` delta right-aligned. The
- * cursor row inverts edge-to-edge; while unfocused (`dimmed`) it shows a `›`
- * marker instead. `selected` is the in-window index.
+ * line per row). Plain projects are flat leaves; a repo with worktrees is an
+ * expandable parent (chevron) nesting a dim `worktrees` group and its checkouts
+ * beneath it. Each line shows its OWN `+N` delta right-aligned. The cursor row
+ * inverts edge-to-edge; while unfocused (`dimmed`) it shows a `›` marker
+ * instead. `selected` is the in-window index.
  */
 export function FolderList({
   rows,
@@ -33,15 +33,15 @@ export function FolderList({
       {rows.length === 0 ? <Text dimColor>no folders discovered</Text> : null}
       {rows.map((r, i) => {
         const active = i === selected;
-        const globalOnly = r.count === 0 && r.kind === 'project';
+        const isWorktrees = r.kind === 'worktrees';
+        const globalOnly = r.count === 0 && r.kind === 'project' && !r.hasChildren;
         const chevron = r.hasChildren ? (r.collapsed ? '▸ ' : '▾ ') : '';
         const indent = '  '.repeat(r.depth);
-        const tag = r.kind === 'worktree' ? ' ·wt' : '';
         const hint = r.hint ? ` ${r.hint}` : '';
         const right = r.count > 0 ? `+${r.count}` : '';
 
         let left = `${active ? '›' : ' '} ${indent}${chevron}${r.label}`;
-        const rightBlock = tag.length + hint.length + right.length;
+        const rightBlock = hint.length + right.length;
         // Cap `left` so left + a ≥1 gap + rightBlock never exceeds contentW
         // (else Ink's truncate-end would eat the trailing count).
         const maxLeft = Math.max(3, contentW - rightBlock - 1);
@@ -51,16 +51,15 @@ export function FolderList({
         if (active && !dimmed) {
           return (
             <Text key={r.nodeId} wrap="truncate-end" inverse bold>
-              {`${left}${tag}${hint}${' '.repeat(mid)}${right}`}
+              {`${left}${hint}${' '.repeat(mid)}${right}`}
             </Text>
           );
         }
         return (
           <Text key={r.nodeId} wrap="truncate-end">
-            <Text dimColor={dimmed || (globalOnly && !active)} bold={r.kind === 'worktree' && !dimmed}>
+            <Text dimColor={dimmed || isWorktrees || (globalOnly && !active)}>
               {left}
             </Text>
-            {tag ? <Text dimColor>{tag}</Text> : null}
             {hint ? <Text dimColor>{hint}</Text> : null}
             {' '.repeat(mid)}
             <Text color={dimmed ? undefined : theme.accent} dimColor={dimmed}>

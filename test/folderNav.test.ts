@@ -39,8 +39,12 @@ function fRow(label: string, over: Partial<FolderRow> = {}): FolderRow {
     ...over,
   };
 }
+/** A folderless grouping node (the worktrees group, or an undiscovered repo). */
 const group = (label: string, over: Partial<FolderRow> = {}): FolderRow =>
-  fRow(label, { nodeId: label, kind: 'worktree', hasChildren: true, folder: null, collapsed: true, ...over });
+  fRow(label, { nodeId: label, kind: 'worktrees', hasChildren: true, folder: null, collapsed: true, ...over });
+/** A repo that both has its own items and nests worktrees. */
+const repo = (label: string, over: Partial<FolderRow> = {}): FolderRow =>
+  fRow(label, { nodeId: label, hasChildren: true, folder: fakeFolder, collapsed: true, ...over });
 
 const ctxOf = (rows: ItemRow[], over: Partial<NavContext> = {}): NavContext => ({
   folderRows: [fRow('f0'), fRow('f1'), fRow('f2')],
@@ -73,57 +77,65 @@ describe('folderNav — folders focus (flat projects)', () => {
   });
 });
 
-describe('folderNav — folders focus (worktree groups)', () => {
+describe('folderNav — folders focus (tree: repo > worktrees > checkout)', () => {
   const at = (folder: number, over: Partial<NavState> = {}): NavState => ({ ...initialNav(), folder, ...over });
 
-  it('Right expands a collapsed container instead of opening items', () => {
-    const ctx: NavContext = { folderRows: [group('repo')], rows: [] };
+  it('Right expands a collapsed grouping node instead of opening items', () => {
+    const ctx: NavContext = { folderRows: [group('wt')], rows: [] };
+    expect(folderNav(at(0), 'right', ctx).folderExpanded.has('wt')).toBe(true);
+  });
+
+  it('Right is a no-op on an already-expanded grouping node', () => {
+    const ctx: NavContext = { folderRows: [group('wt', { collapsed: false })], rows: [] };
+    const s = folderNav(at(0, { folderExpanded: new Set(['wt']) }), 'right', ctx);
+    expect(s.folderExpanded.has('wt')).toBe(true);
+    expect(s.focus).toBe('folders');
+  });
+
+  it('Enter toggles a folderless grouping node both ways', () => {
+    const collapsed: NavContext = { folderRows: [group('wt')], rows: [] };
+    expect(folderNav(at(0), 'enter', collapsed).folderExpanded.has('wt')).toBe(true);
+    const expanded: NavContext = { folderRows: [group('wt', { collapsed: false })], rows: [] };
+    expect(folderNav(at(0, { folderExpanded: new Set(['wt']) }), 'enter', expanded).folderExpanded.has('wt')).toBe(false);
+  });
+
+  it('a collapsed repo: Right drills (expands) before it would open items', () => {
+    const ctx: NavContext = { folderRows: [repo('repo')], rows: [leaf('a')] };
     const s = folderNav(at(0), 'right', ctx);
-    expect(s.focus).toBe('folders');
-    expect(s.folderExpanded.has('repo')).toBe(true);
-  });
-
-  it('Right is a no-op on an already-expanded container', () => {
-    const ctx: NavContext = { folderRows: [group('repo', { collapsed: false })], rows: [] };
-    const s = folderNav(at(0, { folderExpanded: new Set(['repo']) }), 'right', ctx);
     expect(s.folderExpanded.has('repo')).toBe(true);
     expect(s.focus).toBe('folders');
   });
 
-  it('Enter toggles the container both ways', () => {
-    const collapsed: NavContext = { folderRows: [group('repo')], rows: [] };
-    const opened = folderNav(at(0), 'enter', collapsed);
-    expect(opened.folderExpanded.has('repo')).toBe(true);
-
-    const expanded: NavContext = { folderRows: [group('repo', { collapsed: false })], rows: [] };
-    const closed = folderNav(at(0, { folderExpanded: new Set(['repo']) }), 'enter', expanded);
-    expect(closed.folderExpanded.has('repo')).toBe(false);
+  it('a repo with items: Enter opens its own items (does not toggle expansion)', () => {
+    const ctx: NavContext = { folderRows: [repo('repo')], rows: [leaf('a')] };
+    expect(folderNav(at(0), 'enter', ctx)).toMatchObject({ focus: 'items', item: 0 });
   });
 
-  it('Left collapses an expanded container in place', () => {
-    const ctx: NavContext = { folderRows: [group('repo', { collapsed: false })], rows: [] };
-    const s = folderNav(at(0, { folderExpanded: new Set(['repo']) }), 'left', ctx);
-    expect(s.folderExpanded.has('repo')).toBe(false);
+  it('an expanded repo: Right opens its items; Left collapses it', () => {
+    const ctx: NavContext = { folderRows: [repo('repo', { collapsed: false })], rows: [leaf('a')] };
+    expect(folderNav(at(0, { folderExpanded: new Set(['repo']) }), 'right', ctx)).toMatchObject({ focus: 'items' });
+    expect(folderNav(at(0, { folderExpanded: new Set(['repo']) }), 'left', ctx).folderExpanded.has('repo')).toBe(false);
   });
 
-  it('Left on a checkout child jumps to its container row', () => {
+  it('Left walks a checkout up to the worktrees node, then the worktrees node collapses in place', () => {
     const ctx: NavContext = {
       folderRows: [
-        group('repo', { collapsed: false }),
-        fRow('case-study', { depth: 1 }),
-        fRow('animation', { depth: 1 }),
+        repo('repo', { collapsed: false }),
+        group('worktrees', { depth: 1, collapsed: false, nodeId: 'wt' }),
+        fRow('case-study', { depth: 2, nodeId: 'cs' }),
       ],
       rows: [],
     };
-    expect(folderNav(at(2), 'left', ctx).folder).toBe(0);
+    expect(folderNav(at(2), 'left', ctx).folder).toBe(1); // checkout → worktrees group
+    expect(folderNav(at(1, { folderExpanded: new Set(['wt']) }), 'left', ctx).folderExpanded.has('wt')).toBe(false);
   });
 
-  it('Enter/Right on a checkout child (a leaf with items) opens its items', () => {
+  it('Enter on a checkout (a leaf with items) opens its items', () => {
     const ctx: NavContext = {
-      folderRows: [group('repo', { collapsed: false }), fRow('case-study', { depth: 1 })],
+      folderRows: [repo('repo', { collapsed: false }), group('wt', { depth: 1, collapsed: false }), fRow('case-study', { depth: 2 })],
       rows: [leaf('a')],
     };
-    expect(folderNav(at(1), 'enter', ctx)).toMatchObject({ focus: 'items', item: 0 });
+    expect(folderNav(at(2), 'enter', ctx)).toMatchObject({ focus: 'items', item: 0 });
   });
 });
 
