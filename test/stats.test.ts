@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { leaderboard, installed, leaderboardStats, summaryStats } from '../src/render/ink/stats.js';
+import { leaderboard, installed, groupBySource, leaderboardStats, summaryStats } from '../src/render/ink/stats.js';
+import type { ItemRow } from '../src/render/ink/rows.js';
 import { formatCounts } from '../src/render/format.js';
 import type {
   Bucket,
@@ -142,6 +143,33 @@ describe('installed', () => {
     // wide is in 2 projects → ranks above narrow (1)
     expect(rows.map((r) => r.name)).toEqual(['wide', 'narrow']);
     expect(rows.find((r) => r.name === 'wide')!.locations).toEqual(['/a', '/b']);
+  });
+});
+
+describe('groupBySource', () => {
+  const sk = (name: string, source: string): ItemRow => ({ kind: 'skill', name, used: 1, source, sourceDim: false });
+  const pl = (name: string): ItemRow => ({ kind: 'plugin', name, used: null, source: 'o/r', sourceDim: false });
+
+  it('collapses ≥2 same-source skills under a header at the first member position; keeps order', () => {
+    const rows = [sk('a', 'o/x'), pl('p'), sk('b', 'o/x'), sk('solo', 'o/y')];
+    const out = groupBySource(rows, new Set());
+    // header for o/x (2 skills) at a's slot, then plugin p, then solo (single-source → leaf)
+    expect(out.map((r) => r.name)).toEqual(['o/x', 'p', 'solo']);
+    expect(out[0]).toMatchObject({ expandState: 'collapsed', groupId: 'o/x', used: 2 });
+    expect(out[2]!.expandState).toBeUndefined(); // single-skill source is a plain leaf
+  });
+
+  it('reveals a group\'s skills at depth 1 when expanded', () => {
+    const rows = [sk('a', 'o/x'), sk('b', 'o/x')];
+    const out = groupBySource(rows, new Set(['o/x']));
+    expect(out.map((r) => r.name)).toEqual(['o/x', 'a', 'b']);
+    expect(out[0]!.expandState).toBe('expanded');
+    expect(out[1]).toMatchObject({ name: 'a', depth: 1 });
+  });
+
+  it('never groups plugins or mcp — only skills', () => {
+    const rows = [pl('p1'), pl('p2')];
+    expect(groupBySource(rows, new Set()).map((r) => r.name)).toEqual(['p1', 'p2']);
   });
 });
 

@@ -3,8 +3,8 @@ import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { ItemTable, TABLE_CHROME } from './ItemTable.js';
 import { DetailView } from './DetailView.js';
-import type { ItemRow } from './rows.js';
-import { summaryStats, type SummaryStats } from './stats.js';
+import { groupKey, type ItemRow } from './rows.js';
+import { summaryStats, groupBySource, type SummaryStats } from './stats.js';
 import { useListDetail } from './listDetail.js';
 import { RuntimeLetters } from './RuntimeLetters.js';
 import { marksFor } from './runtimeMark.js';
@@ -123,12 +123,15 @@ export function RankedView({
   const size = useWindowSize();
   const chrome = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1 + 1 + (showStats ? STATS_BAND_LINES : 0);
   const height = Math.max(3, size.rows - chrome);
-  const { detail, selected, start, end, onInput } = useListDetail(rows.length, height);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const grouped = groupBySource(rows, expanded);
+  const { detail, selected, start, end, onInput } = useListDetail(grouped.length, height);
   const [projSel, setProjSel] = useState(0);
 
-  const selRow = rows[selected];
+  const selRow = grouped[selected];
+  const isHeader = selRow?.expandState !== undefined;
   const locs = selRow?.locations ?? [];
-  const projNavigable = detail && !selRow?.everywhere && locs.length > 0 && !!onOpenProject;
+  const projNavigable = detail && !isHeader && !selRow?.everywhere && locs.length > 0 && !!onOpenProject;
 
   // Reset the project cursor whenever the detail target changes / closes.
   useEffect(() => {
@@ -137,6 +140,18 @@ export function RankedView({
 
   useInput(
     (input, key) => {
+      // A source-group header expands/collapses in place (like Projects/Global).
+      if (!detail && isHeader && (key.return || key.rightArrow || key.leftArrow)) {
+        const id = groupKey(selRow!);
+        setExpanded((prev) => {
+          const next = new Set(prev);
+          const open = key.leftArrow ? false : key.rightArrow ? true : !next.has(id);
+          if (open) next.add(id);
+          else next.delete(id);
+          return next;
+        });
+        return;
+      }
       if (projNavigable) {
         if (key.downArrow || input === 'j') return setProjSel((s) => Math.min(s + 1, locs.length - 1));
         if (key.upArrow || input === 'k') return setProjSel((s) => Math.max(s - 1, 0));
@@ -163,14 +178,14 @@ export function RankedView({
 
   return (
     <Box flexDirection="column">
-      {rows.length === 0 ? (
+      {grouped.length === 0 ? (
         <Text dimColor>nothing to show</Text>
       ) : (
-        <ItemTable rows={rows.slice(start, end)} variant="leaderboard" width={size.columns} selectedIndex={selected - start} />
+        <ItemTable rows={grouped.slice(start, end)} variant="leaderboard" width={size.columns} selectedIndex={selected - start} />
       )}
-      <Position start={start} end={end} total={rows.length} height={height} />
+      <Position start={start} end={end} total={grouped.length} height={height} />
       {showStats ? <StatsBand stats={summaryStats(inv)} /> : null}
-      <Text dimColor>↑/↓ move · Enter detail · 1/2/3/4 or Tab switch · q quit</Text>
+      <Text dimColor>↑/↓ move · → expand source · Enter detail · 1/2/3/4 or Tab · q quit</Text>
     </Box>
   );
 }

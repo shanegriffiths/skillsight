@@ -47,6 +47,56 @@ function enrichedItems(inv: Inventory): ItemRow[] {
 
 const byName = (a: ItemRow, b: ItemRow) => a.name.localeCompare(b.name);
 
+/**
+ * Collapse a pre-ranked list's SKILLS under their source/repo. Each source with
+ * ≥2 skills becomes an expandable group header (`groupId` = the source), placed
+ * at its best-ranked member's position; its skills nest at `depth: 1` when open.
+ * Single-skill sources, plugins, and mcp stay top-level leaves. Order (i.e. the
+ * caller's ranking) is preserved by first appearance.
+ */
+export function groupBySource(rows: ItemRow[], expanded: ReadonlySet<string>): ItemRow[] {
+  const order: (string | ItemRow)[] = [];
+  const groups = new Map<string, ItemRow[]>();
+  for (const r of rows) {
+    if (r.kind === 'skill') {
+      const key = r.source ?? 'unknown';
+      let g = groups.get(key);
+      if (!g) {
+        g = [];
+        groups.set(key, g);
+        order.push(key);
+      }
+      g.push(r);
+    } else {
+      order.push(r);
+    }
+  }
+  const out: ItemRow[] = [];
+  for (const slot of order) {
+    if (typeof slot !== 'string') {
+      out.push(slot);
+      continue;
+    }
+    const children = groups.get(slot)!;
+    if (children.length === 1) {
+      out.push(children[0]!);
+      continue;
+    }
+    const open = expanded.has(slot);
+    out.push({
+      kind: 'skill',
+      name: slot,
+      used: children.length,
+      source: null,
+      sourceDim: false,
+      expandState: open ? 'expanded' : 'collapsed',
+      groupId: slot,
+    });
+    if (open) out.push(...children.map((c) => ({ ...c, depth: 1 })));
+  }
+  return out;
+}
+
 function statsOf(all: Bucket, runtimesDetected: Runtime[]): SummaryStats {
   const totals = bucketCounts(all);
   const perRuntime = runtimesDetected

@@ -65,12 +65,14 @@ function statusSeg(row: ItemRow): Seg {
 }
 
 function usedSeg(row: ItemRow): Seg {
+  if (row.expandState !== undefined) return { text: '' }; // group header — count is in the name
   if (row.used === null) return { text: '—', dim: true };
   if (row.used === 0) return { text: '·', dim: true };
   return { text: String(row.used) };
 }
 
 function locationsSeg(row: ItemRow): Seg {
+  if (row.expandState !== undefined) return { text: '' };
   if (row.everywhere) return { text: 'global', color: theme.good, dim: true };
   const n = row.locations?.length ?? 0;
   return n > 0 ? { text: String(n) } : { text: '·', dim: true };
@@ -82,7 +84,7 @@ function columnsFor(variant: TableVariant, contentW: number): Col[] {
     variant === 'leaderboard'
       ? [
           { header: 'NAME', width: 0, cell: (r) => nameSeg(r, false) },
-          { header: 'KIND', width: 6, cell: (r) => ({ text: r.kind, dim: true }) },
+          { header: 'KIND', width: 6, cell: (r) => ({ text: r.expandState !== undefined ? '' : r.kind, dim: true }) },
           { header: 'LOCATIONS', width: 9, cell: locationsSeg },
           { header: 'USED', width: 4, align: 'right', cell: usedSeg },
           { header: 'RUNTIMES', width: 11, cell: (r) => ({ text: lettersFor(r.usedRuntimes ?? []) }) },
