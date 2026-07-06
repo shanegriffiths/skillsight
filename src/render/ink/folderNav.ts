@@ -25,18 +25,20 @@ export interface NavState {
   item: number;
   /** Expanded plugin-group ids in the items column. */
   expanded: Set<string>;
+  /** Expanded worktree-container nodeIds in the folder column (empty = all collapsed). */
+  folderExpanded: Set<string>;
   detailItem: number | null;
 }
 
 export interface NavContext {
-  /** The visible folder rows (after hidden-filter and sort). */
+  /** The visible folder rows (after hidden-filter, sort, and worktree flattening). */
   folderRows: FolderRow[];
   /** Item rows for the currently selected folder. */
   rows: ItemRow[];
 }
 
 export function initialNav(): NavState {
-  return { focus: 'folders', folder: 0, item: 0, expanded: new Set(), detailItem: null };
+  return { focus: 'folders', folder: 0, item: 0, expanded: new Set(), folderExpanded: new Set(), detailItem: null };
 }
 
 function clamp(i: number, len: number): number {
@@ -51,6 +53,21 @@ function withExpanded(state: NavState, id: string, on: boolean): NavState {
   return { ...state, expanded };
 }
 
+function withFolderExpanded(state: NavState, nodeId: string, on: boolean): NavState {
+  const folderExpanded = new Set(state.folderExpanded);
+  if (on) folderExpanded.add(nodeId);
+  else folderExpanded.delete(nodeId);
+  return { ...state, folderExpanded };
+}
+
+/** Nearest preceding top-level (depth 0) worktree container row; the index itself if none. */
+function folderParentIndex(rows: FolderRow[], from: number): number {
+  for (let i = from - 1; i >= 0; i--) {
+    if (rows[i]?.depth === 0 && rows[i]?.hasChildren) return i;
+  }
+  return from;
+}
+
 /** Nearest preceding row that is a group header; falls back to the index itself. */
 function parentHeaderIndex(rows: ItemRow[], from: number): number {
   for (let i = from; i >= 0; i--) {
@@ -63,14 +80,31 @@ export function folderNav(state: NavState, action: NavAction, ctx: NavContext): 
   if (state.focus === 'folders') {
     const folder = clamp(state.folder, ctx.folderRows.length);
     const s = { ...state, folder };
+    const row = ctx.folderRows[folder];
     switch (action) {
       case 'down':
         return { ...s, folder: clamp(folder + 1, ctx.folderRows.length) };
       case 'up':
         return { ...s, folder: clamp(folder - 1, ctx.folderRows.length) };
-      case 'right':
+      case 'right': {
+        if (!row) return s;
+        if (row.hasChildren) return row.collapsed ? withFolderExpanded(s, row.nodeId, true) : s;
+        if (row.folder && ctx.rows.length > 0) return { ...s, focus: 'items', item: 0 };
+        return s;
+      }
       case 'enter': {
-        if (ctx.folderRows[folder] && ctx.rows.length > 0) return { ...s, focus: 'items', item: 0 };
+        if (!row) return s;
+        if (row.hasChildren) return withFolderExpanded(s, row.nodeId, row.collapsed);
+        if (row.folder && ctx.rows.length > 0) return { ...s, focus: 'items', item: 0 };
+        return s;
+      }
+      case 'left': {
+        if (!row) return s;
+        if (row.hasChildren && !row.collapsed) return withFolderExpanded(s, row.nodeId, false);
+        if (row.depth === 1) {
+          const pi = folderParentIndex(ctx.folderRows, folder);
+          if (pi !== folder) return { ...s, folder: pi };
+        }
         return s;
       }
       default:

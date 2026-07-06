@@ -10,10 +10,11 @@ import { marksFor } from './runtimeMark.js';
 import { Band } from './Band.js';
 import { Position } from './Position.js';
 import { HEADER_BOX_HEIGHT } from './HeaderBox.js';
+import { FILTER_BAR_HEIGHT } from './FilterBar.js';
 import { theme } from './theme.js';
 
-// Header box + table chrome + position line + stats band (~5 lines) + footer.
-const CHROME = HEADER_BOX_HEIGHT + TABLE_CHROME + 1 + 5 + 1;
+// Header box + bottom filter bar + table chrome + position line + stats band (~5 lines) + footer.
+const CHROME = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1 + 5 + 1;
 
 function StatsBand({ stats }: { stats: SummaryStats }) {
   const providers = stats.perProvider.map((p) => `${p.kind} ${p.skills}`).join(' · ') || 'none';

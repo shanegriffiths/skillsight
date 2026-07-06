@@ -10,10 +10,11 @@ import { folderNav, initialNav, toAction } from './folderNav.js';
 import { buildFolderRows, type SortMode } from './tree.js';
 import { Position } from './Position.js';
 import { HEADER_BOX_HEIGHT } from './HeaderBox.js';
+import { FILTER_BAR_HEIGHT } from './FilterBar.js';
 import { theme } from './theme.js';
 
-// Header box + path line + table chrome + position line + footer.
-const CHROME = HEADER_BOX_HEIGHT + 1 + TABLE_CHROME + 1 + 1;
+// Header box + bottom filter bar + path line + table chrome + position line + footer.
+const CHROME = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + 1 + TABLE_CHROME + 1 + 1;
 const FOLDER_W = 34;
 
 export function FoldersView({ inv, inputActive = true }: { inv: Inventory; inputActive?: boolean }) {
@@ -22,8 +23,8 @@ export function FoldersView({ inv, inputActive = true }: { inv: Inventory; input
   const [showHidden, setShowHidden] = useState(false);
 
   const folderRows = useMemo(
-    () => buildFolderRows(inv.folders, inv.homeRoot, { sort, showHidden }),
-    [inv.folders, inv.homeRoot, sort, showHidden],
+    () => buildFolderRows(inv.folders, inv.homeRoot, { sort, showHidden, expanded: nav.folderExpanded }),
+    [inv.folders, inv.homeRoot, sort, showHidden, nav.folderExpanded],
   );
 
   const folderIdx = clampIndex(nav.folder, folderRows.length);
@@ -63,12 +64,17 @@ export function FoldersView({ inv, inputActive = true }: { inv: Inventory; input
 
   const footer =
     nav.focus === 'folders'
-      ? `sort: ${sort} · hidden: ${showHidden ? 'on' : 'off'} · ↑/↓ move · →/Enter open · s sort · . hidden · q quit`
+      ? `sort: ${sort} · hidden: ${showHidden ? 'on' : 'off'} · ↑/↓ move · →/Enter open · ← collapse · s sort · . hidden · q quit`
       : nav.focus === 'items'
         ? '↑/↓ move · → expand/open · ← back · Enter open · Esc folders · q quit'
         : 'Esc/← back · 1/2/3 or Tab switch · q quit';
 
-  const path = selFolder ? selFolder.path.replace(inv.homeRoot, '~') : null;
+  const isGroup = sel?.kind === 'worktree';
+  const path = selFolder
+    ? selFolder.path.replace(inv.homeRoot, '~')
+    : isGroup
+      ? sel!.nodeId.replace(inv.homeRoot, '~')
+      : null;
 
   return (
     <Box flexDirection="column">
@@ -94,6 +100,11 @@ export function FoldersView({ inv, inputActive = true }: { inv: Inventory; input
             </Box>
           ) : !sel ? (
             <Text dimColor>select a folder</Text>
+          ) : isGroup ? (
+            <Text dimColor>
+              worktree group · {sel!.count > 0 ? `+${sel!.count} across its checkouts · ` : ''}
+              {sel!.collapsed ? '→ expand to drill in' : 'select a checkout below to inspect'}
+            </Text>
           ) : rows.length === 0 ? (
             <Text dimColor>global only — adds nothing beyond the inherited layer</Text>
           ) : (
