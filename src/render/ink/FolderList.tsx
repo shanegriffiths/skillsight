@@ -8,8 +8,8 @@ import { theme } from './theme.js';
  * line per row). Plain projects are flat leaves; a repo with worktrees is an
  * expandable parent (chevron) nesting a dim `worktrees` group and its checkouts
  * beneath it. Each line shows its OWN `+N` delta right-aligned. The cursor row
- * inverts edge-to-edge; while unfocused (`dimmed`) it shows a `›` marker
- * instead. `selected` is the in-window index.
+ * inverts edge-to-edge; while unfocused (`dimmed`) the selection stays bright
+ * (bold, undimmed) while its siblings fade. `selected` is the in-window index.
  */
 export function FolderList({
   rows,
@@ -43,7 +43,9 @@ export function FolderList({
         const hint = r.hint ? ` ${r.hint}` : '';
         const right = r.count > 0 ? `+${r.count}` : '';
 
-        let left = `${active ? '›' : ' '} ${indent}${chevron}${iconPart}${r.label}`;
+        // No cursor glyph — the full-row highlight (or, when unfocused, the
+        // undimmed selection) carries selection, so content sits flush left.
+        let left = `${indent}${chevron}${iconPart}${r.label}`;
         const rightBlock = hint.length + right.length;
         // Cap `left` so left + a ≥1 gap + rightBlock never exceeds contentW
         // (else Ink's truncate-end would eat the trailing count).
@@ -58,14 +60,15 @@ export function FolderList({
             </Text>
           );
         }
+        const labelDim = dimmed ? !active : isWorktrees || (globalOnly && !active);
         return (
           <Text key={r.nodeId} wrap="truncate-end">
-            <Text dimColor={dimmed || isWorktrees || (globalOnly && !active)}>
+            <Text dimColor={labelDim} bold={dimmed && active}>
               {left}
             </Text>
             {hint ? <Text dimColor>{hint}</Text> : null}
             {' '.repeat(mid)}
-            <Text color={dimmed ? undefined : theme.accent} dimColor={dimmed}>
+            <Text color={dimmed ? undefined : theme.accent} dimColor={dimmed && !active}>
               {right}
             </Text>
           </Text>
