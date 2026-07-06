@@ -29,7 +29,7 @@ below; this is what's actually left. Last reviewed 2026-07-06.
 - [ ] `npm publish --dry-run`, then `npm publish`; `git push --follow-tags`; verify with `npx skillsight@latest`.
 
 ### Correctness to verify (before/around publish)
-- [ ] **Plugin "off by default" edge.** skillsight defaults a plugin absent from *all* `enabledPlugins` layers (and no manifest `defaultEnabled`) to **enabled** (`?? true`); Claude Code's model is "off by default." This never triggers on this machine (every user-scope plugin is explicitly set), so it wasn't caught — but a stranger's fresh install (installed, never enabled) could over-report. Verify empirically: install a plugin, don't enable it, run `claude plugin list`; if it shows `disabled`, flip the default to `false`.
+- [ ] **Plugin "off by default" edge (low risk).** skillsight defaults a plugin absent from *every* `enabledPlugins` layer (and with no manifest `defaultEnabled`) to **enabled** (`?? true`). Standard installs always leave an explicit entry — the `/plugin` menu and `claude plugin enable --scope …` both write one, and a project-scope install writes `enabledPlugins: <id>: true` into the project settings (verified with `gsap-skills`) — so this case doesn't arise through normal usage and never triggers on this machine. It could only bite a plugin enabled by some non-standard path. Belt-and-suspenders: install a plugin without enabling it, run `claude plugin list`; if CC shows it `disabled`, flip the default to `false`.
 - Validation oracle (kept in memory): `claude plugin list`'s `Status:` is cwd-aware — run it from a folder and skillsight's `effective.plugins[id].enabled` for that folder must match. Confirmed 0 mismatches across two folders on 2026-07-06.
 
 ### Deferred polish (nice-to-have, revisit)
