@@ -32,6 +32,7 @@ skillsight watch               alias for the dashboard
   --full                       (report) full effective set per folder
   --global                     (report) only the inherited global layer
   --dir <path>                 inspect a single directory
+  --home <path>                scan a different home root (or set SKILLSIGHT_HOME)
   --runtime <id...>            filter to runtimes, e.g. --runtime claude-code codex
   --kind <skill|plugin|mcp...> filter by kind
   --provenance                 (report) expand provider + "used by" per item
@@ -39,7 +40,7 @@ skillsight watch               alias for the dashboard
   --help
 ```
 
-Set `SKILLSIGHT_HOME` to point the scan at a different home root (used by the test suite).
+Point the scan at a different home root with `--home <path>` (or the `SKILLSIGHT_HOME` env var) — handy for inspecting a backup, another account, or a copied `~` from another machine. The flag wins over the env var; both beat the OS home.
 
 The dashboard shows Nerd Font folder/branch glyphs beside projects; set `SKILLSIGHT_ICONS=off` if your terminal font isn't a Nerd Font (falls back to plain text, no glyphs).
 

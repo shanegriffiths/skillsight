@@ -34,6 +34,7 @@ Options:
   --global                        (report) only the inherited global layer
   --json                          machine-readable output
   --dir <path>                    inspect a single directory
+  --home <path>                   scan a different home root (or set SKILLSIGHT_HOME)
   --runtime <id...>               filter to runtimes (e.g. --runtime claude-code codex)
   --kind <skill|plugin|mcp...>    filter by kind
   --provenance                    (report) expand provider + "used by" per item
@@ -55,7 +56,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const homeRoot = process.env.SKILLSIGHT_HOME || homedir();
+  const homeRoot = args.home || process.env.SKILLSIGHT_HOME || homedir();
   const scanOpts = { walk: !args.noWalk, dir: args.dir };
   const filterOpts = { runtimes: args.runtimes, kinds: args.kinds };
   const mode = decideMode(args, Boolean(process.stdout.isTTY));

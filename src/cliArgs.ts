@@ -16,6 +16,8 @@ export interface Args {
   noWalk: boolean;
   help: boolean;
   dir?: string;
+  /** Scan root override (beats the SKILLSIGHT_HOME env var; both beat the OS home). */
+  home?: string;
   runtimes: string[];
   kinds: Kind[];
   /** Non-fatal parse problems, printed as `warning:` on stderr. */
@@ -68,6 +70,10 @@ export function parseArgs(argv: string[]): Args {
       case '--dir':
         if (i + 1 < argv.length && !isFlag(argv[i + 1])) a.dir = argv[++i];
         else a.errors.push('--dir requires a path');
+        break;
+      case '--home':
+        if (i + 1 < argv.length && !isFlag(argv[i + 1])) a.home = argv[++i];
+        else a.errors.push('--home requires a path');
         break;
       case '--runtime':
         while (i + 1 < argv.length && !isFlag(argv[i + 1])) {

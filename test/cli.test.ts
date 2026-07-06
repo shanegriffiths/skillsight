@@ -46,6 +46,13 @@ describe('parseArgs hardening', () => {
     expect(parseArgs(['--dir', '/tmp/x']).dir).toBe('/tmp/x');
   });
 
+  it('--home takes a path and errors when missing, like --dir', () => {
+    expect(parseArgs(['--home', '/other/home']).home).toBe('/other/home');
+    expect(parseArgs(['--home', '--json']).home).toBeUndefined();
+    expect(parseArgs(['--home', '--json']).errors).toEqual(['--home requires a path']);
+    expect(parseArgs(['--home']).errors).toEqual(['--home requires a path']);
+  });
+
   it('unknown tokens produce warnings, not silence', () => {
     const a = parseArgs(['--repot', 'stray']);
     expect(a.issues).toEqual(['unknown option: --repot', 'unknown option: stray']);
