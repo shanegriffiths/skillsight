@@ -53,6 +53,16 @@ Point the scan at a different home root with `--home <path>` (or the `SKILLSIGHT
 
 The dashboard shows Nerd Font folder/branch glyphs beside projects; set `SKILLSIGHT_ICONS=off` if your terminal font isn't a Nerd Font (falls back to plain text, no glyphs).
 
+## Privacy & security
+
+`skillsight` is designed to be safe to run against your real configuration:
+
+- **Read-only.** It never writes, moves, or deletes anything — there are no filesystem writes anywhere in the code.
+- **No network, no telemetry.** It makes zero network calls. Nothing about your setup leaves your machine — no analytics, no phone-home, no update check.
+- **No code execution.** It never spawns a subprocess or evaluates config; it only reads and parses files.
+- **Secrets stay secret.** MCP `env` and `headers` are reduced to **key names only** — values are never read into memory or emitted, in any output mode (dashboard, `--report`, `--json`).
+- **Small dependency surface.** Seven runtime dependencies (`chokidar`, `ink`, `react`, `picocolors`, `smol-toml`, `terminal-link`, `yaml`), and no install/lifecycle scripts.
+
 ## Supported runtimes
 
 | Runtime | Coverage |
