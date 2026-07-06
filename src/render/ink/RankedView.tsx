@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { ItemTable, TABLE_CHROME } from './ItemTable.js';
@@ -40,32 +41,61 @@ function StatsBand({ stats }: { stats: SummaryStats }) {
   );
 }
 
-/** Where a ranked item lives: "everywhere" for a global item, else its project list. */
-function Locations({ row, homeRoot }: { row: ItemRow | undefined; homeRoot: string }) {
+/**
+ * Where a ranked item lives. A global item is inherited everywhere (no list). A
+ * project-scoped item gets a bordered, navigable table of its projects: ↑/↓ move,
+ * Enter/→ jumps to that project on the Projects tab. `sel` is the highlighted row.
+ */
+function Locations({
+  row,
+  homeRoot,
+  sel,
+  navigable,
+}: {
+  row: ItemRow | undefined;
+  homeRoot: string;
+  sel: number;
+  navigable: boolean;
+}) {
   if (!row) return null;
   const locs = row.locations ?? [];
-  return (
-    <Box flexDirection="column" marginTop={1}>
-      {row.everywhere ? (
+  if (row.everywhere) {
+    return (
+      <Box marginTop={1}>
         <Text>
           <Text bold>lives in</Text> <Text color={theme.good}>every project</Text>{' '}
           <Text dimColor>— inherited from the user-scope (global) layer</Text>
         </Text>
-      ) : locs.length ? (
-        <>
-          <Text>
-            <Text bold>lives in</Text> <Text dimColor>({locs.length} project{locs.length === 1 ? '' : 's'})</Text>
-          </Text>
-          {locs.map((p) => (
-            <Text key={p} dimColor wrap="truncate-end">
-              {'  '}
-              {p.replace(homeRoot, '~')}
-            </Text>
-          ))}
-        </>
-      ) : (
+      </Box>
+    );
+  }
+  if (!locs.length) {
+    return (
+      <Box marginTop={1}>
         <Text dimColor>not currently installed in any project</Text>
-      )}
+      </Box>
+    );
+  }
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Text>
+        <Text bold>lives in</Text> <Text dimColor>({locs.length} project{locs.length === 1 ? '' : 's'})</Text>
+        {navigable ? <Text dimColor> · ↑/↓ then Enter to open</Text> : null}
+      </Text>
+      <Box flexDirection="column" borderStyle="round" borderColor={theme.border} paddingX={1}>
+        {locs.map((p, i) => {
+          const label = ` ${p.replace(homeRoot, '~')}`;
+          return i === sel ? (
+            <Text key={p} wrap="truncate-end" inverse bold>
+              {label}
+            </Text>
+          ) : (
+            <Text key={p} wrap="truncate-end" dimColor>
+              {label}
+            </Text>
+          );
+        })}
+      </Box>
     </Box>
   );
 }
@@ -73,36 +103,59 @@ function Locations({ row, homeRoot }: { row: ItemRow | undefined; homeRoot: stri
 /**
  * The shared ranked-list tab body used by both Leaderboard (everything, by
  * usage) and Installed (project-scoped, by footprint). Rows are pre-ranked by
- * the caller; this owns the table, scroll, detail pane, and (optionally) the
- * skills-by-reach stats band.
+ * the caller; this owns the table, scroll, detail pane (with a navigable
+ * project list), and (optionally) the skills-by-reach stats band.
  */
 export function RankedView({
   inv,
   rows,
   showStats = false,
   inputActive = true,
+  onOpenProject,
 }: {
   inv: Inventory;
   rows: ItemRow[];
   showStats?: boolean;
   inputActive?: boolean;
+  /** Jump to a project folder on the Projects tab (invoked from the detail's project list). */
+  onOpenProject?: (path: string) => void;
 }) {
   const size = useWindowSize();
   const chrome = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1 + 1 + (showStats ? STATS_BAND_LINES : 0);
   const height = Math.max(3, size.rows - chrome);
   const { detail, selected, start, end, onInput } = useListDetail(rows.length, height);
+  const [projSel, setProjSel] = useState(0);
 
-  useInput((input, key) => {
-    onInput(input, key);
-  }, { isActive: inputActive });
+  const selRow = rows[selected];
+  const locs = selRow?.locations ?? [];
+  const projNavigable = detail && !selRow?.everywhere && locs.length > 0 && !!onOpenProject;
+
+  // Reset the project cursor whenever the detail target changes / closes.
+  useEffect(() => {
+    setProjSel(0);
+  }, [detail, selected]);
+
+  useInput(
+    (input, key) => {
+      if (projNavigable) {
+        if (key.downArrow || input === 'j') return setProjSel((s) => Math.min(s + 1, locs.length - 1));
+        if (key.upArrow || input === 'k') return setProjSel((s) => Math.max(s - 1, 0));
+        if (key.return || key.rightArrow) return onOpenProject!(locs[Math.min(projSel, locs.length - 1)]!);
+        if (key.escape || key.leftArrow) return void onInput(input, key); // close detail
+        return;
+      }
+      onInput(input, key);
+    },
+    { isActive: inputActive },
+  );
 
   if (detail) {
     return (
       <Box flexDirection="column">
         <Box borderStyle="round" borderColor={theme.border} paddingX={1}>
-          <DetailView row={rows[selected]} />
+          <DetailView row={selRow} />
         </Box>
-        <Locations row={rows[selected]} homeRoot={inv.homeRoot} />
+        <Locations row={selRow} homeRoot={inv.homeRoot} sel={Math.min(projSel, Math.max(0, locs.length - 1))} navigable={!!projNavigable} />
         <Text dimColor>Esc/← back · 1/2/3/4 or Tab switch · q quit</Text>
       </Box>
     );

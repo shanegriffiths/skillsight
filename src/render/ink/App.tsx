@@ -33,7 +33,14 @@ export function App({
   const [kinds, setKinds] = useState<Set<Kind>>(() => new Set(filter.kinds ?? []));
   const [filtering, setFiltering] = useState(false);
   const [cursor, setCursor] = useState(0);
+  // A project path requested from a ranked tab's detail; FoldersView selects it then clears this.
+  const [pendingFolder, setPendingFolder] = useState<string | null>(null);
   const { exit } = useApp();
+
+  const openProject = (path: string) => {
+    setPendingFolder(path);
+    setTab('folders');
+  };
 
   const inv = useMemo(
     () => filterInventory(raw, { runtimes: [...runtimes], kinds: [...kinds] }),
@@ -114,10 +121,12 @@ export function App({
   return (
     <Box flexDirection="column">
       <HeaderBox inv={inv} status={status} tab={tab} />
-      {tab === 'folders' ? <FoldersView inv={inv} inputActive={!filtering} /> : null}
-      {tab === 'installed' ? <RankedView inv={inv} rows={installed(inv)} inputActive={!filtering} /> : null}
+      {tab === 'folders' ? (
+        <FoldersView inv={inv} inputActive={!filtering} pendingFolder={pendingFolder} onConsumePending={() => setPendingFolder(null)} />
+      ) : null}
+      {tab === 'installed' ? <RankedView inv={inv} rows={installed(inv)} inputActive={!filtering} onOpenProject={openProject} /> : null}
       {tab === 'global' ? <GlobalView inv={inv} inputActive={!filtering} /> : null}
-      {tab === 'leaderboard' ? <RankedView inv={inv} rows={leaderboard(inv)} showStats inputActive={!filtering} /> : null}
+      {tab === 'leaderboard' ? <RankedView inv={inv} rows={leaderboard(inv)} showStats inputActive={!filtering} onOpenProject={openProject} /> : null}
       <FilterBar chips={chipList} runtimes={runtimes} kinds={kinds} cursor={safeCursor} filtering={filtering} />
     </Box>
   );

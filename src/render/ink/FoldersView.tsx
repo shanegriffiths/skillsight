@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { FolderList } from './FolderList.js';
@@ -19,7 +19,18 @@ const CHROME = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + 1 + TABLE_CHROME + 1 + 1;
 // A touch wider when glyphs are on, to offset the icon cell each row spends.
 const FOLDER_W = icons.enabled ? 36 : 34;
 
-export function FoldersView({ inv, inputActive = true }: { inv: Inventory; inputActive?: boolean }) {
+export function FoldersView({
+  inv,
+  inputActive = true,
+  pendingFolder = null,
+  onConsumePending,
+}: {
+  inv: Inventory;
+  inputActive?: boolean;
+  /** A project path requested from a ranked tab; select it, then clear via onConsumePending. */
+  pendingFolder?: string | null;
+  onConsumePending?: () => void;
+}) {
   const [nav, setNav] = useState(initialNav);
   const [sort, setSort] = useState<SortMode>('items');
   const [showHidden, setShowHidden] = useState(false);
@@ -28,6 +39,15 @@ export function FoldersView({ inv, inputActive = true }: { inv: Inventory; input
     () => buildFolderRows(inv.folders, inv.homeRoot, { sort, showHidden, expanded: nav.folderExpanded }),
     [inv.folders, inv.homeRoot, sort, showHidden, nav.folderExpanded],
   );
+
+  // Consume a cross-tab "open this project" request: select the matching folder.
+  useEffect(() => {
+    if (!pendingFolder) return;
+    const idx = folderRows.findIndex((r) => r.nodeId === pendingFolder && r.folder);
+    if (idx >= 0) setNav((s) => ({ ...s, folder: idx, focus: 'folders' }));
+    onConsumePending?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingFolder]);
 
   const folderIdx = clampIndex(nav.folder, folderRows.length);
   const sel = folderRows[folderIdx];
@@ -69,7 +89,7 @@ export function FoldersView({ inv, inputActive = true }: { inv: Inventory; input
       ? `sort: ${sort} · hidden: ${showHidden ? 'on' : 'off'} · ↑/↓ move · →/Enter open · ← collapse · s sort · . hidden · q quit`
       : nav.focus === 'items'
         ? '↑/↓ move · → expand/open · ← back · Enter open · Esc folders · q quit'
-        : 'Esc/← back · 1/2/3 or Tab switch · q quit';
+        : 'Esc/← back · 1/2/3/4 or Tab switch · q quit';
 
   // A selected row with no folder is a grouping node (the worktrees group, or a
   // repo whose main checkout wasn't discovered) — it has no item table.

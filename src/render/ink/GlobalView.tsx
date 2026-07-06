@@ -46,7 +46,7 @@ export function GlobalView({ inv, inputActive = true }: { inv: Inventory; inputA
         <Box borderStyle="round" borderColor={theme.border} paddingX={1}>
           <DetailView row={rows[selected]} />
         </Box>
-        <Text dimColor>Esc/← back · 1/2/3 or Tab switch · q quit</Text>
+        <Text dimColor>Esc/← back · 1/2/3/4 or Tab switch · q quit</Text>
       </Box>
     );
   }
@@ -59,7 +59,7 @@ export function GlobalView({ inv, inputActive = true }: { inv: Inventory; inputA
         <ItemTable rows={rows.slice(start, end)} width={size.columns} selectedIndex={selected - start} />
       )}
       <Position start={start} end={end} total={rows.length} height={height} />
-      <Text dimColor>↑/↓ move · Enter expand/detail · 1/2/3 or Tab switch · q quit</Text>
+      <Text dimColor>↑/↓ move · Enter expand/detail · 1/2/3/4 or Tab switch · q quit</Text>
     </Box>
   );
 }
