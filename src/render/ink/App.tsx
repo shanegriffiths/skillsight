@@ -8,6 +8,7 @@ import { computeWatchPaths } from './watchpaths.js';
 import { clampIndex } from './scroll.js';
 import { chips as buildChips, toggleChip } from './filterChips.js';
 import { HeaderBox } from './HeaderBox.js';
+import { FilterBar } from './FilterBar.js';
 import { tabForKey, nextTab, type TabId } from './tabs.js';
 import { FoldersView } from './FoldersView.js';
 import { GlobalView } from './GlobalView.js';
@@ -111,19 +112,11 @@ export function App({
 
   return (
     <Box flexDirection="column">
-      <HeaderBox
-        inv={inv}
-        status={status}
-        tab={tab}
-        chips={chipList}
-        runtimes={runtimes}
-        kinds={kinds}
-        cursor={safeCursor}
-        filtering={filtering}
-      />
+      <HeaderBox inv={inv} status={status} tab={tab} />
       {tab === 'folders' ? <FoldersView inv={inv} inputActive={!filtering} /> : null}
       {tab === 'global' ? <GlobalView inv={inv} inputActive={!filtering} /> : null}
       {tab === 'leaderboard' ? <LeaderboardView inv={inv} inputActive={!filtering} /> : null}
+      <FilterBar chips={chipList} runtimes={runtimes} kinds={kinds} cursor={safeCursor} filtering={filtering} />
     </Box>
   );
 }

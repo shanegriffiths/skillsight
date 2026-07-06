@@ -23,11 +23,24 @@ function child(name: string): ItemRow {
   return { ...leaf(name), depth: 1 };
 }
 
-const fakeFolder = {} as FolderReport; // folderNav only checks presence of the row
+const fakeFolder = {} as FolderReport; // folderNav only checks presence of the row's folder
 
+/** A flat project leaf by default; override to make a worktree group / child. */
 function fRow(label: string, over: Partial<FolderRow> = {}): FolderRow {
-  return { nodeId: label, label, count: 1, folder: fakeFolder, ...over };
+  return {
+    nodeId: label,
+    label,
+    count: 1,
+    depth: 0,
+    kind: 'project',
+    hasChildren: false,
+    collapsed: false,
+    folder: fakeFolder,
+    ...over,
+  };
 }
+const group = (label: string, over: Partial<FolderRow> = {}): FolderRow =>
+  fRow(label, { nodeId: label, kind: 'worktree', hasChildren: true, folder: null, collapsed: true, ...over });
 
 const ctxOf = (rows: ItemRow[], over: Partial<NavContext> = {}): NavContext => ({
   folderRows: [fRow('f0'), fRow('f1'), fRow('f2')],
@@ -35,7 +48,7 @@ const ctxOf = (rows: ItemRow[], over: Partial<NavContext> = {}): NavContext => (
   ...over,
 });
 
-describe('folderNav — folders focus', () => {
+describe('folderNav — folders focus (flat projects)', () => {
   it('moves the folder cursor and clamps', () => {
     const ctx = ctxOf([]);
     let s = initialNav();
@@ -54,14 +67,68 @@ describe('folderNav — folders focus', () => {
     expect(folderNav(initialNav(), 'right', ctxOf([])).focus).toBe('folders');
   });
 
-  it('left and escape are no-ops at the folder column', () => {
+  it('left and escape are no-ops at a plain project row', () => {
     expect(folderNav(initialNav(), 'left', ctxOf([])).focus).toBe('folders');
     expect(folderNav(initialNav(), 'escape', ctxOf([])).focus).toBe('folders');
   });
 });
 
+describe('folderNav — folders focus (worktree groups)', () => {
+  const at = (folder: number, over: Partial<NavState> = {}): NavState => ({ ...initialNav(), folder, ...over });
+
+  it('Right expands a collapsed container instead of opening items', () => {
+    const ctx: NavContext = { folderRows: [group('repo')], rows: [] };
+    const s = folderNav(at(0), 'right', ctx);
+    expect(s.focus).toBe('folders');
+    expect(s.folderExpanded.has('repo')).toBe(true);
+  });
+
+  it('Right is a no-op on an already-expanded container', () => {
+    const ctx: NavContext = { folderRows: [group('repo', { collapsed: false })], rows: [] };
+    const s = folderNav(at(0, { folderExpanded: new Set(['repo']) }), 'right', ctx);
+    expect(s.folderExpanded.has('repo')).toBe(true);
+    expect(s.focus).toBe('folders');
+  });
+
+  it('Enter toggles the container both ways', () => {
+    const collapsed: NavContext = { folderRows: [group('repo')], rows: [] };
+    const opened = folderNav(at(0), 'enter', collapsed);
+    expect(opened.folderExpanded.has('repo')).toBe(true);
+
+    const expanded: NavContext = { folderRows: [group('repo', { collapsed: false })], rows: [] };
+    const closed = folderNav(at(0, { folderExpanded: new Set(['repo']) }), 'enter', expanded);
+    expect(closed.folderExpanded.has('repo')).toBe(false);
+  });
+
+  it('Left collapses an expanded container in place', () => {
+    const ctx: NavContext = { folderRows: [group('repo', { collapsed: false })], rows: [] };
+    const s = folderNav(at(0, { folderExpanded: new Set(['repo']) }), 'left', ctx);
+    expect(s.folderExpanded.has('repo')).toBe(false);
+  });
+
+  it('Left on a checkout child jumps to its container row', () => {
+    const ctx: NavContext = {
+      folderRows: [
+        group('repo', { collapsed: false }),
+        fRow('case-study', { depth: 1 }),
+        fRow('animation', { depth: 1 }),
+      ],
+      rows: [],
+    };
+    expect(folderNav(at(2), 'left', ctx).folder).toBe(0);
+  });
+
+  it('Enter/Right on a checkout child (a leaf with items) opens its items', () => {
+    const ctx: NavContext = {
+      folderRows: [group('repo', { collapsed: false }), fRow('case-study', { depth: 1 })],
+      rows: [leaf('a')],
+    };
+    expect(folderNav(at(1), 'enter', ctx)).toMatchObject({ focus: 'items', item: 0 });
+  });
+});
+
 describe('folderNav — items focus', () => {
-  const items = (rows: ItemRow[], item = 0): NavState => ({ focus: 'items', folder: 0, item, expanded: new Set(), detailItem: null });
+  const items = (rows: ItemRow[], item = 0): NavState => ({ focus: 'items', folder: 0, item, expanded: new Set(), folderExpanded: new Set(), detailItem: null });
 
   it('Enter on a collapsed header expands it; on an expanded header collapses it', () => {
     const rows = [header('gsap', false)];
@@ -83,24 +150,6 @@ describe('folderNav — items focus', () => {
     const rows = [leaf('a')];
     const s = folderNav(items(rows), 'enter', ctxOf(rows));
     expect(s).toMatchObject({ focus: 'detail', detailItem: 0 });
-  });
-
-  it('Right expands a collapsed header, opens a leaf, no-ops an expanded header', () => {
-    const collapsed = [header('g', false)];
-    expect(folderNav(items(collapsed), 'right', ctxOf(collapsed)).expanded.has('g')).toBe(true);
-    const leafRows = [leaf('a')];
-    expect(folderNav(items(leafRows), 'right', ctxOf(leafRows)).focus).toBe('detail');
-    const expanded = [header('g', true)];
-    const s = folderNav({ ...items(expanded), expanded: new Set(['g']) }, 'right', ctxOf(expanded));
-    expect(s.focus).toBe('items');
-    expect(s.expanded.has('g')).toBe(true);
-  });
-
-  it('Left collapses an expanded header in place', () => {
-    const rows = [header('g', true)];
-    const s = folderNav({ ...items(rows), expanded: new Set(['g']) }, 'left', ctxOf(rows));
-    expect(s.expanded.has('g')).toBe(false);
-    expect(s.focus).toBe('items');
   });
 
   it('Left on a child collapses its parent (by groupId) and moves selection to the header', () => {
@@ -125,16 +174,14 @@ describe('folderNav — items focus', () => {
 
   it('clamps a stale out-of-range item index (e.g. after a live rescan shrinks rows)', () => {
     const rows = [leaf('a'), leaf('b')]; // length 2; stored item 9 is stale
-    // clamp(9, 2) = 1; then down clamps 1+1=2 → 1, up moves 1-1=0 → 0:
     expect(folderNav(items(rows, 9), 'down', ctxOf(rows)).item).toBe(1);
     expect(folderNav(items(rows, 9), 'up', ctxOf(rows)).item).toBe(0);
-    // Enter opens the detail of the clamped row (index 1), not the stale index 9:
     expect(folderNav(items(rows, 9), 'enter', ctxOf(rows))).toMatchObject({ focus: 'detail', detailItem: 1 });
   });
 });
 
 describe('folderNav — detail focus', () => {
-  const detail: NavState = { focus: 'detail', folder: 0, item: 1, expanded: new Set(), detailItem: 1 };
+  const detail: NavState = { focus: 'detail', folder: 0, item: 1, expanded: new Set(), folderExpanded: new Set(), detailItem: 1 };
 
   it('Escape and Left return to items and clear the detail target', () => {
     expect(folderNav(detail, 'escape', ctxOf([leaf('a'), leaf('b')]))).toMatchObject({ focus: 'items', detailItem: null });
@@ -167,7 +214,6 @@ describe('toAction', () => {
 
 describe('items focus is defensive against unknown actions', () => {
   it('clamps and returns state for an unhandled action (no fall-through to the detail switch)', () => {
-    // item: 3 with empty rows — the items switch clamps to 0; the detail switch would return state untouched.
     const state = { ...initialNav(), focus: 'items' as const, item: 3 };
     const ctx = { folderRows: [], rows: [] };
     expect(folderNav(state, 'bogus' as never, ctx)).toEqual({ ...state, item: 0 });

@@ -9,10 +9,11 @@ import { DetailView } from './DetailView.js';
 import { useListDetail } from './listDetail.js';
 import { Position } from './Position.js';
 import { HEADER_BOX_HEIGHT } from './HeaderBox.js';
+import { FILTER_BAR_HEIGHT } from './FilterBar.js';
 import { theme } from './theme.js';
 
-// Header box + table chrome + position line + footer.
-const CHROME = HEADER_BOX_HEIGHT + TABLE_CHROME + 1 + 1;
+// Header box + bottom filter bar + table chrome + position line + footer.
+const CHROME = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1 + 1;
 
 export function GlobalView({ inv, inputActive = true }: { inv: Inventory; inputActive?: boolean }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
