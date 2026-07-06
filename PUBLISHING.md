@@ -28,6 +28,10 @@ below; this is what's actually left. Last reviewed 2026-07-06.
 - [ ] Run a full secret scan once before the repo goes public: `brew install gitleaks && gitleaks detect`.
 - [ ] `npm publish --dry-run`, then `npm publish`; `git push --follow-tags`; verify with `npx skillsight@latest`.
 
+### Correctness to verify (before/around publish)
+- [ ] **Plugin "off by default" edge.** skillsight defaults a plugin absent from *all* `enabledPlugins` layers (and no manifest `defaultEnabled`) to **enabled** (`?? true`); Claude Code's model is "off by default." This never triggers on this machine (every user-scope plugin is explicitly set), so it wasn't caught — but a stranger's fresh install (installed, never enabled) could over-report. Verify empirically: install a plugin, don't enable it, run `claude plugin list`; if it shows `disabled`, flip the default to `false`.
+- Validation oracle (kept in memory): `claude plugin list`'s `Status:` is cwd-aware — run it from a folder and skillsight's `effective.plugins[id].enabled` for that folder must match. Confirmed 0 mismatches across two folders on 2026-07-06.
+
 ### Deferred polish (nice-to-have, revisit)
 - [ ] **GitHub Actions release workflow** — tests on PR, publish-on-tag with `--provenance` via OIDC trusted publishing (no stored token). Highest-leverage: turns a release into `git tag` + push.
 - [ ] **README badges** — npm version, node, license (render once published).
