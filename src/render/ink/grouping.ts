@@ -4,11 +4,14 @@ import { mergeBuckets } from '../../resolve.js';
 import { itemRows, type ItemRow } from './rows.js';
 
 /**
- * Build the navigable item list for the Folders column from a folder's
- * project-scoped ∪ local layers. Skills that declare `bundledInPlugin` collapse
- * under a synthetic plugin-group header (`kind: 'plugin'`, `expandState`, `used`
- * carrying the child count, no `record`). Expanded groups reveal their children
- * at `depth: 1`. Standalone skills, the buckets' own plugins, and mcp are leaves.
+ * Build the navigable item list for a bucket pair. Skills that declare
+ * `bundledInPlugin` collapse under their plugin's row: when the bucket holds a
+ * matching PluginRecord (`id === bundledInPlugin`) that record IS the header
+ * (its scope/status/source render there, and it is not repeated as a leaf);
+ * otherwise a synthetic header (`kind: 'plugin'`, no `record`) stands in.
+ * Headers carry `expandState`, `used` = child count, and `groupId` = the plugin
+ * id. Expanded groups reveal their children at `depth: 1`. Standalone skills,
+ * unmatched plugins, and mcp are leaves.
  */
 export function groupedRows(projectScoped: Bucket, local: Bucket, expanded: Set<string>): ItemRow[] {
   const merged = mergeBuckets(projectScoped, local);
@@ -25,23 +28,30 @@ export function groupedRows(projectScoped: Bucket, local: Bucket, expanded: Set<
     }
   }
 
+  const pluginsById = new Map(merged.plugins.map((p) => [p.id, p]));
+  const grouped = new Set<string>();
+
   const out: ItemRow[] = [];
-  for (const plugin of [...groups.keys()].sort()) {
-    const children = groups.get(plugin)!;
-    const open = expanded.has(plugin);
-    out.push({
-      kind: 'plugin',
-      name: plugin,
-      used: children.length,
-      source: null,
-      sourceDim: false,
-      expandState: open ? 'expanded' : 'collapsed',
-    });
+  for (const pluginId of [...groups.keys()].sort()) {
+    const children = groups.get(pluginId)!;
+    const open = expanded.has(pluginId);
+    const plugin = pluginsById.get(pluginId);
+    if (plugin) grouped.add(pluginId);
+    const base: ItemRow = plugin
+      ? itemRows({ ...emptyBucket(), plugins: [plugin] })[0]!
+      : { kind: 'plugin', name: pluginId.split('@')[0]!, used: null, source: null, sourceDim: false };
+    out.push({ ...base, used: children.length, expandState: open ? 'expanded' : 'collapsed', groupId: pluginId });
     if (open) {
       out.push(...itemRows({ ...emptyBucket(), skills: children }).map((r) => ({ ...r, depth: 1 })));
     }
   }
   out.push(...itemRows({ ...emptyBucket(), skills: standalone }));
-  out.push(...itemRows({ ...emptyBucket(), plugins: merged.plugins, mcp: merged.mcp }));
+  out.push(
+    ...itemRows({
+      ...emptyBucket(),
+      plugins: merged.plugins.filter((p) => !grouped.has(p.id)),
+      mcp: merged.mcp,
+    }),
+  );
   return out;
 }

@@ -1,11 +1,10 @@
 /**
- * The single source of truth for runtime → visual mark. Pure data + functions,
+ * The single source of truth for runtime → letter mark. Pure data + functions,
  * no React — so tests never need Ink. Bounded to the 6 detected ("deep") runtimes;
  * everything else has no mark (callers render a neutral dim '·' / nothing).
  *
- * Letters are forced apart because claude-code / codex / cursor all start with "C";
- * color carries identity, the letter is the no-color / colorblind tiebreak. `fg` is
- * picked per-hue for contrast against the badge background.
+ * Letters are forced apart because claude-code / codex / cursor all start with
+ * "C". Rendered as plain text — identity is the letter alone, no color.
  */
 import type { Runtime } from '../../types.js';
 
@@ -13,20 +12,16 @@ export interface RuntimeMark {
   id: Runtime;
   /** Single ASCII cell. */
   letter: string;
-  /** Badge background hue (hex; chalk degrades on lesser terminals). */
-  bg: string;
-  /** Letter color, chosen for contrast against `bg`. */
-  fg: 'black' | 'white';
 }
 
-/** Canonical strip/badge order — mirrors DEEP_RUNTIMES so badges read like the filter chips. */
+/** Canonical strip order — mirrors DEEP_RUNTIMES so letters read like the filter chips. */
 const MARKS: RuntimeMark[] = [
-  { id: 'claude-code', letter: 'C', bg: '#D97757', fg: 'black' },
-  { id: 'codex', letter: 'X', bg: '#10A37F', fg: 'white' },
-  { id: 'hermes-agent', letter: 'H', bg: '#06B6D4', fg: 'black' },
-  { id: 'gemini-cli', letter: 'G', bg: '#4285F4', fg: 'white' },
-  { id: 'cursor', letter: 'U', bg: '#C678DD', fg: 'black' },
-  { id: 'opencode', letter: 'O', bg: '#EF4444', fg: 'white' },
+  { id: 'claude-code', letter: 'C' },
+  { id: 'codex', letter: 'X' },
+  { id: 'hermes-agent', letter: 'H' },
+  { id: 'gemini-cli', letter: 'G' },
+  { id: 'cursor', letter: 'U' },
+  { id: 'opencode', letter: 'O' },
 ];
 
 const BY_ID = new Map(MARKS.map((m) => [m.id, m]));
@@ -38,7 +33,7 @@ export function runtimeMark(id: Runtime): RuntimeMark | undefined {
   return BY_ID.get(id);
 }
 
-/** usedBy ∩ detected six, deduped, in DETECTED_ORDER. */
+/** usedBy ∩ detected six, deduped, in canonical order. */
 export function marksFor(usedBy: readonly Runtime[]): RuntimeMark[] {
   const seen = new Set<Runtime>();
   const out: RuntimeMark[] = [];
@@ -50,6 +45,13 @@ export function marksFor(usedBy: readonly Runtime[]): RuntimeMark[] {
     }
   }
   return out.sort((a, b) => ORDER.get(a.id)! - ORDER.get(b.id)!);
+}
+
+/** Space-joined letter strip, e.g. `"C X H"`; `''` when nothing matches. */
+export function lettersFor(usedBy: readonly Runtime[]): string {
+  return marksFor(usedBy)
+    .map((m) => m.letter)
+    .join(' ');
 }
 
 /** How many usedBy runtimes fall outside the six (the dim "+N" remainder in detail). */

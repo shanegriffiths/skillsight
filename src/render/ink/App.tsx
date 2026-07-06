@@ -7,10 +7,8 @@ import { filterInventory, type FilterOptions } from '../../filter.js';
 import { computeWatchPaths } from './watchpaths.js';
 import { clampIndex } from './scroll.js';
 import { chips as buildChips, toggleChip } from './filterChips.js';
-import { Header } from './Header.js';
-import { TabBar } from './TabBar.js';
+import { HeaderBox } from './HeaderBox.js';
 import { tabForKey, nextTab, type TabId } from './tabs.js';
-import { FilterBar } from './FilterBar.js';
 import { FoldersView } from './FoldersView.js';
 import { GlobalView } from './GlobalView.js';
 import { LeaderboardView } from './LeaderboardView.js';
@@ -113,9 +111,16 @@ export function App({
 
   return (
     <Box flexDirection="column">
-      <Header inv={inv} status={status} />
-      <TabBar active={tab} />
-      <FilterBar chips={chipList} runtimes={runtimes} kinds={kinds} cursor={safeCursor} filtering={filtering} />
+      <HeaderBox
+        inv={inv}
+        status={status}
+        tab={tab}
+        chips={chipList}
+        runtimes={runtimes}
+        kinds={kinds}
+        cursor={safeCursor}
+        filtering={filtering}
+      />
       {tab === 'folders' ? <FoldersView inv={inv} inputActive={!filtering} /> : null}
       {tab === 'global' ? <GlobalView inv={inv} inputActive={!filtering} /> : null}
       {tab === 'leaderboard' ? <LeaderboardView inv={inv} inputActive={!filtering} /> : null}

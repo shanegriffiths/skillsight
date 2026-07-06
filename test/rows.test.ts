@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { itemRows, sortItemRows, type ItemRow } from '../src/render/ink/rows.js';
+import { itemRows, sortItemRows, groupKey, type ItemRow } from '../src/render/ink/rows.js';
 import type { Bucket, SkillRecord, PluginRecord, McpRecord } from '../src/types.js';
 import { emptyBucket } from '../src/types.js';
 
@@ -42,9 +42,20 @@ describe('itemRows', () => {
   it('maps a shared-store skill to count + owner/repo source', () => {
     const s = skill('systematic-debugging', ['cc', 'codex'], 'obra/superpowers');
     const b: Bucket = { ...emptyBucket(), skills: [s] };
-    // toStrictEqual: pins that optional keys (state, parked) are ABSENT, not undefined.
+    // toStrictEqual: pins that optional keys (parked, groupId, …) are ABSENT, not undefined.
     expect(itemRows(b)).toStrictEqual([
-      { kind: 'skill', name: 'systematic-debugging', used: 2, source: 'obra/superpowers', sourceDim: false, record: s, usedRuntimes: ['cc', 'codex'] },
+      {
+        kind: 'skill',
+        name: 'systematic-debugging',
+        used: 2,
+        source: 'obra/superpowers',
+        sourceDim: false,
+        record: s,
+        usedRuntimes: ['cc', 'codex'],
+        scope: 'project',
+        visibility: 'on',
+        status: 'enabled',
+      },
     ]);
   });
 
@@ -52,31 +63,72 @@ describe('itemRows', () => {
     const s = skill('local-thing', []);
     const b: Bucket = { ...emptyBucket(), skills: [s] };
     expect(itemRows(b)).toEqual([
-      { kind: 'skill', name: 'local-thing', used: 0, source: 'project-local', sourceDim: true, record: s, usedRuntimes: [] },
+      {
+        kind: 'skill',
+        name: 'local-thing',
+        used: 0,
+        source: 'project-local',
+        sourceDim: true,
+        record: s,
+        usedRuntimes: [],
+        scope: 'project',
+        visibility: 'on',
+        status: 'enabled',
+      },
     ]);
   });
 
-  it('maps a plugin to used:null and marketplaceRepo source', () => {
+  it('falls back to the plugin marketplace repo for a bundled skill before the dim kind', () => {
+    const s: SkillRecord = {
+      ...skill('bundled', ['cc']),
+      provider: { kind: 'plugin', marketplaceRepo: 'anthropics/plugins', path: '/x/bundled' },
+      bundledInPlugin: 'p@official',
+    };
+    const row = itemRows({ ...emptyBucket(), skills: [s] })[0]!;
+    expect(row.source).toBe('anthropics/plugins');
+    expect(row.sourceDim).toBe(false);
+  });
+
+  it('maps a plugin to used:null, user scope, and marketplaceRepo source', () => {
     const p = plugin('chrome-devtools', 'anthropics/claude-code');
     const b: Bucket = { ...emptyBucket(), plugins: [p] };
     expect(itemRows(b)).toEqual([
-      { kind: 'plugin', name: 'chrome-devtools', used: null, source: 'anthropics/claude-code', sourceDim: false, record: p, usedRuntimes: [] },
+      {
+        kind: 'plugin',
+        name: 'chrome-devtools',
+        used: null,
+        source: 'anthropics/claude-code',
+        sourceDim: false,
+        record: p,
+        usedRuntimes: [],
+        scope: 'user',
+        status: 'enabled',
+      },
     ]);
   });
 
   it('falls back to dim marketplace name when a plugin has no repo', () => {
     const p = plugin('local-plugin');
-    const b: Bucket = { ...emptyBucket(), plugins: [p] };
-    expect(itemRows(b)).toEqual([
-      { kind: 'plugin', name: 'local-plugin', used: null, source: 'official', sourceDim: true, record: p, usedRuntimes: [] },
-    ]);
+    const row = itemRows({ ...emptyBucket(), plugins: [p] })[0]!;
+    expect(row.source).toBe('official');
+    expect(row.sourceDim).toBe(true);
   });
 
   it('maps an mcp server to used:null and dim transport kind', () => {
     const m = mcp('linear', 'http');
     const b: Bucket = { ...emptyBucket(), mcp: [m] };
     expect(itemRows(b)).toEqual([
-      { kind: 'mcp', name: 'linear', used: null, source: 'http', sourceDim: true, record: m, usedRuntimes: [] },
+      {
+        kind: 'mcp',
+        name: 'linear',
+        used: null,
+        source: 'http',
+        sourceDim: true,
+        record: m,
+        usedRuntimes: [],
+        scope: 'project',
+        status: 'enabled',
+      },
     ]);
   });
 
@@ -109,11 +161,6 @@ describe('itemRows', () => {
     expect(itemRows({ ...emptyBucket(), mcp: [m] })[0]!.usedRuntimes).toEqual(['codex']);
   });
 
-  it('sets usedRuntimes to [] for a plugin/mcp with no declaring runtime', () => {
-    expect(itemRows({ ...emptyBucket(), plugins: [plugin('p')] })[0]!.usedRuntimes).toEqual([]);
-    expect(itemRows({ ...emptyBucket(), mcp: [mcp('m', 'stdio')] })[0]!.usedRuntimes).toEqual([]);
-  });
-
   it('flags parked skills (name-only / user-invocable-only) and only those', () => {
     const parked = { ...skill('p1', ['cc']), visibility: 'user-invocable-only' as const, visibilitySource: 'user' as const };
     const nameOnly = { ...skill('p2', ['cc']), visibility: 'name-only' as const, visibilitySource: 'user' as const };
@@ -123,27 +170,53 @@ describe('itemRows', () => {
     expect(rows.map((r) => r.parked)).toEqual([true, true, undefined, undefined, undefined]);
   });
 
-  it('derives state for skills from visibility and enablement', () => {
-    const off = { ...skill('s-off', ['cc']), visibility: 'off' as const, visibilitySource: 'user' as const, enabled: false };
-    const uio = { ...skill('s-uio', ['cc']), visibility: 'user-invocable-only' as const, visibilitySource: 'user' as const };
-    const nameOnly = { ...skill('s-name', ['cc']), visibility: 'name-only' as const, visibilitySource: 'project' as const };
-    const promoted = { ...skill('s-on', ['cc']), visibility: 'on' as const, visibilitySource: 'project' as const };
-    const codexDisabled = { ...skill('s-codex', ['cc']), enabled: false };
-    const plain = skill('s-plain', ['cc']);
-    // parked visibility beats the disabled fallback, same as 'off' does
-    const uioDisabled = { ...skill('s-uio-d', ['cc']), visibility: 'user-invocable-only' as const, visibilitySource: 'user' as const, enabled: false };
-    const nameOnlyDisabled = { ...skill('s-name-d', ['cc']), visibility: 'name-only' as const, visibilitySource: 'project' as const, enabled: false };
-    const rows = itemRows({ ...emptyBucket(), skills: [off, uio, nameOnly, promoted, codexDisabled, plain, uioDisabled, nameOnlyDisabled] });
-    expect(rows.map((r) => r.state)).toEqual(['off', 'invoke-only', 'name-only', undefined, 'disabled', undefined, 'invoke-only', 'name-only']);
+  it('maps skill scope to the user/project/local display values', () => {
+    const g = { ...skill('g', []), scope: 'global' as const };
+    const p = skill('p', []);
+    const l = { ...skill('l', []), scope: 'local' as const };
+    expect(itemRows({ ...emptyBucket(), skills: [g, p, l] }).map((r) => r.scope)).toEqual([
+      'user',
+      'project',
+      'local',
+    ]);
   });
 
-  it('derives disabled state for plugins and mcp servers', () => {
+  it('derives visibility with the /skills menu labels, defaulting to on', () => {
+    const off = { ...skill('s-off', ['cc']), visibility: 'off' as const, visibilitySource: 'user' as const };
+    const uio = { ...skill('s-uio', ['cc']), visibility: 'user-invocable-only' as const, visibilitySource: 'user' as const };
+    const nameOnly = { ...skill('s-name', ['cc']), visibility: 'name-only' as const, visibilitySource: 'project' as const };
+    const explicit = { ...skill('s-on', ['cc']), visibility: 'on' as const, visibilitySource: 'project' as const };
+    const none = skill('s-plain', ['cc']);
+    const rows = itemRows({ ...emptyBucket(), skills: [off, uio, nameOnly, explicit, none] });
+    expect(rows.map((r) => r.visibility)).toEqual(['off', 'user-only', 'name-only', 'on', 'on']);
+  });
+
+  it('derives status from enablement for skills, plugins, and mcp servers', () => {
     const rows = itemRows({
-      ...emptyBucket(),
+      skills: [skill('s-on', ['cc']), { ...skill('s-off', ['cc']), enabled: false }],
       plugins: [plugin('p-on', 'o/r'), { ...plugin('p-off', 'o/r'), enabled: false }],
       mcp: [mcp('m-on', 'stdio'), { ...mcp('m-off', 'http'), enabled: false }],
     });
-    expect(rows.map((r) => r.state)).toEqual([undefined, 'disabled', undefined, 'disabled']);
+    expect(rows.map((r) => r.status)).toEqual([
+      'enabled', 'disabled', 'enabled', 'disabled', 'enabled', 'disabled',
+    ]);
+  });
+
+  it('gives plugins and mcp servers no visibility (skills-only concept)', () => {
+    const rows = itemRows({
+      ...emptyBucket(),
+      plugins: [plugin('p', 'o/r')],
+      mcp: [mcp('m', 'stdio')],
+    });
+    expect(rows.map((r) => r.visibility)).toEqual([undefined, undefined]);
+  });
+});
+
+describe('groupKey', () => {
+  it('prefers groupId over name', () => {
+    const row: ItemRow = { kind: 'plugin', name: 'g', used: 1, source: null, sourceDim: false, groupId: 'g@mp' };
+    expect(groupKey(row)).toBe('g@mp');
+    expect(groupKey({ ...row, groupId: undefined })).toBe('g');
   });
 });
 

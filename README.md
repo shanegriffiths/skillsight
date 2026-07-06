@@ -92,7 +92,7 @@ Secret-bearing fields are key-names-only (`envKeys`, `headerKeys`).
 
 See [`ROADMAP.md`](ROADMAP.md) for the detailed backlog. Highlights:
 
-- **v0.2 — dashboard as a real interface:** tabbed nav (Folders / Global / Leaderboard), nested-folder tree, plugin grouping, runtime icons, live filter/sort
+- **v0.2 — dashboard as a real interface:** tabbed nav (Folders / Global / Leaderboard), flat project list, plugin grouping, per-item scope/visibility/status columns, live filter/sort
 - Web UI consuming `skillsight --json` (a React port of the Ink components)
 - First-class non-skill units: Cursor **rules**, Gemini **extensions**, Codex/OpenCode **agents**
 - Windows path/symlink + managed-settings handling
