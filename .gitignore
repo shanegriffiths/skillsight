@@ -28,3 +28,6 @@ yarn-error.log*
 .DS_Store
 .idea/
 *.swp
+
+# Claude Code personal (machine-local) settings
+.claude/settings.local.json
