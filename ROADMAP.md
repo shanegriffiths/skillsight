@@ -101,6 +101,7 @@ Most of this is **presentation-layer** (`render/ink/*`, `render/plain.ts`) — t
 
 ## Beyond v0.2 (carried from v1 plan)
 
+- **Folders view mode: delta ↔ full effective.** The Folders tab deliberately shows each project's *delta* (project-scope installs + per-project enablement overrides) — what it adds/changes beyond the inherited global layer — so user-enabled globals (e.g. superpowers) live only in the Global tab, not repeated under all 34 projects. A toggle (e.g. `e`) would flip a selected project to its **full effective** set — inherited global + delta together — for when you want the complete "what's actually live here" picture in the dashboard (already available via `--report --full` / `--json`). Inherited rows would render dim / tagged `inherited` to stay distinct from the project's own deltas. _(S–M · render only; `effective` is already computed per folder)_
 - Web UI consuming `skillsight --json` (React port of the Ink components)
 - Project-level `.agents/skills` hub scanning (deferred from the 2026-07-03 consolidation pass — needs usedBy semantics + fixtures; `runtimes.ts`'s dead `projectSkills` field was removed, codex comment fixed)
 - Configurable personal-repo path (`~/Developer/Skills` is a hardcoded personal convention in `skillscan.ts` — other users' repos classify as user/project-local)
