@@ -11,8 +11,10 @@ import { theme } from './theme.js';
 /** Static height estimate (art visible): 6 art + 1 path + 3 tab chips + 1 gap + 1 meta + 2 border. */
 export const HEADER_BOX_HEIGHT = 14;
 
-/** Below these the ANSI-Shadow wordmark is dropped for a plain title. */
-const MIN_ART_COLS = WORDMARK_WIDTH + 4;
+/** Below these the ANSI-Shadow wordmark is dropped for a plain title. The width
+ *  margin keeps the art off the edges (at ~80 cols it renders but crowds the
+ *  metadata line), so we only show it with comfortable room to spare. */
+const MIN_ART_COLS = WORDMARK_WIDTH + 18;
 const MIN_ART_ROWS = 30;
 
 /** The per-tab metadata line: what the active tab is looking at, in counts. */

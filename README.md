@@ -9,6 +9,15 @@ Most tools show what a *single* agent declares locally and stay quiet about the 
 
 Read-only by design — `skillsight` never writes to your config, and never reads or prints secret values (MCP `env`/`headers` are reduced to key names only).
 
+## Requirements
+
+- **macOS.** Built and tested on macOS. Linux should work (same POSIX path/symlink model) but is untested; Windows isn't supported.
+- **Node.js ≥ 22** — the live dashboard runs on [Ink](https://github.com/vadimdemedes/ink) 7, which requires Node 22+. (`--report` and `--json` are lighter, but 22 is the supported floor.)
+- **A [Nerd Font](https://www.nerdfonts.com/)** for the dashboard's folder/branch icons. skillsight renders Nerd Font glyphs by default; without one they show as tofu boxes (`□`). Either:
+  - set your terminal font to any patched *Nerd Font* build (e.g. `JetBrainsMono Nerd Font`), **or**
+  - keep your current font and add **Symbols Nerd Font Mono** to your terminal's font-fallback list — it supplies just the icon glyphs, no font change, and is the least intrusive option;
+  - or opt out with `SKILLSIGHT_ICONS=off` (plain text, no glyphs).
+
 ## Quickstart
 
 ```sh
