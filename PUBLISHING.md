@@ -10,6 +10,32 @@ independent — the repo can live under any org; the npm name stays `skillsight`
 
 ---
 
+## Launch to-do (revisit)
+
+Status board for the first release. The reference process is in the sections
+below; this is what's actually left. Last reviewed 2026-07-06.
+
+### Done
+- [x] Package identity: unscoped `skillsight`; `repository`/`homepage`/`bugs` → `github.com/shanegriffiths/skillsight`.
+- [x] `files` allowlist, `prepublishOnly` build, committed lockfile, **no lifecycle scripts**.
+- [x] `engines.node` `>=22`; dead deps removed; tarball verified (`dist` + `README` + `LICENSE`, ~31 kB).
+- [x] Privacy/security posture documented (README) + `SECURITY.md`.
+- [x] Security checks run: `npm audit` = 1 low, **dev-only** (esbuild via tsup/vitest — not shipped); source has no network calls / no filesystem writes / no subprocess execution; git history clean of secrets and sensitive files.
+
+### Only you can do (accounts & publish)
+- [ ] Create the public repo `shanegriffiths/skillsight` and push `main`.
+- [ ] Create an npm account and **enable 2FA** ("Authorization and Publishing" level).
+- [ ] Run a full secret scan once before the repo goes public: `brew install gitleaks && gitleaks detect`.
+- [ ] `npm publish --dry-run`, then `npm publish`; `git push --follow-tags`; verify with `npx skillsight@latest`.
+
+### Deferred polish (nice-to-have, revisit)
+- [ ] **GitHub Actions release workflow** — tests on PR, publish-on-tag with `--provenance` via OIDC trusted publishing (no stored token). Highest-leverage: turns a release into `git tag` + push.
+- [ ] **README badges** — npm version, node, license (render once published).
+- [ ] **`npm audit fix`** — clear the dev-only esbuild advisory.
+- [ ] **Packed-install smoke test** — `npm pack` → `npm i -g ./skillsight-*.tgz` → run → `npm rm -g skillsight`, proving the published binary works end-to-end.
+
+---
+
 ## One-time setup
 
 ### npm account
