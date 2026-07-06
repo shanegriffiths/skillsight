@@ -8,18 +8,25 @@ function leaf(name: string): ItemRow {
   // `folderNav` never reads `record`; omit it (the field is optional).
   return { kind: 'skill', name, used: 1, source: 'o/r', sourceDim: false };
 }
-function header(name: string, open: boolean): ItemRow {
-  return { kind: 'plugin', name, used: 2, source: null, sourceDim: false, expandState: open ? 'expanded' : 'collapsed' };
+function header(name: string, open: boolean, groupId?: string): ItemRow {
+  return {
+    kind: 'plugin',
+    name,
+    used: 2,
+    source: null,
+    sourceDim: false,
+    expandState: open ? 'expanded' : 'collapsed',
+    ...(groupId ? { groupId } : {}),
+  };
 }
 function child(name: string): ItemRow {
   return { ...leaf(name), depth: 1 };
 }
 
-const fakeFolder = {} as FolderReport; // folderNav only checks truthiness of `folder`
+const fakeFolder = {} as FolderReport; // folderNav only checks presence of the row
 
-/** An openable leaf folder row by default; override for synthetic/parent rows. */
 function fRow(label: string, over: Partial<FolderRow> = {}): FolderRow {
-  return { nodeId: label, label, depth: 0, count: 1, runtimes: [], hasChildren: false, collapsed: false, folder: fakeFolder, ...over };
+  return { nodeId: label, label, count: 1, folder: fakeFolder, ...over };
 }
 
 const ctxOf = (rows: ItemRow[], over: Partial<NavContext> = {}): NavContext => ({
@@ -39,12 +46,12 @@ describe('folderNav — folders focus', () => {
     expect(folderNav(initialNav(), 'up', ctx).folder).toBe(0);
   });
 
-  it('Enter moves into items only when the folder has items', () => {
+  it('Enter and Right move into items only when the folder has items', () => {
     const rows = [leaf('a')];
-    const into = folderNav(initialNav(), 'enter', ctxOf(rows));
-    expect(into).toMatchObject({ focus: 'items', item: 0 });
-    const stay = folderNav(initialNav(), 'enter', ctxOf([])); // no items → stays
-    expect(stay.focus).toBe('folders');
+    expect(folderNav(initialNav(), 'enter', ctxOf(rows))).toMatchObject({ focus: 'items', item: 0 });
+    expect(folderNav(initialNav(), 'right', ctxOf(rows))).toMatchObject({ focus: 'items', item: 0 });
+    expect(folderNav(initialNav(), 'enter', ctxOf([])).focus).toBe('folders'); // no items → stays
+    expect(folderNav(initialNav(), 'right', ctxOf([])).focus).toBe('folders');
   });
 
   it('left and escape are no-ops at the folder column', () => {
@@ -54,7 +61,7 @@ describe('folderNav — folders focus', () => {
 });
 
 describe('folderNav — items focus', () => {
-  const items = (rows: ItemRow[], item = 0): NavState => ({ focus: 'items', folder: 0, item, expanded: new Set(), folderCollapsed: new Set(), detailItem: null });
+  const items = (rows: ItemRow[], item = 0): NavState => ({ focus: 'items', folder: 0, item, expanded: new Set(), detailItem: null });
 
   it('Enter on a collapsed header expands it; on an expanded header collapses it', () => {
     const rows = [header('gsap', false)];
@@ -63,6 +70,13 @@ describe('folderNav — items focus', () => {
     const rows2 = [header('gsap', true)];
     const closed = folderNav({ ...items(rows2), expanded: new Set(['gsap']) }, 'enter', ctxOf(rows2));
     expect(closed.expanded.has('gsap')).toBe(false);
+  });
+
+  it('expansion is keyed by groupId when present, not the display name', () => {
+    const rows = [header('gsap', false, 'gsap@marketplace')];
+    const opened = folderNav(items(rows), 'enter', ctxOf(rows));
+    expect(opened.expanded.has('gsap@marketplace')).toBe(true);
+    expect(opened.expanded.has('gsap')).toBe(false);
   });
 
   it('Enter on a leaf opens its detail', () => {
@@ -89,10 +103,10 @@ describe('folderNav — items focus', () => {
     expect(s.focus).toBe('items');
   });
 
-  it('Left on a child collapses its parent and moves selection to the header', () => {
-    const rows = [header('g', true), child('a'), child('b')];
-    const s = folderNav({ ...items(rows, 2), expanded: new Set(['g']) }, 'left', ctxOf(rows));
-    expect(s.expanded.has('g')).toBe(false);
+  it('Left on a child collapses its parent (by groupId) and moves selection to the header', () => {
+    const rows = [header('g', true, 'g@mp'), child('a'), child('b')];
+    const s = folderNav({ ...items(rows, 2), expanded: new Set(['g@mp']) }, 'left', ctxOf(rows));
+    expect(s.expanded.has('g@mp')).toBe(false);
     expect(s.item).toBe(0);
     expect(s.focus).toBe('items');
   });
@@ -120,7 +134,7 @@ describe('folderNav — items focus', () => {
 });
 
 describe('folderNav — detail focus', () => {
-  const detail: NavState = { focus: 'detail', folder: 0, item: 1, expanded: new Set(), folderCollapsed: new Set(), detailItem: 1 };
+  const detail: NavState = { focus: 'detail', folder: 0, item: 1, expanded: new Set(), detailItem: 1 };
 
   it('Escape and Left return to items and clear the detail target', () => {
     expect(folderNav(detail, 'escape', ctxOf([leaf('a'), leaf('b')]))).toMatchObject({ focus: 'items', detailItem: null });
@@ -129,60 +143,6 @@ describe('folderNav — detail focus', () => {
 
   it('Up/Down are no-ops in detail', () => {
     expect(folderNav(detail, 'down', ctxOf([])).focus).toBe('detail');
-  });
-});
-
-describe('folderNav — folders focus, tree navigation', () => {
-  const treeCtx = (folderRows: FolderRow[], rows: ItemRow[] = []): NavContext => ({ folderRows, rows });
-  const at = (folder: number, over: Partial<NavState> = {}): NavState => ({ ...initialNav(), folder, ...over });
-
-  it('Right expands a collapsed parent instead of opening items', () => {
-    const ctx = treeCtx([fRow('parent', { nodeId: 'p', hasChildren: true, collapsed: true, folder: null })]);
-    const s = folderNav(at(0, { folderCollapsed: new Set(['p']) }), 'right', ctx);
-    expect(s.focus).toBe('folders');
-    expect(s.folderCollapsed.has('p')).toBe(false);
-  });
-
-  it('Right opens items on an openable leaf with items', () => {
-    const ctx = treeCtx([fRow('leaf')], [leaf('a')]);
-    expect(folderNav(at(0), 'right', ctx)).toMatchObject({ focus: 'items', item: 0 });
-  });
-
-  it('Right is a no-op on an expanded synthetic node (nothing to open)', () => {
-    const ctx = treeCtx([fRow('syn', { nodeId: 's', hasChildren: true, collapsed: false, folder: null })]);
-    expect(folderNav(at(0), 'right', ctx).focus).toBe('folders');
-  });
-
-  it('Enter opens items when openable, else toggles expand', () => {
-    const open = treeCtx([fRow('leaf')], [leaf('a')]);
-    expect(folderNav(at(0), 'enter', open).focus).toBe('items');
-    const syn = treeCtx([fRow('syn', { nodeId: 's', hasChildren: true, collapsed: true, folder: null })]);
-    const toggled = folderNav(at(0, { folderCollapsed: new Set(['s']) }), 'enter', syn);
-    expect(toggled.focus).toBe('folders');
-    expect(toggled.folderCollapsed.has('s')).toBe(false);
-    // symmetric: Enter on an already-expanded synthetic node collapses it
-    const synExpanded = treeCtx([fRow('syn', { nodeId: 's', hasChildren: true, collapsed: false, folder: null })]);
-    const recollapsed = folderNav(at(0), 'enter', synExpanded);
-    expect(recollapsed.folderCollapsed.has('s')).toBe(true);
-  });
-
-  it('Left collapses an expanded node, else jumps to the parent row', () => {
-    const expanded = treeCtx([fRow('p', { nodeId: 'p', hasChildren: true, collapsed: false, folder: null })]);
-    const collapsed = folderNav(at(0), 'left', expanded);
-    expect(collapsed.folderCollapsed.has('p')).toBe(true);
-
-    const nested = treeCtx([
-      fRow('p', { nodeId: 'p', depth: 0, hasChildren: true, collapsed: false, folder: null }),
-      fRow('c', { nodeId: 'c', depth: 1 }),
-    ]);
-    expect(folderNav(at(1), 'left', nested).folder).toBe(0); // child → parent
-  });
-
-  it('Left is a no-op at a root-level leaf with no parent', () => {
-    const ctx = treeCtx([fRow('leaf')]);
-    const s = folderNav(at(0), 'left', ctx);
-    expect(s.folder).toBe(0);
-    expect(s.focus).toBe('folders');
   });
 });
 

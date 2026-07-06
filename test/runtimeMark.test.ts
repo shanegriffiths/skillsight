@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { runtimeMark, marksFor, otherCount, type RuntimeMark } from '../src/render/ink/runtimeMark.js';
+import { runtimeMark, marksFor, lettersFor, otherCount, type RuntimeMark } from '../src/render/ink/runtimeMark.js';
 import { DEEP_RUNTIMES } from '../src/runtimes.js';
 
 describe('runtimeMark', () => {
-  it('returns the mark for each of the six detected runtimes', () => {
-    expect(runtimeMark('claude-code')).toEqual({ id: 'claude-code', letter: 'C', bg: '#D97757', fg: 'black' });
-    expect(runtimeMark('codex')).toEqual({ id: 'codex', letter: 'X', bg: '#10A37F', fg: 'white' });
-    expect(runtimeMark('hermes-agent')).toEqual({ id: 'hermes-agent', letter: 'H', bg: '#06B6D4', fg: 'black' });
-    expect(runtimeMark('gemini-cli')).toEqual({ id: 'gemini-cli', letter: 'G', bg: '#4285F4', fg: 'white' });
-    expect(runtimeMark('cursor')).toEqual({ id: 'cursor', letter: 'U', bg: '#C678DD', fg: 'black' });
-    expect(runtimeMark('opencode')).toEqual({ id: 'opencode', letter: 'O', bg: '#EF4444', fg: 'white' });
+  it('returns the letter mark for each of the six detected runtimes', () => {
+    expect(runtimeMark('claude-code')).toEqual({ id: 'claude-code', letter: 'C' });
+    expect(runtimeMark('codex')).toEqual({ id: 'codex', letter: 'X' });
+    expect(runtimeMark('hermes-agent')).toEqual({ id: 'hermes-agent', letter: 'H' });
+    expect(runtimeMark('gemini-cli')).toEqual({ id: 'gemini-cli', letter: 'G' });
+    expect(runtimeMark('cursor')).toEqual({ id: 'cursor', letter: 'U' });
+    expect(runtimeMark('opencode')).toEqual({ id: 'opencode', letter: 'O' });
   });
 
   it('returns undefined for non-detected runtimes', () => {
@@ -19,7 +19,7 @@ describe('runtimeMark', () => {
 });
 
 describe('marksFor', () => {
-  it('keeps only detected runtimes, in DETECTED_ORDER regardless of input order', () => {
+  it('keeps only detected runtimes, in canonical order regardless of input order', () => {
     const marks = marksFor(['cursor', 'opencode', 'claude-code', 'amp', 'codex']);
     expect(marks.map((m: RuntimeMark) => m.letter)).toEqual(['C', 'X', 'U', 'O']);
   });
@@ -34,6 +34,18 @@ describe('marksFor', () => {
   });
 });
 
+describe('lettersFor', () => {
+  it('joins the letters with spaces in canonical order', () => {
+    expect(lettersFor(['cursor', 'claude-code', 'codex'])).toBe('C X U');
+    expect(lettersFor(['claude-code'])).toBe('C');
+  });
+
+  it('returns the empty string when nothing matches', () => {
+    expect(lettersFor([])).toBe('');
+    expect(lettersFor(['amp'])).toBe('');
+  });
+});
+
 describe('otherCount', () => {
   it('counts only the non-detected runtimes', () => {
     expect(otherCount(['claude-code', 'amp', 'zed', 'warp'])).toBe(3);
@@ -43,9 +55,9 @@ describe('otherCount', () => {
 });
 
 describe('runtimeMark coverage', () => {
-  it('has a badge for every engine-detected (deep) runtime', () => {
+  it('has a letter for every engine-detected (deep) runtime', () => {
     for (const r of DEEP_RUNTIMES) {
-      expect(runtimeMark(r.id), `missing badge for ${r.id}`).toBeDefined();
+      expect(runtimeMark(r.id), `missing letter for ${r.id}`).toBeDefined();
     }
   });
 });

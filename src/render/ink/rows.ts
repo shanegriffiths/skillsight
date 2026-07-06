@@ -1,9 +1,15 @@
-import type { Bucket, SkillRecord, PluginRecord, McpRecord, Runtime } from '../../types.js';
+import type { Bucket, Scope, SkillRecord, PluginRecord, McpRecord, Runtime, SkillVisibility } from '../../types.js';
 
 export type ItemKind = 'skill' | 'plugin' | 'mcp';
 
-/** STATE column summary — why a row isn't plainly available. */
-export type ItemState = 'off' | 'invoke-only' | 'name-only' | 'disabled';
+/** SCOPE column — user (everywhere) / project (committed) / local (machine-personal). */
+export type ItemScope = 'user' | 'project' | 'local';
+
+/** VISIBILITY column (skills only) — mirrors the /skills menu labels. */
+export type ItemVisibility = 'on' | 'name-only' | 'user-only' | 'off';
+
+/** STATUS column — plain enablement, orthogonal to visibility. */
+export type ItemStatus = 'enabled' | 'disabled';
 
 export interface ItemRow {
   kind: ItemKind;
@@ -14,41 +20,56 @@ export interface ItemRow {
   source: string | null;
   /** True when `source` is a fallback (provider/transport kind) and should render dim. */
   sourceDim: boolean;
-  /** Runtimes to badge: a skill's usedBy, or a plugin/mcp's single declaring runtime. Absent on synthetic group headers. */
+  /** Runtimes to letter: a skill's usedBy, or a plugin/mcp's single declaring runtime. Absent on synthetic group headers. */
   usedRuntimes?: Runtime[];
   /** The underlying record, so a cursored row can open its detail. Absent on synthetic group-header rows. */
   record?: SkillRecord | PluginRecord | McpRecord;
-  /** Indent depth; `1` for a plugin group's child skills (Folders column only). */
+  /** Indent depth; `1` for a plugin group's child skills. */
   depth?: number;
   /** Present only on plugin-group header rows. */
   expandState?: 'collapsed' | 'expanded';
+  /** Expansion key for group headers (the plugin id); display `name` may be shorter. */
+  groupId?: string;
   /** True for a skill parked by Claude Code visibility (`name-only` / `user-invocable-only`): still available, reduced/zero context cost. */
   parked?: boolean;
-  /** STATE column value. Absent = plainly available (blank cell). */
-  state?: ItemState;
+  scope?: ItemScope;
+  /** Absent for plugins/mcp (rendered as a dim placeholder). */
+  visibility?: ItemVisibility;
+  /** Absent on synthetic group headers with no record. */
+  status?: ItemStatus;
 }
 
-function skillState(s: SkillRecord): ItemState | undefined {
-  if (s.visibility === 'off') return 'off';
-  if (s.visibility === 'user-invocable-only') return 'invoke-only';
-  if (s.visibility === 'name-only') return 'name-only';
-  if (!s.enabled) return 'disabled';
-  return undefined;
+/** The expansion/identity key of a row: group id when present, else the name. */
+export function groupKey(row: ItemRow): string {
+  return row.groupId ?? row.name;
+}
+
+function displayScope(s: Scope): ItemScope {
+  if (s === 'global') return 'user';
+  if (s === 'local') return 'local';
+  return 'project';
+}
+
+function displayVisibility(v: SkillVisibility | undefined): ItemVisibility {
+  if (v === 'user-invocable-only') return 'user-only';
+  return v ?? 'on';
 }
 
 function skillRow(s: SkillRecord): ItemRow {
   const parked = s.visibility === 'name-only' || s.visibility === 'user-invocable-only';
-  const state = skillState(s);
+  const source = s.provider.source ?? s.provider.marketplaceRepo ?? null;
   return {
     kind: 'skill',
     name: s.name,
     used: s.usedBy.length,
-    source: s.provider.source ?? s.provider.kind,
-    sourceDim: !s.provider.source,
+    source: source ?? s.provider.kind,
+    sourceDim: !source,
     record: s,
     usedRuntimes: s.usedBy,
     ...(parked ? { parked: true } : {}),
-    ...(state ? { state } : {}),
+    scope: displayScope(s.scope),
+    visibility: displayVisibility(s.visibility),
+    status: s.enabled ? 'enabled' : 'disabled',
   };
 }
 
@@ -61,7 +82,8 @@ function pluginRow(p: PluginRecord): ItemRow {
     sourceDim: !p.marketplaceRepo,
     record: p,
     usedRuntimes: p.runtime ? [p.runtime] : [],
-    ...(p.enabled ? {} : { state: 'disabled' as const }),
+    scope: p.scope === 'project' ? 'project' : 'user',
+    status: p.enabled ? 'enabled' : 'disabled',
   };
 }
 
@@ -74,7 +96,8 @@ function mcpRow(m: McpRecord): ItemRow {
     sourceDim: true,
     record: m,
     usedRuntimes: m.runtime ? [m.runtime] : [],
-    ...(m.enabled ? {} : { state: 'disabled' as const }),
+    scope: displayScope(m.scope),
+    status: m.enabled ? 'enabled' : 'disabled',
   };
 }
 
