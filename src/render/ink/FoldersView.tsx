@@ -11,11 +11,13 @@ import { buildFolderRows, type SortMode } from './tree.js';
 import { Position } from './Position.js';
 import { HEADER_BOX_HEIGHT } from './HeaderBox.js';
 import { FILTER_BAR_HEIGHT } from './FilterBar.js';
+import { icons } from './icons.js';
 import { theme } from './theme.js';
 
 // Header box + bottom filter bar + path line + table chrome + position line + footer.
 const CHROME = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + 1 + TABLE_CHROME + 1 + 1;
-const FOLDER_W = 34;
+// A touch wider when glyphs are on, to offset the icon cell each row spends.
+const FOLDER_W = icons.enabled ? 36 : 34;
 
 export function FoldersView({ inv, inputActive = true }: { inv: Inventory; inputActive?: boolean }) {
   const [nav, setNav] = useState(initialNav);
@@ -90,7 +92,7 @@ export function FoldersView({ inv, inputActive = true }: { inv: Inventory; input
         <Box flexDirection="column" flexGrow={1} marginLeft={1}>
           {path ? (
             <Text wrap="truncate-end">
-              <Text dimColor>path </Text>
+              <Text dimColor>{icons.enabled ? `${icons.folder} ` : 'path '}</Text>
               {path}
             </Text>
           ) : (

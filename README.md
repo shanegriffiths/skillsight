@@ -41,6 +41,8 @@ skillsight watch               alias for the dashboard
 
 Set `SKILLSIGHT_HOME` to point the scan at a different home root (used by the test suite).
 
+The dashboard shows Nerd Font folder/branch glyphs beside projects; set `SKILLSIGHT_ICONS=off` if your terminal font isn't a Nerd Font (falls back to plain text, no glyphs).
+
 ## Supported runtimes
 
 | Runtime | Coverage |

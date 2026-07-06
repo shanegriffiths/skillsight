@@ -1,5 +1,6 @@
 import { Box, Text } from 'ink';
 import type { FolderRow } from './tree.js';
+import { icons } from './icons.js';
 import { theme } from './theme.js';
 
 /**
@@ -37,10 +38,12 @@ export function FolderList({
         const globalOnly = r.count === 0 && r.kind === 'project' && !r.hasChildren;
         const chevron = r.hasChildren ? (r.collapsed ? '▸ ' : '▾ ') : '';
         const indent = '  '.repeat(r.depth);
+        const glyph = isWorktrees ? icons.worktrees : icons.folder;
+        const iconPart = glyph ? `${glyph} ` : '';
         const hint = r.hint ? ` ${r.hint}` : '';
         const right = r.count > 0 ? `+${r.count}` : '';
 
-        let left = `${active ? '›' : ' '} ${indent}${chevron}${r.label}`;
+        let left = `${active ? '›' : ' '} ${indent}${chevron}${iconPart}${r.label}`;
         const rightBlock = hint.length + right.length;
         // Cap `left` so left + a ≥1 gap + rightBlock never exceeds contentW
         // (else Ink's truncate-end would eat the trailing count).
