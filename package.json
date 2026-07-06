@@ -5,13 +5,13 @@
   "type": "module",
   "license": "MIT",
   "author": "Shane Griffiths",
-  "homepage": "https://github.com/studiobrio/skillsight#readme",
+  "homepage": "https://github.com/shanegriffiths/skillsight#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/studiobrio/skillsight.git"
+    "url": "git+https://github.com/shanegriffiths/skillsight.git"
   },
   "bugs": {
-    "url": "https://github.com/studiobrio/skillsight/issues"
+    "url": "https://github.com/shanegriffiths/skillsight/issues"
   },
   "keywords": [
     "ai",
