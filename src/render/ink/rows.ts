@@ -39,6 +39,10 @@ export interface ItemRow {
   status?: ItemStatus;
   /** True when a plugin row is a per-folder enablement override of an inherited plugin. */
   override?: boolean;
+  /** Leaderboard: present in the inherited global layer (lives in every project). */
+  everywhere?: boolean;
+  /** Leaderboard: project folder paths where this item appears in a delta. */
+  locations?: string[];
 }
 
 /** The expansion/identity key of a row: group id when present, else the name. */

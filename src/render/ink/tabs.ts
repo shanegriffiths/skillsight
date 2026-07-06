@@ -1,5 +1,5 @@
 /** Single source of truth for the tab set: order, number keys, labels. */
-export type TabId = 'folders' | 'global' | 'leaderboard';
+export type TabId = 'folders' | 'installed' | 'global' | 'leaderboard';
 
 export interface TabDef {
   id: TabId;
@@ -8,9 +8,10 @@ export interface TabDef {
 }
 
 export const TABS: TabDef[] = [
-  { id: 'folders', key: '1', label: 'Folders' },
-  { id: 'global', key: '2', label: 'Global' },
-  { id: 'leaderboard', key: '3', label: 'Leaderboard' },
+  { id: 'folders', key: '1', label: 'Projects' },
+  { id: 'installed', key: '2', label: 'Installed' },
+  { id: 'global', key: '3', label: 'User Scope (Global)' },
+  { id: 'leaderboard', key: '4', label: 'Leaderboard' },
 ];
 
 export function tabForKey(input: string): TabId | undefined {

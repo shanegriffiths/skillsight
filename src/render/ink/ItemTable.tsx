@@ -40,12 +40,14 @@ function pad(text: string, width: number, align?: 'right'): string {
   return align === 'right' ? fill + t : t + fill;
 }
 
-function nameSeg(row: ItemRow): Seg {
+function nameSeg(row: ItemRow, dimParked: boolean): Seg {
   const isGroup = row.expandState !== undefined;
   const marker = row.expandState === 'expanded' ? '▾' : row.expandState === 'collapsed' ? '▸' : '';
   const suffix = row.override ? ' (override)' : '';
   const label = isGroup ? `${marker} ${row.name} (${row.used})` : `${row.depth ? '  ' : ''}${row.name}${suffix}`;
-  return { text: label, bold: isGroup, dim: !!row.parked };
+  // Dim parked skills only where the VISIBILITY column explains why (the state table);
+  // on the ranked tabs it just reads as unexplained grey.
+  return { text: label, bold: isGroup, dim: dimParked && !!row.parked };
 }
 
 function visibilitySeg(row: ItemRow): Seg {
@@ -68,17 +70,25 @@ function usedSeg(row: ItemRow): Seg {
   return { text: String(row.used) };
 }
 
+function locationsSeg(row: ItemRow): Seg {
+  if (row.everywhere) return { text: 'global', color: theme.good, dim: true };
+  const n = row.locations?.length ?? 0;
+  return n > 0 ? { text: String(n) } : { text: '·', dim: true };
+}
+
 /** Resolve the column set for a variant into exact widths summing to `contentW`. */
 function columnsFor(variant: TableVariant, contentW: number): Col[] {
   const cols: Col[] =
     variant === 'leaderboard'
       ? [
-          { header: 'NAME', width: 0, cell: nameSeg },
+          { header: 'NAME', width: 0, cell: (r) => nameSeg(r, false) },
+          { header: 'KIND', width: 6, cell: (r) => ({ text: r.kind, dim: true }) },
+          { header: 'LOCATIONS', width: 9, cell: locationsSeg },
           { header: 'USED', width: 4, align: 'right', cell: usedSeg },
           { header: 'RUNTIMES', width: 11, cell: (r) => ({ text: lettersFor(r.usedRuntimes ?? []) }) },
         ]
       : [
-          { header: 'NAME', width: 0, cell: nameSeg },
+          { header: 'NAME', width: 0, cell: (r) => nameSeg(r, true) },
           { header: 'KIND', width: 6, cell: (r) => ({ text: r.kind, dim: true }) },
           { header: 'SCOPE', width: 7, cell: (r) => ({ text: r.scope ?? '', dim: true }) },
           { header: 'VISIBILITY', width: 10, cell: visibilitySeg },
@@ -87,8 +97,8 @@ function columnsFor(variant: TableVariant, contentW: number): Col[] {
           { header: 'RUNTIMES', width: 11, cell: (r) => ({ text: lettersFor(r.usedRuntimes ?? []) }) },
         ];
 
-  // Shed trailing-priority columns until NAME keeps a readable width.
-  const shedOrder = ['SOURCE', 'RUNTIMES', 'SCOPE'];
+  // Shed trailing-priority columns until NAME keeps a readable width (only those present).
+  const shedOrder = ['SOURCE', 'RUNTIMES', 'SCOPE', 'LOCATIONS', 'KIND'];
   const fits = (cs: Col[]) =>
     contentW - cs.reduce((sum, c) => sum + c.width, 0) - SEP.length * (cs.length - 1) >= MIN_NAME;
   let active = cols;
@@ -100,18 +110,24 @@ function columnsFor(variant: TableVariant, contentW: number): Col[] {
   return active.map((c) => (c.header === 'NAME' ? { ...c, width: Math.max(MIN_NAME, contentW - fixed) } : c));
 }
 
+// One leading space, carried INSIDE the row/header text so the cursor row's
+// inverse background wraps around the left of the first column (the icon/name).
+const PAD = ' ';
+
 function RowLine({ row, cols, active }: { row: ItemRow; cols: Col[]; active: boolean }) {
   if (active) {
     // The cursor row inverts edge-to-edge; per-cell colors yield to legibility.
     const line = cols.map((c) => pad(c.cell(row).text, c.width, c.align)).join(SEP);
     return (
       <Text wrap="truncate-end" inverse bold>
+        {PAD}
         {line}
       </Text>
     );
   }
   return (
     <Text wrap="truncate-end">
+      {PAD}
       {cols.map((c, i) => {
         const seg = c.cell(row);
         return (
@@ -140,16 +156,18 @@ export function ItemTable({
   /** Total outer width of the table box (border + padding included). */
   width: number;
 }) {
-  const contentW = Math.max(MIN_NAME + 8, width - 4);
+  const contentW = Math.max(MIN_NAME + 8, width - 4 - PAD.length);
   const cols = columnsFor(variant, contentW);
   const header = cols.map((c) => pad(c.header, c.width, c.align)).join(SEP);
   const rule = cols.map((c) => '─'.repeat(c.width)).join('─┼─');
   return (
     <Box flexDirection="column" width={width} borderStyle="round" borderColor={theme.border} paddingX={1}>
       <Text wrap="truncate-end" dimColor bold>
+        {PAD}
         {header}
       </Text>
       <Text wrap="truncate-end" dimColor>
+        {PAD}
         {rule}
       </Text>
       {rows.map((r, i) => (

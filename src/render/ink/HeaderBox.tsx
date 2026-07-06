@@ -2,7 +2,7 @@ import { Box, Text, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { TABS, type TabId } from './tabs.js';
 import { lettersFor } from './runtimeMark.js';
-import { summaryStats } from './stats.js';
+import { summaryStats, installed } from './stats.js';
 import { bucketCounts } from '../../resolve.js';
 import { formatCounts } from '../format.js';
 import { WORDMARK, WORDMARK_WIDTH } from './wordmark.js';
@@ -20,9 +20,27 @@ const MIN_ART_ROWS = 30;
 /** The per-tab metadata line: what the active tab is looking at, in counts. */
 function MetaLine({ inv, tab }: { inv: Inventory; tab: TabId }) {
   const letters = lettersFor(inv.runtimesDetected);
-  const counts = tab === 'leaderboard' ? summaryStats(inv).totals : bucketCounts(inv.global);
-  const label = tab === 'leaderboard' ? 'EVERYTHING' : 'GLOBAL';
-  const gloss = tab === 'leaderboard' ? 'distinct across the machine' : 'inherited everywhere';
+  let label: string;
+  let gloss: string;
+  let counts: { skills: number; plugins: number; mcp: number };
+  if (tab === 'leaderboard') {
+    label = 'EVERYTHING';
+    gloss = 'distinct across the machine';
+    counts = summaryStats(inv).totals;
+  } else if (tab === 'installed') {
+    label = 'INSTALLED';
+    gloss = 'project-scoped, across all projects';
+    const rows = installed(inv);
+    counts = {
+      skills: rows.filter((r) => r.kind === 'skill').length,
+      plugins: rows.filter((r) => r.kind === 'plugin').length,
+      mcp: rows.filter((r) => r.kind === 'mcp').length,
+    };
+  } else {
+    label = 'USER SCOPE';
+    gloss = 'inherited everywhere';
+    counts = bucketCounts(inv.global);
+  }
   return (
     <Text>
       <Text bold>{label}</Text> <Text dimColor>{gloss}</Text> · {formatCounts(counts)}

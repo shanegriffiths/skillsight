@@ -12,7 +12,8 @@ import { FilterBar } from './FilterBar.js';
 import { tabForKey, nextTab, type TabId } from './tabs.js';
 import { FoldersView } from './FoldersView.js';
 import { GlobalView } from './GlobalView.js';
-import { LeaderboardView } from './LeaderboardView.js';
+import { RankedView } from './RankedView.js';
+import { leaderboard, installed } from './stats.js';
 
 export function App({
   homeRoot,
@@ -114,8 +115,9 @@ export function App({
     <Box flexDirection="column">
       <HeaderBox inv={inv} status={status} tab={tab} />
       {tab === 'folders' ? <FoldersView inv={inv} inputActive={!filtering} /> : null}
+      {tab === 'installed' ? <RankedView inv={inv} rows={installed(inv)} inputActive={!filtering} /> : null}
       {tab === 'global' ? <GlobalView inv={inv} inputActive={!filtering} /> : null}
-      {tab === 'leaderboard' ? <LeaderboardView inv={inv} inputActive={!filtering} /> : null}
+      {tab === 'leaderboard' ? <RankedView inv={inv} rows={leaderboard(inv)} showStats inputActive={!filtering} /> : null}
       <FilterBar chips={chipList} runtimes={runtimes} kinds={kinds} cursor={safeCursor} filtering={filtering} />
     </Box>
   );

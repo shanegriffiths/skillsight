@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { leaderboard, leaderboardStats, summaryStats } from '../src/render/ink/stats.js';
+import { leaderboard, installed, leaderboardStats, summaryStats } from '../src/render/ink/stats.js';
 import { formatCounts } from '../src/render/format.js';
 import type {
   Bucket,
@@ -55,9 +55,9 @@ function bucket(b: Partial<Bucket>): Bucket {
   return { ...emptyBucket(), ...b };
 }
 
-function folder(b: Partial<Pick<FolderReport, 'projectScoped' | 'local'>>): FolderReport {
+function folder(b: Partial<Pick<FolderReport, 'projectScoped' | 'local'>>, path = '/p'): FolderReport {
   return {
-    path: '/p',
+    path,
     group: 'g',
     runtimes: [],
     global: emptyBucket(),
@@ -109,6 +109,39 @@ describe('leaderboard', () => {
 
   it('returns an empty array for an empty inventory', () => {
     expect(leaderboard(inv({}))).toEqual([]);
+  });
+
+  it('enriches every row with everywhere + locations, and includes all kinds', () => {
+    const i = inv({
+      global: bucket({ skills: [skill('g', ['cc'])], plugins: [plugin('gp')] }),
+      folders: [folder({ projectScoped: bucket({ skills: [skill('w', [], { contentId: 'w' })] }) }, '/a')],
+    });
+    const by = Object.fromEntries(leaderboard(i).map((r) => [r.name, r]));
+    expect(by.g!.everywhere).toBe(true);
+    expect(by.g!.locations).toEqual([]);
+    expect(by.gp!.everywhere).toBe(true);
+    expect(by.w!.everywhere).toBe(false);
+    expect(by.w!.locations).toEqual(['/a']);
+    expect(new Set(leaderboard(i).map((r) => r.kind))).toEqual(new Set(['skill', 'plugin']));
+  });
+});
+
+describe('installed', () => {
+  it('excludes global items and ranks the rest by project footprint, then usage, then name', () => {
+    const i = inv({
+      global: bucket({ skills: [skill('g-skill', ['cc'])], plugins: [plugin('g-plugin')] }),
+      folders: [
+        folder({ projectScoped: bucket({ skills: [skill('wide', [], { contentId: 'w' })] }) }, '/a'),
+        folder({ projectScoped: bucket({ skills: [skill('wide', [], { contentId: 'w' })], plugins: [plugin('narrow')] }) }, '/b'),
+      ],
+    });
+    const rows = installed(i);
+    // no global items (they live only in the User Scope tab)
+    expect(rows.some((r) => r.everywhere)).toBe(false);
+    expect(rows.some((r) => r.name === 'g-skill' || r.name === 'g-plugin')).toBe(false);
+    // wide is in 2 projects → ranks above narrow (1)
+    expect(rows.map((r) => r.name)).toEqual(['wide', 'narrow']);
+    expect(rows.find((r) => r.name === 'wide')!.locations).toEqual(['/a', '/b']);
   });
 });
 

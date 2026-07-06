@@ -22,13 +22,17 @@ export function FolderList({
   dimmed?: boolean;
   width: number;
 }) {
-  const contentW = Math.max(10, width - 4);
+  // One leading space carried inside each line so the selected row's inverse
+  // background wraps around the left of the folder icon.
+  const PAD = ' ';
+  const contentW = Math.max(10, width - 4 - PAD.length);
   return (
     <Box flexDirection="column" width={width} borderStyle="round" borderColor={theme.border} paddingX={1}>
       <Text wrap="truncate-end" dimColor bold>
-        PROJECT
+        {PAD}PROJECT
       </Text>
       <Text wrap="truncate-end" dimColor>
+        {PAD}
         {'─'.repeat(contentW)}
       </Text>
       {rows.length === 0 ? <Text dimColor>no folders discovered</Text> : null}
@@ -53,22 +57,23 @@ export function FolderList({
         if (left.length > maxLeft) left = left.slice(0, maxLeft - 1) + '…';
         const mid = Math.max(1, contentW - left.length - rightBlock);
 
-        if (active && !dimmed) {
+        // The selected row is always solid white-on-black — focused or not — so
+        // it reads the same as the item table's cursor row.
+        if (active) {
           return (
             <Text key={r.nodeId} wrap="truncate-end" inverse bold>
-              {`${left}${hint}${' '.repeat(mid)}${right}`}
+              {`${PAD}${left}${hint}${' '.repeat(mid)}${right}`}
             </Text>
           );
         }
-        const labelDim = dimmed ? !active : isWorktrees || (globalOnly && !active);
+        const labelDim = dimmed || isWorktrees || globalOnly;
         return (
           <Text key={r.nodeId} wrap="truncate-end">
-            <Text dimColor={labelDim} bold={dimmed && active}>
-              {left}
-            </Text>
+            {PAD}
+            <Text dimColor={labelDim}>{left}</Text>
             {hint ? <Text dimColor>{hint}</Text> : null}
             {' '.repeat(mid)}
-            <Text color={dimmed ? undefined : theme.accent} dimColor={dimmed && !active}>
+            <Text color={dimmed ? undefined : theme.accent} dimColor={dimmed}>
               {right}
             </Text>
           </Text>
