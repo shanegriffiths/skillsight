@@ -104,6 +104,16 @@ describe('claude-code adapter: collectGlobal', () => {
     expect(byId['proj@official']).toBeUndefined();
   });
 
+  it('ignores a plugin skills subdir with no SKILL.md (e.g. a shared references dir)', () => {
+    const { home: h } = buildHome();
+    home = h;
+    writeFileEnsured(join(cacheDir(h, 'alpha'), 'skills', 'references', 'expressions.md'), '# shared refs\n');
+    const g = claudeCodeAdapter.collectGlobal(ctxOf(h), []);
+    const alpha = g.plugins.find((p) => p.id === 'alpha@official')!;
+    expect(alpha.provides.skills).not.toContain('references');
+    expect(g.skills.some((s) => s.name === 'references')).toBe(false);
+  });
+
   it('classifies skill providers (plugin / shared-store / user)', () => {
     const { home: h } = buildHome();
     home = h;

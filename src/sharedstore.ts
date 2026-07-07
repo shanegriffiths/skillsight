@@ -7,7 +7,7 @@
  * Skills present in the hub but absent from the lock are still reported (they
  * just carry no lock-derived provenance).
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Warning } from './types.js';
 import { sharedHubDir, sharedLockPath, type HomeCtx } from './runtimes.js';
@@ -92,6 +92,8 @@ export function collectSharedStore(ctx: HomeCtx): SharedStoreResult {
     } catch {
       continue;
     }
+    // Only a dir with a SKILL.md is a skill — skip support dirs (references/, …).
+    if (!existsSync(join(dir, 'SKILL.md'))) continue;
 
     const realPath = realpathSafe(dir);
     const fm = readFrontmatterFile(join(dir, 'SKILL.md'));

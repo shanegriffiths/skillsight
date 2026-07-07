@@ -47,6 +47,15 @@ describe('collectSharedStore', () => {
     expect(res.warnings).toHaveLength(0);
   });
 
+  it('ignores a hub directory with no SKILL.md (e.g. a shared references dir)', () => {
+    home = makeTempHome();
+    const hub = join(home, '.agents', 'skills');
+    writeSkillDir(hub, 'alpha');
+    writeFileEnsured(join(hub, 'references', 'expressions.md'), '# shared refs\n');
+    const res = collectSharedStore(ctxOf(home));
+    expect(res.skills.map((s) => s.name)).toEqual(['alpha']);
+  });
+
   it('records a warning for a malformed lock but still returns hub skills', () => {
     home = makeTempHome();
     const hub = join(home, '.agents', 'skills');

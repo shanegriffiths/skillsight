@@ -6,7 +6,7 @@ import { join, relative, isAbsolute } from 'node:path';
 import type { Provider, Scope, SkillRecord } from './types.js';
 import { sharedHubDir, type HomeCtx } from './runtimes.js';
 import { realpathSafe } from './symlinks.js';
-import { readDirEntries, isDir } from './fsread.js';
+import { readDirEntries, isDir, exists } from './fsread.js';
 import { readFrontmatterFile } from './frontmatter.js';
 
 /** True when `p` is `dir` or lives under it. */
@@ -63,6 +63,9 @@ export function scanSkillsDir(
     const linkPath = join(dir, e.name);
     const real = realpathSafe(linkPath);
     if (!isDir(real)) continue;
+    // A directory is a skill only if it carries a SKILL.md; a support dir
+    // (references/, assets/, …) is not.
+    if (!exists(join(linkPath, 'SKILL.md'))) continue;
     const fm = readFrontmatterFile(join(linkPath, 'SKILL.md'));
     out.push({
       name: typeof fm.name === 'string' ? fm.name : e.name,

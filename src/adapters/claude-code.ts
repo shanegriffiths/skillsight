@@ -230,7 +230,9 @@ function pluginRecordAndSkills(
   const explicit = enabledMap[key];
   const enabled = explicit ?? manifest?.defaultEnabled ?? true;
 
-  const skillDirs = dirChildren(join(installPath, 'skills'));
+  const skillsRoot = join(installPath, 'skills');
+  // Only dirs with a SKILL.md are skills; skip support dirs (references/, assets/, …).
+  const skillDirs = dirChildren(skillsRoot).filter((name) => exists(join(skillsRoot, name, 'SKILL.md')));
   const supportsRuntimes = detectSupportsRuntimes(installPath);
 
   const plugin: PluginRecord = {
