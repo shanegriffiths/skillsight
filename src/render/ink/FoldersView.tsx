@@ -144,7 +144,7 @@ export function FoldersView({
       : '↑/↓ move · → expand/open · ← back · Enter open · Esc header · q quit';
   const footer =
     nav.focus === 'folders'
-      ? `sort: ${sort} · hidden: ${showHidden ? 'on' : 'off'} · ↑/↓ move · →/Enter open · ← collapse · s sort · . hidden · q quit`
+      ? `hidden: ${showHidden ? 'on' : 'off'} · ↑/↓ move · →/Enter open · ← collapse · . hidden · q quit`
       : nav.focus === 'items'
         ? '↑/↓ move · → expand/open · ← back · Enter open · ↓ globals · Esc folders · q quit'
         : nav.focus === 'globals'

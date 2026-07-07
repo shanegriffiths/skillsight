@@ -28,7 +28,7 @@ export function GlobalView({ inv, inputActive = true, onControls, onSort }: { in
 
   const footer = detail
     ? 'Esc/← back · 1/2/3/4 or Tab switch · q quit'
-    : '↑/↓ move · Enter expand/detail · s sort · 1/2/3/4 or Tab switch · q quit';
+    : '↑/↓ move · Enter expand/detail · 1/2/3/4 or Tab switch · q quit';
   useEffect(() => {
     onControls?.(footer);
   }, [footer, onControls]);

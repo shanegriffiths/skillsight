@@ -155,7 +155,7 @@ export function RankedView({
 
   const footer = detail
     ? 'Esc/← back · 1/2/3/4 or Tab switch · q quit'
-    : '↑/↓ move · → expand source · Enter detail · s sort · 1/2/3/4 or Tab · q quit';
+    : '↑/↓ move · → expand source · Enter detail · 1/2/3/4 or Tab · q quit';
   useEffect(() => {
     onControls?.(footer);
   }, [footer, onControls]);
