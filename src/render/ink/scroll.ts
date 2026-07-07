@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 /** Clamp an index into `[0, length-1]`; `0` for an empty list. */
 export function clampIndex(index: number, length: number): number {
@@ -28,8 +28,13 @@ export function scrollWindow(
  * derives the visible window. Components consume this; tests cover the pure
  * functions directly.
  */
-export function useScroll(length: number, height: number) {
+export function useScroll(length: number, height: number, resetKey?: unknown) {
   const [selected, setSelected] = useState(0);
+  // Opt-in: when `resetKey` changes (e.g. a sort toggle reorders the list), send
+  // the cursor back to the top. Callers that omit it keep their position.
+  useEffect(() => {
+    setSelected(0);
+  }, [resetKey]);
   const sel = clampIndex(selected, length);
   const moveUp = () => setSelected(() => clampIndex(sel - 1, length));
   const moveDown = () => setSelected(() => clampIndex(sel + 1, length));

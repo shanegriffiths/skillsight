@@ -6,6 +6,7 @@ import { DetailView } from './DetailView.js';
 import { groupKey, type ItemRow } from './rows.js';
 import { summaryStats, groupBySource, type SummaryStats } from './stats.js';
 import { useListDetail } from './listDetail.js';
+import { useItemSort } from './useItemSort.js';
 import { RuntimeLetters } from './RuntimeLetters.js';
 import { marksFor } from './runtimeMark.js';
 import { Band } from './Band.js';
@@ -111,25 +112,36 @@ export function RankedView({
   rows,
   showStats = false,
   inputActive = true,
+  nativeSortLabel,
   onOpenProject,
   onControls,
+  onSort,
 }: {
   inv: Inventory;
   rows: ItemRow[];
   showStats?: boolean;
   inputActive?: boolean;
+  /** Label for this tab's native (pre-ranked) order — e.g. `reach` / `footprint`. */
+  nativeSortLabel: string;
   /** Jump to a project folder on the Folders tab (invoked from the detail's project list). */
   onOpenProject?: (path: string) => void;
   /** Report the current key hints up to the header. */
   onControls?: (text: string) => void;
+  /** Report the active sort label up to the app-level filter box. */
+  onSort?: (label: string) => void;
 }) {
   const size = useWindowSize();
   const chrome = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1 + (showStats ? STATS_BAND_LINES : 0);
   const height = Math.max(3, size.rows - chrome);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const grouped = groupBySource(rows, expanded);
-  const { detail, selected, start, end, onInput } = useListDetail(grouped.length, height);
+  const sort = useItemSort(nativeSortLabel);
+  const grouped = sort.apply(groupBySource(rows, expanded));
+  const { detail, selected, start, end, onInput } = useListDetail(grouped.length, height, sort.mode);
   const [projSel, setProjSel] = useState(0);
+
+  useEffect(() => {
+    onSort?.(sort.label);
+  }, [sort.label, onSort]);
 
   const selRow = grouped[selected];
   const isHeader = selRow?.expandState !== undefined;
@@ -143,13 +155,15 @@ export function RankedView({
 
   const footer = detail
     ? 'Esc/← back · 1/2/3/4 or Tab switch · q quit'
-    : '↑/↓ move · → expand source · Enter detail · 1/2/3/4 or Tab · q quit';
+    : '↑/↓ move · → expand source · Enter detail · s sort · 1/2/3/4 or Tab · q quit';
   useEffect(() => {
     onControls?.(footer);
   }, [footer, onControls]);
 
   useInput(
     (input, key) => {
+      // `s` toggles this tab's sort (list mode only); it resets the cursor + detail.
+      if (!detail && sort.handleKey(input)) return;
       // A source-group header expands/collapses in place (like Folders/User Scope).
       if (!detail && isHeader && (key.return || key.rightArrow || key.leftArrow)) {
         const id = groupKey(selRow!);

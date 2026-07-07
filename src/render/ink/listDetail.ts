@@ -3,7 +3,7 @@
  * j/k/arrows move, Enter/→ opens the detail pane, Esc/← closes it. The pure
  * mapper is tested directly; the hook is thin glue over useScroll.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Key } from 'ink';
 import { useScroll } from './scroll.js';
 
@@ -31,9 +31,13 @@ export function listDetailAction(
   return { type: 'none' };
 }
 
-export function useListDetail(rowCount: number, height: number) {
-  const { selected, start, end, moveUp, moveDown } = useScroll(rowCount, height);
+export function useListDetail(rowCount: number, height: number, resetKey?: unknown) {
+  const { selected, start, end, moveUp, moveDown } = useScroll(rowCount, height, resetKey);
   const [detail, setDetail] = useState(false);
+  // Close the detail pane when the list is reset (e.g. a sort toggle).
+  useEffect(() => {
+    setDetail(false);
+  }, [resetKey]);
 
   const onInput = (input: string, key: ListDetailKey): boolean => {
     const action = listDetailAction(input, key, { detail, rowCount });

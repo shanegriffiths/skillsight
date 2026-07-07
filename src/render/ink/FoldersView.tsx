@@ -38,6 +38,7 @@ export function FoldersView({
   pendingFolder = null,
   onConsumePending,
   onControls,
+  onSort,
 }: {
   inv: Inventory;
   inputActive?: boolean;
@@ -46,6 +47,8 @@ export function FoldersView({
   onConsumePending?: () => void;
   /** Report the current per-focus key hints up to the header. */
   onControls?: (text: string) => void;
+  /** Report the folder-column sort label up to the app-level filter box. */
+  onSort?: (label: string) => void;
 }) {
   const [nav, setNav] = useState(initialNav);
   const [sort, setSort] = useState<SortMode>('items');
@@ -150,6 +153,9 @@ export function FoldersView({
   useEffect(() => {
     onControls?.(footer);
   }, [footer, onControls]);
+  useEffect(() => {
+    onSort?.(sort);
+  }, [sort, onSort]);
 
   // A selected row with no folder is a grouping node (the worktrees group, or a
   // repo whose main checkout wasn't discovered) — it has no item table.
