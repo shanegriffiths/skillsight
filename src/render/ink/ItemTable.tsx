@@ -40,14 +40,16 @@ function pad(text: string, width: number, align?: 'right'): string {
   return align === 'right' ? fill + t : t + fill;
 }
 
-function nameSeg(row: ItemRow, dimParked: boolean): Seg {
+function nameSeg(row: ItemRow): Seg {
   const isGroup = row.expandState !== undefined;
   const marker = row.expandState === 'expanded' ? '▾' : row.expandState === 'collapsed' ? '▸' : '';
   const suffix = row.override ? ' (override)' : '';
   const label = isGroup ? `${marker} ${row.name} (${row.used})` : `${row.depth ? '  ' : ''}${row.name}${suffix}`;
-  // Dim parked skills only where the VISIBILITY column explains why (the state table);
-  // on the ranked tabs it just reads as unexplained grey.
-  return { text: label, bold: isGroup, dim: dimParked && !!row.parked };
+  // Name brightness tracks enabled/disabled only. A parked skill (VISIBILITY
+  // `name-only` / `user-only`) is still enabled and available, so it stays
+  // full-strength — the amber VISIBILITY cell carries the reduced-context
+  // state, not a dim name that would misread as inactive.
+  return { text: label, bold: isGroup };
 }
 
 function visibilitySeg(row: ItemRow): Seg {
@@ -83,14 +85,14 @@ function columnsFor(variant: TableVariant, contentW: number): Col[] {
   const cols: Col[] =
     variant === 'leaderboard'
       ? [
-          { header: 'NAME', width: 0, cell: (r) => nameSeg(r, false) },
+          { header: 'NAME', width: 0, cell: nameSeg },
           { header: 'KIND', width: 6, cell: (r) => ({ text: r.expandState !== undefined ? '' : r.kind }) },
           { header: 'LOCATIONS', width: 9, cell: locationsSeg },
           { header: 'USED', width: 4, align: 'right', cell: usedSeg },
           { header: 'RUNTIMES', width: 11, cell: (r) => ({ text: lettersFor(r.usedRuntimes ?? []) }) },
         ]
       : [
-          { header: 'NAME', width: 0, cell: (r) => nameSeg(r, true) },
+          { header: 'NAME', width: 0, cell: nameSeg },
           { header: 'KIND', width: 6, cell: (r) => ({ text: r.kind }) },
           { header: 'SCOPE', width: 7, cell: (r) => ({ text: r.scope ?? '' }) },
           { header: 'VISIBILITY', width: 10, cell: visibilitySeg },
