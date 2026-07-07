@@ -8,6 +8,8 @@ export interface DetailField {
   dim?: boolean;
   /** When true, the view renders `value` as a terminal hyperlink. */
   link?: boolean;
+  /** When true, the view wraps `value` across lines in full instead of truncating. */
+  wrap?: boolean;
 }
 
 function shortId(id: string): string {
@@ -32,7 +34,7 @@ function skillFields(s: SkillRecord): DetailField[] {
   if (!s.enabled) f.push({ label: 'enabled', value: 'no', dim: true });
   f.push({ label: 'path', value: s.provider.path, dim: true });
   f.push({ label: 'id', value: shortId(s.contentId), dim: true });
-  if (s.description) f.push({ label: 'about', value: s.description });
+  if (s.description) f.push({ label: 'about', value: s.description, wrap: true });
   return f;
 }
 
@@ -47,6 +49,7 @@ function pluginFields(p: PluginRecord): DetailField[] {
   ];
   if (p.override) f.push({ label: 'enabled via', value: `${p.override} settings override` });
   f.push({ label: 'version', value: p.version, dim: true });
+  if (p.description) f.push({ label: 'about', value: p.description, wrap: true });
   return f;
 }
 

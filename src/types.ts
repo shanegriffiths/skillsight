@@ -91,6 +91,8 @@ export interface SkillRecord {
 export interface PluginRecord {
   id: string;
   name: string;
+  /** From the plugin's `.claude-plugin/plugin.json` manifest, when present. */
+  description?: string;
   marketplace: string;
   marketplaceRepo?: string;
   version: string;

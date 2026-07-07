@@ -46,6 +46,7 @@ interface MarketplaceEntry {
   source?: { source?: string; repo?: string; path?: string };
 }
 interface PluginManifest {
+  description?: string;
   defaultEnabled?: boolean;
   mcpServers?: unknown;
 }
@@ -235,6 +236,7 @@ function pluginRecordAndSkills(
   const plugin: PluginRecord = {
     id: key,
     name,
+    ...(typeof manifest?.description === 'string' ? { description: manifest.description } : {}),
     marketplace,
     marketplaceRepo,
     version: entry.version ?? 'unknown',

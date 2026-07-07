@@ -6,7 +6,7 @@ import { detailFields, type DetailField } from './detail.js';
 function FieldValue({ f }: { f: DetailField }) {
   const value = f.link ? terminalLink(f.value, f.value, { fallback: (t) => t }) : f.value;
   return (
-    <Text wrap="truncate-end" dimColor={f.dim}>
+    <Text wrap={f.wrap ? 'wrap' : 'truncate-end'} dimColor={f.dim}>
       {value}
     </Text>
   );

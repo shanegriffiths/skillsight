@@ -62,6 +62,14 @@ describe('detailFields — skill', () => {
     expect(valueOf(f, 'plugin')).toBe('gsap-skills');
   });
 
+  it('marks the about field as wrapped so the full description shows', () => {
+    const f = detailFields(skillRow({ description: 'A long multi-sentence front-matter description.' }));
+    expect(f.find((x) => x.label === 'about')).toMatchObject({
+      value: 'A long multi-sentence front-matter description.',
+      wrap: true,
+    });
+  });
+
   it('omits url and about when absent, and dims a kind-only source', () => {
     const f = detailFields(skillRow({ description: undefined, provider: { kind: 'project-local', path: '/x/y' } }));
     expect(valueOf(f, 'url')).toBeUndefined();
@@ -111,6 +119,18 @@ describe('detailFields — plugin', () => {
     expect(valueOf(f, 'marketplace')).toBe('studio/gsap');
     expect(valueOf(f, 'version')).toBe('1.2.0');
   });
+
+  it('shows the plugin manifest description as a wrapped about', () => {
+    const f = detailFields(pluginRow({ description: 'AI-powered codebase understanding' }));
+    expect(f.find((x) => x.label === 'about')).toMatchObject({
+      value: 'AI-powered codebase understanding',
+      wrap: true,
+    });
+  });
+
+  it('omits about when the plugin manifest has no description', () => {
+    expect(valueOf(detailFields(pluginRow({})), 'about')).toBeUndefined();
+  });
 });
 
 describe('detailFields — mcp', () => {
@@ -127,6 +147,11 @@ describe('detailFields — mcp', () => {
     const f = detailFields(mcpRow({ kind: 'stdio', command: 'npx', args: ['-y', 'server'], envKeys: ['TOKEN'] }));
     expect(valueOf(f, 'command')).toBe('npx -y server');
     expect(valueOf(f, 'env')).toBe('TOKEN');
+  });
+
+  it('has no about field — mcp configs carry no description', () => {
+    const f = detailFields(mcpRow({ kind: 'stdio', command: 'npx' }));
+    expect(valueOf(f, 'about')).toBeUndefined();
   });
 });
 
