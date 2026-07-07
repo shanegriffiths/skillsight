@@ -27,13 +27,13 @@ function MetaLine({ inv, tab }: { inv: Inventory; tab: TabId }) {
     </>
   );
 
-  // Projects is about the folders themselves, not the global layer.
+  // The Folders tab is about the folders themselves, not the global layer.
   if (tab === 'folders') {
     const n = inv.folders.length;
     const withConfig = inv.folders.filter((f) => bucketTotal(f.projectScoped) + bucketTotal(f.local) > 0).length;
     return (
       <Text>
-        <Text bold>PROJECTS</Text> <Text dimColor>{n} discovered · {withConfig} add beyond the global layer</Text>
+        <Text bold>FOLDERS</Text> <Text dimColor>{n} discovered · {withConfig} add beyond the global layer</Text>
         {runtimes}
       </Text>
     );
@@ -47,8 +47,8 @@ function MetaLine({ inv, tab }: { inv: Inventory; tab: TabId }) {
     gloss = 'distinct across the machine';
     counts = summaryStats(inv).totals;
   } else if (tab === 'installed') {
-    label = 'INSTALLED';
-    gloss = 'project-scoped, across all projects';
+    label = 'PROJECT SCOPE';
+    gloss = 'installed across all projects';
     const rows = installed(inv);
     counts = {
       skills: rows.filter((r) => r.kind === 'skill').length,

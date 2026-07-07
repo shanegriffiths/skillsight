@@ -8,8 +8,8 @@ export interface TabDef {
 }
 
 export const TABS: TabDef[] = [
-  { id: 'folders', key: '1', label: 'Projects' },
-  { id: 'installed', key: '2', label: 'Installed' },
+  { id: 'folders', key: '1', label: 'Folders' },
+  { id: 'installed', key: '2', label: 'Project Scope' },
   { id: 'global', key: '3', label: 'User Scope (Global)' },
   { id: 'leaderboard', key: '4', label: 'Leaderboard' },
 ];

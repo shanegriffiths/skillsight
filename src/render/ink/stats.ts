@@ -131,7 +131,7 @@ export function leaderboard(inv: Inventory): ItemRow[] {
 
 /**
  * Project-scoped items (never global) ranked by installed footprint — how many
- * projects each lives in — then usage, then name. The "Installed" tab: what
+ * projects each lives in — then usage, then name. The "Project Scope" tab: what
  * you've added per-project and where.
  */
 export function installed(inv: Inventory): ItemRow[] {

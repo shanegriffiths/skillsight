@@ -44,7 +44,7 @@ function StatsBand({ stats }: { stats: SummaryStats }) {
 /**
  * Where a ranked item lives. A global item is inherited everywhere (no list). A
  * project-scoped item gets a bordered, navigable table of its projects: ↑/↓ move,
- * Enter/→ jumps to that project on the Projects tab. `sel` is the highlighted row.
+ * Enter/→ jumps to that project on the Folders tab. `sel` is the highlighted row.
  */
 function Locations({
   row,
@@ -102,7 +102,7 @@ function Locations({
 
 /**
  * The shared ranked-list tab body used by both Leaderboard (everything, by
- * usage) and Installed (project-scoped, by footprint). Rows are pre-ranked by
+ * usage) and Project Scope (project-scoped, by footprint). Rows are pre-ranked by
  * the caller; this owns the table, scroll, detail pane (with a navigable
  * project list), and (optionally) the skills-by-reach stats band.
  */
@@ -117,7 +117,7 @@ export function RankedView({
   rows: ItemRow[];
   showStats?: boolean;
   inputActive?: boolean;
-  /** Jump to a project folder on the Projects tab (invoked from the detail's project list). */
+  /** Jump to a project folder on the Folders tab (invoked from the detail's project list). */
   onOpenProject?: (path: string) => void;
 }) {
   const size = useWindowSize();
@@ -140,7 +140,7 @@ export function RankedView({
 
   useInput(
     (input, key) => {
-      // A source-group header expands/collapses in place (like Projects/Global).
+      // A source-group header expands/collapses in place (like Folders/User Scope).
       if (!detail && isHeader && (key.return || key.rightArrow || key.leftArrow)) {
         const id = groupKey(selRow!);
         setExpanded((prev) => {
