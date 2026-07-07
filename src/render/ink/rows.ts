@@ -61,9 +61,19 @@ function displayVisibility(v: SkillVisibility | undefined): ItemVisibility {
   return v ?? 'on';
 }
 
+/**
+ * The repo a skill was installed from — its lock `source` (hub skills) or
+ * marketplace repo (plugin-bundled). `null` when it has neither (a machine-local
+ * skill): such a skill has no install unit to group under. The single definition
+ * of "source", shared by the row's SOURCE cell and the group-by-source logic.
+ */
+export function skillSource(s: SkillRecord): string | null {
+  return s.provider.source ?? s.provider.marketplaceRepo ?? null;
+}
+
 function skillRow(s: SkillRecord): ItemRow {
   const parked = s.visibility === 'name-only' || s.visibility === 'user-invocable-only';
-  const source = s.provider.source ?? s.provider.marketplaceRepo ?? null;
+  const source = skillSource(s);
   return {
     kind: 'skill',
     name: s.name,

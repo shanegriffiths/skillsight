@@ -2,6 +2,7 @@ import type { Bucket, SkillRecord } from '../../types.js';
 import { emptyBucket } from '../../types.js';
 import { mergeBuckets } from '../../resolve.js';
 import { itemRows, type ItemRow } from './rows.js';
+import { groupBySource } from './stats.js';
 
 /**
  * Build the navigable item list for a bucket pair. Skills that declare
@@ -10,8 +11,12 @@ import { itemRows, type ItemRow } from './rows.js';
  * (its scope/status/source render there, and it is not repeated as a leaf);
  * otherwise a synthetic header (`kind: 'plugin'`, no `record`) stands in.
  * Headers carry `expandState`, `used` = child count, and `groupId` = the plugin
- * id. Expanded groups reveal their children at `depth: 1`. Standalone skills,
- * unmatched plugins, and mcp are leaves.
+ * id. Expanded groups reveal their children at `depth: 1`.
+ *
+ * Standalone (non-plugin) skills then collapse by install repo via the shared
+ * `groupBySource`: ≥2 skills from one source/repo (e.g. a multi-skill hub
+ * install) nest under a `src:<repo>` header, exactly as the ranked tabs do.
+ * Repo-less skills, unmatched plugins, and mcp stay leaves.
  */
 export function groupedRows(projectScoped: Bucket, local: Bucket, expanded: Set<string>): ItemRow[] {
   const merged = mergeBuckets(projectScoped, local);
@@ -45,7 +50,7 @@ export function groupedRows(projectScoped: Bucket, local: Bucket, expanded: Set<
       out.push(...itemRows({ ...emptyBucket(), skills: children }).map((r) => ({ ...r, depth: 1 })));
     }
   }
-  out.push(...itemRows({ ...emptyBucket(), skills: standalone }));
+  out.push(...groupBySource(itemRows({ ...emptyBucket(), skills: standalone }), expanded));
   out.push(
     ...itemRows({
       ...emptyBucket(),

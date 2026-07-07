@@ -47,12 +47,17 @@ function enrichedItems(inv: Inventory): ItemRow[] {
 
 const byName = (a: ItemRow, b: ItemRow) => a.name.localeCompare(b.name);
 
-/** A skill's group: its PLUGIN when bundled, else its source/repo. */
-function skillGroup(r: ItemRow): { key: string; label: string } {
+/**
+ * A skill's group: its PLUGIN when bundled, else its source/repo — but only when
+ * that source is a real repo. A dimmed source is a provider-kind fallback (a
+ * machine-local skill with no repo), which is not an install unit, so it stays
+ * ungrouped: `null`. Non-skill rows never call this.
+ */
+function skillGroup(r: ItemRow): { key: string; label: string } | null {
   const bundled = (r.record as SkillRecord | undefined)?.bundledInPlugin;
   if (bundled) return { key: `plugin:${bundled}`, label: bundled.split('@')[0] ?? bundled };
-  const source = r.source ?? 'unknown';
-  return { key: `src:${source}`, label: source };
+  if (r.sourceDim || !r.source) return null;
+  return { key: `src:${r.source}`, label: r.source };
 }
 
 /**
@@ -60,25 +65,26 @@ function skillGroup(r: ItemRow): { key: string; label: string } {
  * bundled in, or (for standalone skills) their source/repo. Each group with ≥2
  * skills becomes an expandable header placed at its best-ranked member's
  * position; its skills nest at `depth: 1` when open. Single-skill groups,
- * plugins, and mcp stay top-level leaves. The caller's ranking is preserved by
- * first appearance.
+ * repo-less skills, plugins, and mcp stay top-level leaves. The caller's ranking
+ * is preserved by first appearance.
  */
 export function groupBySource(rows: ItemRow[], expanded: ReadonlySet<string>): ItemRow[] {
   const order: (string | ItemRow)[] = [];
   const groups = new Map<string, ItemRow[]>();
   const labels = new Map<string, string>();
   for (const r of rows) {
-    if (r.kind === 'skill') {
-      const { key, label } = skillGroup(r);
-      let g = groups.get(key);
+    const group = r.kind === 'skill' ? skillGroup(r) : null;
+    if (group) {
+      let g = groups.get(group.key);
       if (!g) {
         g = [];
-        groups.set(key, g);
-        order.push(key);
-        labels.set(key, label);
+        groups.set(group.key, g);
+        order.push(group.key);
+        labels.set(group.key, group.label);
       }
       g.push(r);
     } else {
+      // Plugins, mcp, and ungroupable (repo-less) skills stay top-level leaves.
       order.push(r);
     }
   }
