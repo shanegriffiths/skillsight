@@ -54,14 +54,14 @@ function visibilitySeg(row: ItemRow): Seg {
   if (!row.visibility) return { text: row.record || row.expandState !== undefined ? '—' : '', dim: true };
   const color =
     row.visibility === 'off' ? theme.bad : row.visibility === 'on' ? theme.good : theme.warn;
-  return { text: row.visibility, color, dim: row.visibility === 'on' };
+  return { text: row.visibility, color }; // in focus — colour carries the state, no dimming
 }
 
 function statusSeg(row: ItemRow): Seg {
   if (!row.status) return { text: '' };
   return row.status === 'disabled'
     ? { text: 'disabled', color: theme.bad }
-    : { text: 'enabled', color: theme.good, dim: true };
+    : { text: 'enabled', color: theme.good };
 }
 
 function usedSeg(row: ItemRow): Seg {
@@ -73,7 +73,7 @@ function usedSeg(row: ItemRow): Seg {
 
 function locationsSeg(row: ItemRow): Seg {
   if (row.expandState !== undefined) return { text: '' };
-  if (row.everywhere) return { text: 'global', color: theme.good, dim: true };
+  if (row.everywhere) return { text: 'global', color: theme.good };
   const n = row.locations?.length ?? 0;
   return n > 0 ? { text: String(n) } : { text: '·', dim: true };
 }
@@ -84,18 +84,18 @@ function columnsFor(variant: TableVariant, contentW: number): Col[] {
     variant === 'leaderboard'
       ? [
           { header: 'NAME', width: 0, cell: (r) => nameSeg(r, false) },
-          { header: 'KIND', width: 6, cell: (r) => ({ text: r.expandState !== undefined ? '' : r.kind, dim: true }) },
+          { header: 'KIND', width: 6, cell: (r) => ({ text: r.expandState !== undefined ? '' : r.kind }) },
           { header: 'LOCATIONS', width: 9, cell: locationsSeg },
           { header: 'USED', width: 4, align: 'right', cell: usedSeg },
           { header: 'RUNTIMES', width: 11, cell: (r) => ({ text: lettersFor(r.usedRuntimes ?? []) }) },
         ]
       : [
           { header: 'NAME', width: 0, cell: (r) => nameSeg(r, true) },
-          { header: 'KIND', width: 6, cell: (r) => ({ text: r.kind, dim: true }) },
-          { header: 'SCOPE', width: 7, cell: (r) => ({ text: r.scope ?? '', dim: true }) },
+          { header: 'KIND', width: 6, cell: (r) => ({ text: r.kind }) },
+          { header: 'SCOPE', width: 7, cell: (r) => ({ text: r.scope ?? '' }) },
           { header: 'VISIBILITY', width: 10, cell: visibilitySeg },
           { header: 'STATUS', width: 8, cell: statusSeg },
-          { header: 'SOURCE', width: 22, cell: (r) => ({ text: r.source ?? '', dim: r.sourceDim }) },
+          { header: 'SOURCE', width: 22, cell: (r) => ({ text: r.source ?? '' }) },
           { header: 'RUNTIMES', width: 11, cell: (r) => ({ text: lettersFor(r.usedRuntimes ?? []) }) },
         ];
 
