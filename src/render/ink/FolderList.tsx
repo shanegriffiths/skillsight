@@ -22,10 +22,12 @@ export function FolderList({
   dimmed?: boolean;
   width: number;
 }) {
-  // One leading space carried inside each line so the selected row's inverse
-  // background wraps around the left of the folder icon.
+  // A one-space gutter carried inside each line on BOTH sides: the leading pad
+  // insets the folder icon from the border and lets the selected row's inverse
+  // background wrap around the left; the matching trailing pad keeps the `+N`
+  // count off the right border so the column reads balanced, not lopsided.
   const PAD = ' ';
-  const contentW = Math.max(10, width - 4 - PAD.length);
+  const contentW = Math.max(10, width - 4 - 2 * PAD.length);
   return (
     <Box flexDirection="column" width={width} borderStyle="round" borderColor={theme.border} paddingX={1}>
       <Text wrap="truncate-end" dimColor bold>
@@ -40,7 +42,12 @@ export function FolderList({
         const active = i === selected;
         const isWorktrees = r.kind === 'worktrees';
         const globalOnly = r.count === 0 && r.kind === 'project' && !r.hasChildren;
-        const chevron = r.hasChildren ? (r.collapsed ? '▸ ' : '▾ ') : '';
+        // Reserve the twisty gutter on EVERY row: expandable rows show the
+        // triangle, leaves emit two blanks so their folder icon lands in the
+        // same column. Without this, an expandable top-level repo's icon is
+        // pushed right of its flat siblings and reads as nested under them.
+        // (Don't "simplify" the leaf case back to '' — that reintroduces it.)
+        const chevron = r.hasChildren ? (r.collapsed ? '▸ ' : '▾ ') : '  ';
         const indent = '  '.repeat(r.depth);
         const glyph = isWorktrees ? icons.worktrees : icons.folder;
         const iconPart = glyph ? `${glyph} ` : '';
@@ -62,7 +69,7 @@ export function FolderList({
         if (active) {
           return (
             <Text key={r.nodeId} wrap="truncate-end" inverse bold>
-              {`${PAD}${left}${hint}${' '.repeat(mid)}${right}`}
+              {`${PAD}${left}${hint}${' '.repeat(mid)}${right}${PAD}`}
             </Text>
           );
         }
@@ -76,6 +83,7 @@ export function FolderList({
             <Text color={dimmed ? undefined : theme.accent} dimColor={dimmed}>
               {right}
             </Text>
+            {PAD}
           </Text>
         );
       })}
