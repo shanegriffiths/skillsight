@@ -17,8 +17,8 @@ import { icons } from './icons.js';
 import { theme } from './theme.js';
 
 // Fixed vertical chrome around the right column's content: header box + filter
-// bar + the footer line + the path line.
-const RIGHT_FIXED = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + 2;
+// bar + the path line (key hints moved up into the header).
+const RIGHT_FIXED = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + 1;
 // One table's own chrome: border + header + rule (TABLE_CHROME) plus a position line.
 const TABLE_COST = TABLE_CHROME + 1;
 // A touch wider when glyphs are on, to offset the icon cell each row spends.
@@ -37,12 +37,15 @@ export function FoldersView({
   inputActive = true,
   pendingFolder = null,
   onConsumePending,
+  onControls,
 }: {
   inv: Inventory;
   inputActive?: boolean;
   /** A project path requested from a ranked tab; select it, then clear via onConsumePending. */
   pendingFolder?: string | null;
   onConsumePending?: () => void;
+  /** Report the current per-focus key hints up to the header. */
+  onControls?: (text: string) => void;
 }) {
   const [nav, setNav] = useState(initialNav);
   const [sort, setSort] = useState<SortMode>('items');
@@ -144,6 +147,9 @@ export function FoldersView({
         : nav.focus === 'globals'
           ? globalsFooter
           : 'Esc/← back · 1/2/3/4 or Tab switch · q quit';
+  useEffect(() => {
+    onControls?.(footer);
+  }, [footer, onControls]);
 
   // A selected row with no folder is a grouping node (the worktrees group, or a
   // repo whose main checkout wasn't discovered) — it has no item table.
@@ -228,7 +234,6 @@ export function FoldersView({
           )}
         </Box>
       </Box>
-      <Text dimColor>{footer}</Text>
     </Box>
   );
 }

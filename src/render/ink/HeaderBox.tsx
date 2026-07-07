@@ -1,7 +1,6 @@
 import { Box, Text, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { TABS, type TabId } from './tabs.js';
-import { lettersFor } from './runtimeMark.js';
 import { summaryStats, installed } from './stats.js';
 import { bucketCounts, bucketTotal } from '../../resolve.js';
 import { formatCounts } from '../format.js';
@@ -17,24 +16,20 @@ export const HEADER_BOX_HEIGHT = 14;
 const MIN_ART_COLS = WORDMARK_WIDTH + 18;
 const MIN_ART_ROWS = 30;
 
-/** The per-tab metadata line: what the active tab is looking at. */
+/** The per-tab metadata line: what the active tab is looking at. The home path
+ *  lives here now (in brackets) — the header line under the wordmark carries the
+ *  key hints instead. */
 function MetaLine({ inv, tab }: { inv: Inventory; tab: TabId }) {
-  const letters = lettersFor(inv.runtimesDetected);
-  const runtimes = (
-    <>
-      {'   '}
-      <Text dimColor>runtimes:</Text> {letters || <Text dimColor>none</Text>}
-    </>
-  );
-
   // The Folders tab is about the folders themselves, not the global layer.
   if (tab === 'folders') {
     const n = inv.folders.length;
     const withConfig = inv.folders.filter((f) => bucketTotal(f.projectScoped) + bucketTotal(f.local) > 0).length;
     return (
-      <Text>
-        <Text bold>FOLDERS</Text> <Text dimColor>{n} discovered · {withConfig} add beyond the global layer</Text>
-        {runtimes}
+      <Text wrap="truncate-end">
+        <Text bold>FOLDERS</Text>{' '}
+        <Text dimColor>
+          {n} discovered ({inv.homeRoot}) · {withConfig} add beyond the global layer
+        </Text>
       </Text>
     );
   }
@@ -61,9 +56,9 @@ function MetaLine({ inv, tab }: { inv: Inventory; tab: TabId }) {
     counts = bucketCounts(inv.global);
   }
   return (
-    <Text>
-      <Text bold>{label}</Text> <Text dimColor>{gloss}</Text> · {formatCounts(counts)}
-      {runtimes}
+    <Text wrap="truncate-end">
+      <Text bold>{label}</Text> <Text dimColor>{gloss}</Text> · {formatCounts(counts)}{' '}
+      <Text dimColor>({inv.homeRoot})</Text>
     </Text>
   );
 }
@@ -81,18 +76,13 @@ function Status({ status, warnings }: { status: 'idle' | 'rescanning'; warnings:
   );
 }
 
-function Title({ inv, status }: { inv: Inventory; status: 'idle' | 'rescanning' }) {
+/** Just the wordmark (or a plain title on a small terminal). The path/status/key
+ *  hints render on the line below it, in HeaderBox. */
+function Title() {
   const size = useWindowSize();
   const showArt = size.columns >= MIN_ART_COLS && size.rows >= MIN_ART_ROWS;
   if (!showArt) {
-    return (
-      <Box justifyContent="space-between">
-        <Text>
-          <Text bold>skillsight</Text> <Text dimColor>{inv.homeRoot}</Text>
-        </Text>
-        <Status status={status} warnings={inv.warnings.length} />
-      </Box>
-    );
+    return <Text bold>skillsight</Text>;
   }
   return (
     <Box flexDirection="column">
@@ -101,31 +91,34 @@ function Title({ inv, status }: { inv: Inventory; status: 'idle' | 'rescanning' 
           {line}
         </Text>
       ))}
-      <Box justifyContent="space-between">
-        <Text dimColor>{inv.homeRoot}</Text>
-        <Status status={status} warnings={inv.warnings.length} />
-      </Box>
     </Box>
   );
 }
 
 /**
  * The framed header: the ANSI-Shadow wordmark (or a plain title on a small
- * terminal), a row of bordered tab chips, and the per-tab metadata line.
- * Filters live at the bottom of the app now, not here.
+ * terminal), the active view's key hints + live status, a row of bordered tab
+ * chips, and the per-tab metadata line. Filters live at the bottom of the app.
  */
 export function HeaderBox({
   inv,
   status,
   tab,
+  controls,
 }: {
   inv: Inventory;
   status: 'idle' | 'rescanning';
   tab: TabId;
+  /** The active view's per-focus key hints, lifted up from that view. */
+  controls: string;
 }) {
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={theme.border} paddingX={1}>
-      <Title inv={inv} status={status} />
+      <Title />
+      <Box justifyContent="space-between">
+        <Text dimColor wrap="truncate-end">{controls}</Text>
+        <Status status={status} warnings={inv.warnings.length} />
+      </Box>
       <Box marginTop={1} marginBottom={1}>
         {TABS.map((t) => {
           const active = t.id === tab;

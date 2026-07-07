@@ -112,6 +112,7 @@ export function RankedView({
   showStats = false,
   inputActive = true,
   onOpenProject,
+  onControls,
 }: {
   inv: Inventory;
   rows: ItemRow[];
@@ -119,9 +120,11 @@ export function RankedView({
   inputActive?: boolean;
   /** Jump to a project folder on the Folders tab (invoked from the detail's project list). */
   onOpenProject?: (path: string) => void;
+  /** Report the current key hints up to the header. */
+  onControls?: (text: string) => void;
 }) {
   const size = useWindowSize();
-  const chrome = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1 + 1 + (showStats ? STATS_BAND_LINES : 0);
+  const chrome = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1 + (showStats ? STATS_BAND_LINES : 0);
   const height = Math.max(3, size.rows - chrome);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const grouped = groupBySource(rows, expanded);
@@ -137,6 +140,13 @@ export function RankedView({
   useEffect(() => {
     setProjSel(0);
   }, [detail, selected]);
+
+  const footer = detail
+    ? 'Esc/← back · 1/2/3/4 or Tab switch · q quit'
+    : '↑/↓ move · → expand source · Enter detail · 1/2/3/4 or Tab · q quit';
+  useEffect(() => {
+    onControls?.(footer);
+  }, [footer, onControls]);
 
   useInput(
     (input, key) => {
@@ -171,7 +181,6 @@ export function RankedView({
           <DetailView row={selRow} />
         </Box>
         <Locations row={selRow} homeRoot={inv.homeRoot} sel={Math.min(projSel, Math.max(0, locs.length - 1))} navigable={!!projNavigable} />
-        <Text dimColor>Esc/← back · 1/2/3/4 or Tab switch · q quit</Text>
       </Box>
     );
   }
@@ -185,7 +194,6 @@ export function RankedView({
       )}
       <Position start={start} end={end} total={grouped.length} height={height} />
       {showStats ? <StatsBand stats={summaryStats(inv)} /> : null}
-      <Text dimColor>↑/↓ move · → expand source · Enter detail · 1/2/3/4 or Tab · q quit</Text>
     </Box>
   );
 }

@@ -4,8 +4,8 @@ import { type Chip, isChipSelected } from './filterChips.js';
 import { runtimeName } from './runtimeMark.js';
 import { theme } from './theme.js';
 
-/** marginTop (spacing above) + runtimes line + kinds line. */
-export const FILTER_BAR_HEIGHT = 3;
+/** marginTop (spacing above) + global-state line + runtimes line + kinds line. */
+export const FILTER_BAR_HEIGHT = 4;
 
 function ChipText({
   chip,
@@ -53,17 +53,22 @@ export function FilterBar({
   const runtimeChips = chips.filter((c) => c.kind === 'runtime');
   const kindChips = chips.filter((c) => c.kind === 'kind');
   const active = runtimes.size > 0 || kinds.size > 0;
-  const hint = filtering
-    ? '←→ move · space toggle · a clear · esc done'
-    : active
-      ? 'f filter · filtered'
-      : 'f filter · showing all';
 
   return (
     <Box flexDirection="column" marginTop={1}>
+      {/* Global filter state on its own line: the `f` affordance + what's shown,
+          or the editing keys once you're in filter mode. */}
+      <Text dimColor wrap="truncate-end">
+        {filtering ? (
+          <>
+            <Text bold>FILTER</Text> · ←→ move · space toggle · a clear · esc done
+          </>
+        ) : (
+          <>filter (f) · {active ? 'filtered' : 'showing all'}</>
+        )}
+      </Text>
       <Box>
-        <Text dimColor>{filtering ? 'FILTER' : 'filter'} </Text>
-        <Text dimColor>runtimes{runtimes.size === 0 ? ' (all)' : ''}</Text>
+        <Text dimColor>{'  '}runtimes{runtimes.size === 0 ? ' (all)' : ''}</Text>
         {runtimeChips.map((c, i) => (
           <ChipText
             key={`r:${c.id}`}
@@ -76,7 +81,7 @@ export function FilterBar({
         ))}
       </Box>
       <Box>
-        <Text dimColor>{'       '}kinds{kinds.size === 0 ? ' (all)' : ''}</Text>
+        <Text dimColor>{'  '}kinds   {kinds.size === 0 ? ' (all)' : ''}</Text>
         {kindChips.map((c, i) => (
           <ChipText
             key={`k:${c.id}`}
@@ -87,7 +92,6 @@ export function FilterBar({
             filtering={filtering}
           />
         ))}
-        <Text dimColor>{'   '}{hint}</Text>
       </Box>
     </Box>
   );

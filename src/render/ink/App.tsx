@@ -33,6 +33,9 @@ export function App({
   const [kinds, setKinds] = useState<Set<Kind>>(() => new Set(filter.kinds ?? []));
   const [filtering, setFiltering] = useState(false);
   const [cursor, setCursor] = useState(0);
+  // The active view reports its per-focus key hints up here (via onControls) so
+  // they render under the wordmark instead of a bottom footer.
+  const [controls, setControls] = useState('');
   // A project path requested from a ranked tab's detail; FoldersView selects it then clears this.
   const [pendingFolder, setPendingFolder] = useState<string | null>(null);
   const { exit } = useApp();
@@ -120,13 +123,13 @@ export function App({
 
   return (
     <Box flexDirection="column">
-      <HeaderBox inv={inv} status={status} tab={tab} />
+      <HeaderBox inv={inv} status={status} tab={tab} controls={controls} />
       {tab === 'folders' ? (
-        <FoldersView inv={inv} inputActive={!filtering} pendingFolder={pendingFolder} onConsumePending={() => setPendingFolder(null)} />
+        <FoldersView inv={inv} inputActive={!filtering} pendingFolder={pendingFolder} onConsumePending={() => setPendingFolder(null)} onControls={setControls} />
       ) : null}
-      {tab === 'installed' ? <RankedView inv={inv} rows={installed(inv)} inputActive={!filtering} onOpenProject={openProject} /> : null}
-      {tab === 'global' ? <GlobalView inv={inv} inputActive={!filtering} /> : null}
-      {tab === 'leaderboard' ? <RankedView inv={inv} rows={leaderboard(inv)} showStats inputActive={!filtering} onOpenProject={openProject} /> : null}
+      {tab === 'installed' ? <RankedView inv={inv} rows={installed(inv)} inputActive={!filtering} onOpenProject={openProject} onControls={setControls} /> : null}
+      {tab === 'global' ? <GlobalView inv={inv} inputActive={!filtering} onControls={setControls} /> : null}
+      {tab === 'leaderboard' ? <RankedView inv={inv} rows={leaderboard(inv)} showStats inputActive={!filtering} onOpenProject={openProject} onControls={setControls} /> : null}
       <FilterBar chips={chipList} runtimes={runtimes} kinds={kinds} cursor={safeCursor} filtering={filtering} />
     </Box>
   );

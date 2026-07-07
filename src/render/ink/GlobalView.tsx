@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { emptyBucket } from '../../types.js';
@@ -12,15 +12,23 @@ import { HEADER_BOX_HEIGHT } from './HeaderBox.js';
 import { FILTER_BAR_HEIGHT } from './FilterBar.js';
 import { theme } from './theme.js';
 
-// Header box + bottom filter bar + table chrome + position line + footer.
-const CHROME = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1 + 1;
+// Header box + bottom filter bar + table chrome + position line (key hints are
+// in the header now, not a bottom footer).
+const CHROME = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1;
 
-export function GlobalView({ inv, inputActive = true }: { inv: Inventory; inputActive?: boolean }) {
+export function GlobalView({ inv, inputActive = true, onControls }: { inv: Inventory; inputActive?: boolean; onControls?: (text: string) => void }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const rows = useMemo(() => groupedRows(inv.global, emptyBucket(), expanded), [inv.global, expanded]);
   const size = useWindowSize();
   const height = Math.max(3, size.rows - CHROME);
   const { detail, selected, start, end, onInput } = useListDetail(rows.length, height);
+
+  const footer = detail
+    ? 'Esc/← back · 1/2/3/4 or Tab switch · q quit'
+    : '↑/↓ move · Enter expand/detail · 1/2/3/4 or Tab switch · q quit';
+  useEffect(() => {
+    onControls?.(footer);
+  }, [footer, onControls]);
 
   useInput((input, key) => {
     // Plugin-group headers expand/collapse in place; everything else follows
@@ -46,7 +54,6 @@ export function GlobalView({ inv, inputActive = true }: { inv: Inventory; inputA
         <Box borderStyle="round" borderColor={theme.border} paddingX={1}>
           <DetailView row={rows[selected]} />
         </Box>
-        <Text dimColor>Esc/← back · 1/2/3/4 or Tab switch · q quit</Text>
       </Box>
     );
   }
@@ -59,7 +66,6 @@ export function GlobalView({ inv, inputActive = true }: { inv: Inventory; inputA
         <ItemTable rows={rows.slice(start, end)} width={size.columns} selectedIndex={selected - start} />
       )}
       <Position start={start} end={end} total={rows.length} height={height} />
-      <Text dimColor>↑/↓ move · Enter expand/detail · 1/2/3/4 or Tab switch · q quit</Text>
     </Box>
   );
 }
