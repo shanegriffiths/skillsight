@@ -2,13 +2,8 @@ import { Box, Text } from 'ink';
 import terminalLink from 'terminal-link';
 import type { ItemRow } from './rows.js';
 import { detailFields, type DetailField } from './detail.js';
-import { RuntimeLetters } from './RuntimeLetters.js';
-import { marksFor, otherCount } from './runtimeMark.js';
 
 function FieldValue({ f }: { f: DetailField }) {
-  if (f.runtimes && f.runtimes.length > 0) {
-    return <RuntimeLetters marks={marksFor(f.runtimes)} plus={otherCount(f.runtimes)} />;
-  }
   const value = f.link ? terminalLink(f.value, f.value, { fallback: (t) => t }) : f.value;
   return (
     <Text wrap="truncate-end" dimColor={f.dim}>

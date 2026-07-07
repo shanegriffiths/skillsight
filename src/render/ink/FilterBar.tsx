@@ -1,6 +1,7 @@
 import { Box, Text } from 'ink';
 import type { Runtime, Kind } from '../../types.js';
 import { type Chip, isChipSelected } from './filterChips.js';
+import { runtimeName } from './runtimeMark.js';
 import { theme } from './theme.js';
 
 /** marginTop (spacing above) + runtimes line + kinds line. */
@@ -21,9 +22,12 @@ function ChipText({
 }) {
   const onCursor = filtering && index === cursor;
   const marker = selected ? '●' : '○';
+  // Runtime chips spell out the full name (room to read); kind chips keep their
+  // already-plain id (skill / plugin / mcp).
+  const label = chip.kind === 'runtime' ? runtimeName(chip.id) : chip.id;
   return (
     <Text inverse={onCursor} color={selected ? theme.accent : undefined} dimColor={!selected && !onCursor}>
-      {`  ${marker} ${chip.id}`}
+      {`  ${marker} ${label}`}
     </Text>
   );
 }

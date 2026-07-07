@@ -1,18 +1,13 @@
-import type { McpRecord, PluginRecord, Runtime, SkillRecord } from '../../types.js';
+import type { McpRecord, PluginRecord, SkillRecord } from '../../types.js';
 import type { ItemRow } from './rows.js';
+import { namesFor } from './runtimeMark.js';
 
 export interface DetailField {
   label: string;
   value: string;
   dim?: boolean;
-  /** When present, the view renders runtime badges instead of `value`. */
-  runtimes?: Runtime[];
   /** When true, the view renders `value` as a terminal hyperlink. */
   link?: boolean;
-}
-
-function fmtRuntimes(r: Runtime[]): string {
-  return r.length ? r.join(', ') : 'none';
 }
 
 function shortId(id: string): string {
@@ -21,7 +16,7 @@ function shortId(id: string): string {
 
 function skillFields(s: SkillRecord): DetailField[] {
   const f: DetailField[] = [{ label: 'kind', value: 'skill' }];
-  f.push({ label: 'used by', value: fmtRuntimes(s.usedBy), runtimes: s.usedBy, dim: s.usedBy.length === 0 });
+  f.push({ label: 'used by', value: namesFor(s.usedBy), dim: s.usedBy.length === 0 });
   if (s.provider.source) {
     f.push({ label: 'source', value: s.provider.source });
     if (s.provider.sourceUrl) f.push({ label: 'url', value: s.provider.sourceUrl, dim: true, link: true });

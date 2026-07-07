@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { runtimeMark, marksFor, lettersFor, otherCount, type RuntimeMark } from '../src/render/ink/runtimeMark.js';
+import {
+  runtimeMark,
+  marksFor,
+  lettersFor,
+  otherCount,
+  runtimeName,
+  namesFor,
+  type RuntimeMark,
+} from '../src/render/ink/runtimeMark.js';
 import { DEEP_RUNTIMES } from '../src/runtimes.js';
 
 describe('runtimeMark', () => {
@@ -59,5 +67,35 @@ describe('runtimeMark coverage', () => {
     for (const r of DEEP_RUNTIMES) {
       expect(runtimeMark(r.id), `missing letter for ${r.id}`).toBeDefined();
     }
+  });
+});
+
+describe('runtimeName', () => {
+  it('gives a curated name for each detected runtime', () => {
+    expect(runtimeName('claude-code')).toBe('Claude Code');
+    expect(runtimeName('codex')).toBe('Codex');
+    expect(runtimeName('hermes-agent')).toBe('Hermes');
+    expect(runtimeName('gemini-cli')).toBe('Gemini');
+    expect(runtimeName('cursor')).toBe('Cursor');
+    expect(runtimeName('opencode')).toBe('OpenCode');
+  });
+
+  it('title-cases the id for uncurated runtimes', () => {
+    expect(runtimeName('amp')).toBe('Amp');
+    expect(runtimeName('github-copilot')).toBe('Github Copilot');
+  });
+});
+
+describe('namesFor', () => {
+  it('joins full names, detected six first in canonical order then others', () => {
+    expect(namesFor(['amp', 'cursor', 'claude-code', 'codex'])).toBe('Claude Code, Codex, Cursor, Amp');
+  });
+
+  it('dedupes repeated ids', () => {
+    expect(namesFor(['codex', 'codex', 'claude-code'])).toBe('Claude Code, Codex');
+  });
+
+  it('returns "none" for an empty list', () => {
+    expect(namesFor([])).toBe('none');
   });
 });

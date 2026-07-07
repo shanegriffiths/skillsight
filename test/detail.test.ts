@@ -50,7 +50,7 @@ function valueOf(fields: ReturnType<typeof detailFields>, label: string): string
 describe('detailFields — skill', () => {
   it('lists used-by, source, url, scope and description', () => {
     const f = detailFields(skillRow({ description: 'Anime.js adapter patterns' }));
-    expect(valueOf(f, 'used by')).toBe('claude-code, codex');
+    expect(valueOf(f, 'used by')).toBe('Claude Code, Codex');
     expect(valueOf(f, 'source')).toBe('h/animejs');
     expect(valueOf(f, 'url')).toBe('https://github.com/h/animejs');
     expect(valueOf(f, 'scope')).toBe('project-scoped');
@@ -74,9 +74,9 @@ describe('detailFields — skill', () => {
     expect(f.find((x) => x.label === 'used by')).toMatchObject({ value: 'none', dim: true });
   });
 
-  it('carries the raw usedBy on the used-by field for badge rendering', () => {
-    const f = detailFields(skillRow({ usedBy: ['claude-code', 'codex', 'amp'] as Runtime[] }));
-    expect(f.find((x) => x.label === 'used by')?.runtimes).toEqual(['claude-code', 'codex', 'amp']);
+  it('spells out used-by as full names, detected six first then others', () => {
+    const f = detailFields(skillRow({ usedBy: ['amp', 'codex', 'claude-code'] as Runtime[] }));
+    expect(valueOf(f, 'used by')).toBe('Claude Code, Codex, Amp');
   });
 
   it('flags the url field as a link', () => {
