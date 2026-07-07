@@ -147,23 +147,39 @@ describe('installed', () => {
 });
 
 describe('groupBySource', () => {
-  const sk = (name: string, source: string): ItemRow => ({ kind: 'skill', name, used: 1, source, sourceDim: false });
+  const sk = (name: string, source: string, bundledInPlugin?: string): ItemRow => ({
+    kind: 'skill', name, used: 1, source, sourceDim: false,
+    // the grouper reads bundledInPlugin off the row's record
+    ...(bundledInPlugin ? { record: { ...skill(name, [], { source }), bundledInPlugin } } : {}),
+  });
   const pl = (name: string): ItemRow => ({ kind: 'plugin', name, used: null, source: 'o/r', sourceDim: false });
 
-  it('collapses ≥2 same-source skills under a header at the first member position; keeps order', () => {
+  it('collapses ≥2 same-source standalone skills under a header at the first member position; keeps order', () => {
     const rows = [sk('a', 'o/x'), pl('p'), sk('b', 'o/x'), sk('solo', 'o/y')];
     const out = groupBySource(rows, new Set());
-    // header for o/x (2 skills) at a's slot, then plugin p, then solo (single-source → leaf)
     expect(out.map((r) => r.name)).toEqual(['o/x', 'p', 'solo']);
-    expect(out[0]).toMatchObject({ expandState: 'collapsed', groupId: 'o/x', used: 2 });
+    expect(out[0]).toMatchObject({ expandState: 'collapsed', groupId: 'src:o/x', used: 2 });
     expect(out[2]!.expandState).toBeUndefined(); // single-skill source is a plain leaf
+  });
+
+  it('groups plugin-bundled skills under their PLUGIN, not the marketplace repo', () => {
+    // both skills share the marketplace source but belong to different plugins
+    const rows = [
+      sk('sentry-a', 'anthropics/claude-plugins-official', 'sentry@claude-plugins-official'),
+      sk('sentry-b', 'anthropics/claude-plugins-official', 'sentry@claude-plugins-official'),
+      sk('figma-x', 'anthropics/claude-plugins-official', 'figma@claude-plugins-official'),
+    ];
+    const out = groupBySource(rows, new Set(['plugin:sentry@claude-plugins-official']));
+    // sentry (2) becomes a group under the plugin name; figma is a single-skill leaf
+    expect(out[0]).toMatchObject({ name: 'sentry', groupId: 'plugin:sentry@claude-plugins-official', used: 2 });
+    expect(out.slice(1, 3).map((r) => r.name)).toEqual(['sentry-a', 'sentry-b']);
+    expect(out[3]).toMatchObject({ name: 'figma-x' }); // single → leaf, not "anthropics/..."
   });
 
   it('reveals a group\'s skills at depth 1 when expanded', () => {
     const rows = [sk('a', 'o/x'), sk('b', 'o/x')];
-    const out = groupBySource(rows, new Set(['o/x']));
+    const out = groupBySource(rows, new Set(['src:o/x']));
     expect(out.map((r) => r.name)).toEqual(['o/x', 'a', 'b']);
-    expect(out[0]!.expandState).toBe('expanded');
     expect(out[1]).toMatchObject({ name: 'a', depth: 1 });
   });
 

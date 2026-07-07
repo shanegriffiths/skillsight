@@ -47,24 +47,35 @@ function enrichedItems(inv: Inventory): ItemRow[] {
 
 const byName = (a: ItemRow, b: ItemRow) => a.name.localeCompare(b.name);
 
+/** A skill's group: its PLUGIN when bundled, else its source/repo. */
+function skillGroup(r: ItemRow): { key: string; label: string } {
+  const bundled = (r.record as SkillRecord | undefined)?.bundledInPlugin;
+  if (bundled) return { key: `plugin:${bundled}`, label: bundled.split('@')[0] ?? bundled };
+  const source = r.source ?? 'unknown';
+  return { key: `src:${source}`, label: source };
+}
+
 /**
- * Collapse a pre-ranked list's SKILLS under their source/repo. Each source with
- * ≥2 skills becomes an expandable group header (`groupId` = the source), placed
- * at its best-ranked member's position; its skills nest at `depth: 1` when open.
- * Single-skill sources, plugins, and mcp stay top-level leaves. Order (i.e. the
- * caller's ranking) is preserved by first appearance.
+ * Collapse a pre-ranked list's SKILLS under their group — the PLUGIN they're
+ * bundled in, or (for standalone skills) their source/repo. Each group with ≥2
+ * skills becomes an expandable header placed at its best-ranked member's
+ * position; its skills nest at `depth: 1` when open. Single-skill groups,
+ * plugins, and mcp stay top-level leaves. The caller's ranking is preserved by
+ * first appearance.
  */
 export function groupBySource(rows: ItemRow[], expanded: ReadonlySet<string>): ItemRow[] {
   const order: (string | ItemRow)[] = [];
   const groups = new Map<string, ItemRow[]>();
+  const labels = new Map<string, string>();
   for (const r of rows) {
     if (r.kind === 'skill') {
-      const key = r.source ?? 'unknown';
+      const { key, label } = skillGroup(r);
       let g = groups.get(key);
       if (!g) {
         g = [];
         groups.set(key, g);
         order.push(key);
+        labels.set(key, label);
       }
       g.push(r);
     } else {
@@ -85,7 +96,7 @@ export function groupBySource(rows: ItemRow[], expanded: ReadonlySet<string>): I
     const open = expanded.has(slot);
     out.push({
       kind: 'skill',
-      name: slot,
+      name: labels.get(slot)!,
       used: children.length,
       source: null,
       sourceDim: false,
