@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
+import { emptyBucket } from '../../types.js';
+import { bucketTotal } from '../../resolve.js';
 import { FolderList } from './FolderList.js';
 import { ItemTable, TABLE_CHROME } from './ItemTable.js';
 import { DetailView } from './DetailView.js';
@@ -14,10 +16,21 @@ import { FILTER_BAR_HEIGHT } from './FilterBar.js';
 import { icons } from './icons.js';
 import { theme } from './theme.js';
 
-// Header box + bottom filter bar + path line + table chrome + position line + footer.
-const CHROME = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + 1 + TABLE_CHROME + 1 + 1;
+// Fixed vertical chrome around the right column's content: header box + filter
+// bar + the footer line + the path line.
+const RIGHT_FIXED = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + 2;
+// One table's own chrome: border + header + rule (TABLE_CHROME) plus a position line.
+const TABLE_COST = TABLE_CHROME + 1;
 // A touch wider when glyphs are on, to offset the icon cell each row spends.
 const FOLDER_W = icons.enabled ? 36 : 34;
+
+/** Split a row budget between the two stacked tables — the focused one gets ~⅔. */
+function splitHeight(total: number, focusGlobals: boolean): { p: number; g: number } {
+  const t = Math.max(6, total);
+  const big = Math.max(3, Math.round((t * 2) / 3));
+  const small = Math.max(3, t - big);
+  return focusGlobals ? { p: small, g: big } : { p: big, g: small };
+}
 
 export function FoldersView({
   inv,
@@ -56,13 +69,45 @@ export function FoldersView({
     () => (selFolder ? groupedRows(selFolder.projectScoped, selFolder.local, nav.expanded) : []),
     [selFolder, nav.expanded],
   );
+  // The inherited layer is machine-wide (`Inventory.global`); each folder's own
+  // `global` bucket is intentionally empty (see index.ts). Show it for any real
+  // folder — same grouping/columns as the delta table.
+  const globalRows = useMemo(
+    () => (selFolder ? groupedRows(inv.global, emptyBucket(), nav.globalExpanded) : []),
+    [selFolder, inv.global, nav.globalExpanded],
+  );
 
   const size = useWindowSize();
-  const height = Math.max(3, size.rows - CHROME);
+  const rightBudget = Math.max(6, size.rows - RIGHT_FIXED);
+  const listHeight = Math.max(3, rightBudget - TABLE_COST);
   const tableW = Math.max(40, size.columns - FOLDER_W - 1);
+
+  const globalsShown = !!selFolder && globalRows.length > 0;
+  const projectHasTable = rows.length > 0;
+
+  // Divide the right column's vertical budget across the project table, the
+  // globals header line, and (when open) the globals table.
+  let pVisible = 0;
+  let gVisible = 0;
+  if (!globalsShown) {
+    pVisible = rightBudget - TABLE_COST;
+  } else if (!nav.globalsOpen) {
+    pVisible = projectHasTable ? rightBudget - 1 - TABLE_COST : 0;
+  } else if (projectHasTable) {
+    const split = splitHeight(rightBudget - 1 - TABLE_COST * 2, nav.focus === 'globals');
+    pVisible = split.p;
+    gVisible = split.g;
+  } else {
+    gVisible = rightBudget - 1 - 1 - TABLE_COST; // header + "no items" note + globals table chrome
+  }
+  pVisible = Math.max(pVisible, projectHasTable ? 3 : 0);
+  gVisible = Math.max(gVisible, nav.globalsOpen ? 3 : 0);
+
   const itemIdx = clampIndex(nav.item, rows.length);
-  const fWin = scrollWindow(folderRows.length, height, folderIdx);
-  const { start, end } = scrollWindow(rows.length, height, itemIdx);
+  const gItemIdx = clampIndex(Math.max(0, nav.globalItem), globalRows.length);
+  const fWin = scrollWindow(folderRows.length, listHeight, folderIdx);
+  const pWin = scrollWindow(rows.length, Math.max(1, pVisible), itemIdx);
+  const gWin = scrollWindow(globalRows.length, Math.max(1, gVisible), gItemIdx);
 
   useInput((input, key) => {
     if (nav.focus === 'folders' && input === 's') {
@@ -75,21 +120,30 @@ export function FoldersView({
     }
     const action = toAction(input, key);
     if (!action) return;
-    // `folderRows`/`rows` are render-time snapshots; `nav.folder`/`nav.item`
-    // are re-clamped against fresh rows on the next render — so a stale
-    // snapshot from rapid input self-corrects (never crashes).
-    setNav((s) => folderNav(s, action, { folderRows, rows }));
+    // `folderRows`/`rows`/`globalRows` are render-time snapshots; the nav indices
+    // are re-clamped against fresh rows on the next render — so a stale snapshot
+    // from rapid input self-corrects (never crashes).
+    setNav((s) => folderNav(s, action, { folderRows, rows, globalRows }));
   }, { isActive: inputActive });
 
+  const detailList = nav.detailFrom === 'globals' ? globalRows : rows;
   const detailRow =
-    nav.focus === 'detail' && nav.detailItem !== null ? rows[clampIndex(nav.detailItem, rows.length)] : undefined;
+    nav.focus === 'detail' && nav.detailItem !== null
+      ? detailList[clampIndex(nav.detailItem, detailList.length)]
+      : undefined;
 
+  const globalsFooter =
+    nav.globalItem < 0
+      ? '→/Enter expand · ↓ enter · ↑/Esc back to items · q quit'
+      : '↑/↓ move · → expand/open · ← back · Enter open · Esc header · q quit';
   const footer =
     nav.focus === 'folders'
       ? `sort: ${sort} · hidden: ${showHidden ? 'on' : 'off'} · ↑/↓ move · →/Enter open · ← collapse · s sort · . hidden · q quit`
       : nav.focus === 'items'
-        ? '↑/↓ move · → expand/open · ← back · Enter open · Esc folders · q quit'
-        : 'Esc/← back · 1/2/3/4 or Tab switch · q quit';
+        ? '↑/↓ move · → expand/open · ← back · Enter open · ↓ globals · Esc folders · q quit'
+        : nav.focus === 'globals'
+          ? globalsFooter
+          : 'Esc/← back · 1/2/3/4 or Tab switch · q quit';
 
   // A selected row with no folder is a grouping node (the worktrees group, or a
   // repo whose main checkout wasn't discovered) — it has no item table.
@@ -99,6 +153,9 @@ export function FoldersView({
     : isGroup
       ? sel!.nodeId.replace(inv.homeRoot, '~')
       : null;
+
+  const globalCount = selFolder ? bucketTotal(inv.global) : 0;
+  const onGlobalsHeader = nav.focus === 'globals' && nav.globalItem < 0;
 
   return (
     <Box flexDirection="column">
@@ -112,7 +169,10 @@ export function FoldersView({
         <Box flexDirection="column" flexGrow={1} marginLeft={1}>
           {path ? (
             <Text wrap="truncate-end">
-              <Text dimColor>{icons.enabled ? `${icons.folder} ` : 'path '}</Text>
+              {/* Folder glyph in full-strength foreground (dark on a light
+                  terminal, light on a dark one) — the washed-out dim read as
+                  disabled. The `path ` text fallback stays dim as a meta-label. */}
+              {icons.enabled ? <Text>{icons.folder} </Text> : <Text dimColor>path </Text>}
               {path}
             </Text>
           ) : (
@@ -129,16 +189,41 @@ export function FoldersView({
               {sel!.kind === 'worktrees' ? 'worktree checkouts' : 'worktree repo'} ·{' '}
               {sel!.collapsed ? '→ expand to drill in' : 'select a checkout below to inspect'}
             </Text>
-          ) : rows.length === 0 ? (
-            <Text dimColor>global only — adds nothing beyond the inherited layer</Text>
           ) : (
             <>
-              <ItemTable
-                rows={rows.slice(start, end)}
-                width={tableW}
-                selectedIndex={nav.focus === 'items' ? itemIdx - start : undefined}
-              />
-              <Position start={start} end={end} total={rows.length} height={height} />
+              {rows.length === 0 ? (
+                <Text dimColor>
+                  {globalsShown
+                    ? 'no project-scoped items — inherited globals below'
+                    : 'global only — adds nothing beyond the inherited layer'}
+                </Text>
+              ) : (
+                <>
+                  <ItemTable
+                    rows={rows.slice(pWin.start, pWin.end)}
+                    width={tableW}
+                    selectedIndex={nav.focus === 'items' ? itemIdx - pWin.start : undefined}
+                  />
+                  <Position start={pWin.start} end={pWin.end} total={rows.length} height={Math.max(1, pVisible)} />
+                </>
+              )}
+              {globalsShown ? (
+                <>
+                  <Text wrap="truncate-end" inverse={onGlobalsHeader} bold={nav.focus === 'globals'} dimColor={nav.focus !== 'globals'}>
+                    {` ${nav.globalsOpen ? '▾' : '▸'} globals (${globalCount}) — inherited everywhere `}
+                  </Text>
+                  {nav.globalsOpen ? (
+                    <>
+                      <ItemTable
+                        rows={globalRows.slice(gWin.start, gWin.end)}
+                        width={tableW}
+                        selectedIndex={nav.focus === 'globals' && nav.globalItem >= 0 ? gItemIdx - gWin.start : undefined}
+                      />
+                      <Position start={gWin.start} end={gWin.end} total={globalRows.length} height={Math.max(1, gVisible)} />
+                    </>
+                  ) : null}
+                </>
+              ) : null}
             </>
           )}
         </Box>

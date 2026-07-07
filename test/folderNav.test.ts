@@ -140,7 +140,7 @@ describe('folderNav — folders focus (tree: repo > worktrees > checkout)', () =
 });
 
 describe('folderNav — items focus', () => {
-  const items = (rows: ItemRow[], item = 0): NavState => ({ focus: 'items', folder: 0, item, expanded: new Set(), folderExpanded: new Set(), detailItem: null });
+  const items = (rows: ItemRow[], item = 0): NavState => ({ ...initialNav(), focus: 'items', item });
 
   it('Enter on a collapsed header expands it; on an expanded header collapses it', () => {
     const rows = [header('gsap', false)];
@@ -193,7 +193,7 @@ describe('folderNav — items focus', () => {
 });
 
 describe('folderNav — detail focus', () => {
-  const detail: NavState = { focus: 'detail', folder: 0, item: 1, expanded: new Set(), folderExpanded: new Set(), detailItem: 1 };
+  const detail: NavState = { ...initialNav(), focus: 'detail', item: 1, detailItem: 1 };
 
   it('Escape and Left return to items and clear the detail target', () => {
     expect(folderNav(detail, 'escape', ctxOf([leaf('a'), leaf('b')]))).toMatchObject({ focus: 'items', detailItem: null });
@@ -202,6 +202,63 @@ describe('folderNav — detail focus', () => {
 
   it('Up/Down are no-ops in detail', () => {
     expect(folderNav(detail, 'down', ctxOf([])).focus).toBe('detail');
+  });
+});
+
+describe('folderNav — globals section', () => {
+  const G = [header('superpowers', false, 'sp'), leaf('personal-email')]; // a plugin group + a leaf
+  const P = [leaf('a'), leaf('b')]; // project delta rows
+  const ctx = (over: Partial<NavContext> = {}): NavContext => ctxOf(P, { globalRows: G, ...over });
+
+  const inItems = (item: number): NavState => ({ ...initialNav(), focus: 'items', item });
+  const onHeader = (over: Partial<NavState> = {}): NavState => ({ ...initialNav(), focus: 'globals', globalItem: -1, ...over });
+  const inGlobals = (globalItem: number, over: Partial<NavState> = {}): NavState =>
+    ({ ...initialNav(), focus: 'globals', globalsOpen: true, globalItem, ...over });
+
+  it('Down past the last project item falls into the globals header', () => {
+    expect(folderNav(inItems(1), 'down', ctx())).toMatchObject({ focus: 'globals', globalItem: -1 });
+  });
+
+  it('Down past the last item stays put when the folder has no globals', () => {
+    expect(folderNav(inItems(1), 'down', ctxOf(P))).toMatchObject({ focus: 'items', item: 1 });
+  });
+
+  it('Right/Enter on the header expands the globals table; Enter again collapses', () => {
+    expect(folderNav(onHeader(), 'right', ctx()).globalsOpen).toBe(true);
+    expect(folderNav(onHeader(), 'enter', ctx()).globalsOpen).toBe(true);
+    expect(folderNav(onHeader({ globalsOpen: true }), 'enter', ctx()).globalsOpen).toBe(false);
+  });
+
+  it('Up/Escape on the header return to the project items', () => {
+    expect(folderNav(onHeader(), 'up', ctx())).toMatchObject({ focus: 'items' });
+    expect(folderNav(onHeader(), 'escape', ctx())).toMatchObject({ focus: 'items' });
+  });
+
+  it('Left collapses an open header, else leaves to the project items', () => {
+    expect(folderNav(onHeader({ globalsOpen: true }), 'left', ctx())).toMatchObject({ focus: 'globals', globalsOpen: false });
+    expect(folderNav(onHeader(), 'left', ctx())).toMatchObject({ focus: 'items' });
+  });
+
+  it('Down from an open header descends into the rows; a collapsed header ignores it', () => {
+    expect(folderNav(onHeader({ globalsOpen: true }), 'down', ctx()).globalItem).toBe(0);
+    expect(folderNav(onHeader(), 'down', ctx()).globalItem).toBe(-1);
+  });
+
+  it('Up at the first globals row, and Left on a top-level row, return to the header', () => {
+    expect(folderNav(inGlobals(0), 'up', ctx()).globalItem).toBe(-1);
+    expect(folderNav(inGlobals(1), 'left', ctx()).globalItem).toBe(-1);
+  });
+
+  it('expands a global plugin group in the globals expanded set, not the project one', () => {
+    const s = folderNav(inGlobals(0), 'right', ctx());
+    expect(s.globalExpanded.has('sp')).toBe(true);
+    expect(s.expanded.has('sp')).toBe(false);
+  });
+
+  it('Enter on a global leaf opens its detail tagged from globals, and Esc returns to globals', () => {
+    const opened = folderNav(inGlobals(1), 'enter', ctx());
+    expect(opened).toMatchObject({ focus: 'detail', detailItem: 1, detailFrom: 'globals' });
+    expect(folderNav(opened, 'escape', ctx())).toMatchObject({ focus: 'globals', detailItem: null });
   });
 });
 
