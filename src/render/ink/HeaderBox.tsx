@@ -3,7 +3,7 @@ import type { Inventory } from '../../types.js';
 import { TABS, type TabId } from './tabs.js';
 import { lettersFor } from './runtimeMark.js';
 import { summaryStats, installed } from './stats.js';
-import { bucketCounts } from '../../resolve.js';
+import { bucketCounts, bucketTotal } from '../../resolve.js';
 import { formatCounts } from '../format.js';
 import { WORDMARK, WORDMARK_WIDTH } from './wordmark.js';
 import { theme } from './theme.js';
@@ -17,9 +17,28 @@ export const HEADER_BOX_HEIGHT = 14;
 const MIN_ART_COLS = WORDMARK_WIDTH + 18;
 const MIN_ART_ROWS = 30;
 
-/** The per-tab metadata line: what the active tab is looking at, in counts. */
+/** The per-tab metadata line: what the active tab is looking at. */
 function MetaLine({ inv, tab }: { inv: Inventory; tab: TabId }) {
   const letters = lettersFor(inv.runtimesDetected);
+  const runtimes = (
+    <>
+      {'   '}
+      <Text dimColor>runtimes:</Text> {letters || <Text dimColor>none</Text>}
+    </>
+  );
+
+  // Projects is about the folders themselves, not the global layer.
+  if (tab === 'folders') {
+    const n = inv.folders.length;
+    const withConfig = inv.folders.filter((f) => bucketTotal(f.projectScoped) + bucketTotal(f.local) > 0).length;
+    return (
+      <Text>
+        <Text bold>PROJECTS</Text> <Text dimColor>{n} discovered · {withConfig} add beyond the global layer</Text>
+        {runtimes}
+      </Text>
+    );
+  }
+
   let label: string;
   let gloss: string;
   let counts: { skills: number; plugins: number; mcp: number };
@@ -44,8 +63,7 @@ function MetaLine({ inv, tab }: { inv: Inventory; tab: TabId }) {
   return (
     <Text>
       <Text bold>{label}</Text> <Text dimColor>{gloss}</Text> · {formatCounts(counts)}
-      {'   '}
-      <Text dimColor>runtimes:</Text> {letters || <Text dimColor>none</Text>}
+      {runtimes}
     </Text>
   );
 }
