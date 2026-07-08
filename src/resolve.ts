@@ -13,6 +13,7 @@ import type { Bucket, McpRecord, PluginRecord, Provider, Runtime, SkillRecord } 
 import { emptyBucket } from './types.js';
 import { type HomeCtx } from './runtimes.js';
 import { lookupUsedBy } from './symlinks.js';
+import { hashSkillFolder } from './fsread.js';
 import type { SharedSkill } from './sharedstore.js';
 import { usageKey, type SkillUsage } from './skillusage.js';
 
@@ -50,6 +51,12 @@ export function enrichBucket(bucket: Bucket, owner: Runtime, enr: EnrichContext)
       s.provider.skillFolderHash = info.skillFolderHash;
     }
     s.contentId = info?.skillFolderHash ?? s.contentId;
+    // Project-local skills carry no git hash — identify them by content so
+    // byte-identical copies across projects dedupe (and their locations union),
+    // instead of one path-keyed row per project.
+    if (s.provider.kind === 'project-local') {
+      s.contentId = hashSkillFolder(s.provider.path) ?? s.contentId;
+    }
 
     const used = new Set<Runtime>(lookupUsedBy(enr.reverseIndex, s.provider.path));
     if (used.size === 0) used.add(owner);
