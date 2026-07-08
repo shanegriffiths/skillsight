@@ -14,6 +14,7 @@ import { Band } from './Band.js';
 import { Position } from './Position.js';
 import { HEADER_BOX_HEIGHT } from './HeaderBox.js';
 import { FILTER_BAR_HEIGHT } from './FilterBar.js';
+import { SCREEN_RESERVE } from './layout.js';
 import { theme } from './theme.js';
 
 const STATS_BAND_LINES = 5;
@@ -136,7 +137,7 @@ export function RankedView({
 }) {
   const size = useWindowSize();
   const chrome = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1 + (showStats ? STATS_BAND_LINES : 0);
-  const height = Math.max(3, size.rows - chrome);
+  const height = Math.max(3, size.rows - chrome - SCREEN_RESERVE);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const sort = useItemSort(sortModes);
   const grouped = sort.apply(groupBySource(rows, expanded));

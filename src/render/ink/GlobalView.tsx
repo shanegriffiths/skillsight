@@ -12,6 +12,7 @@ import { USERSCOPE_SORTS } from './sortModes.js';
 import { Position } from './Position.js';
 import { HEADER_BOX_HEIGHT } from './HeaderBox.js';
 import { FILTER_BAR_HEIGHT } from './FilterBar.js';
+import { SCREEN_RESERVE } from './layout.js';
 import { theme } from './theme.js';
 
 // Header box + bottom filter bar + table chrome + position line (key hints are
@@ -24,7 +25,7 @@ export function GlobalView({ inv, inputActive = true, onControls, onSort }: { in
   const base = useMemo(() => groupedRows(inv.global, emptyBucket(), expanded), [inv.global, expanded]);
   const rows = sort.apply(base);
   const size = useWindowSize();
-  const height = Math.max(3, size.rows - CHROME);
+  const height = Math.max(3, size.rows - CHROME - SCREEN_RESERVE);
   const { detail, selected, start, end, onInput } = useListDetail(rows.length, height, sort.index);
 
   const footer = detail

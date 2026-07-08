@@ -13,6 +13,7 @@ import { buildFolderRows, type SortMode } from './tree.js';
 import { Position } from './Position.js';
 import { HEADER_BOX_HEIGHT } from './HeaderBox.js';
 import { FILTER_BAR_HEIGHT } from './FilterBar.js';
+import { SCREEN_RESERVE } from './layout.js';
 import { icons } from './icons.js';
 import { theme } from './theme.js';
 
@@ -84,7 +85,7 @@ export function FoldersView({
   );
 
   const size = useWindowSize();
-  const rightBudget = Math.max(6, size.rows - RIGHT_FIXED);
+  const rightBudget = Math.max(6, size.rows - RIGHT_FIXED - SCREEN_RESERVE);
   const listHeight = Math.max(3, rightBudget - TABLE_COST);
   const tableW = Math.max(40, size.columns - FOLDER_W - 1);
 
