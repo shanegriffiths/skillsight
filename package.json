@@ -1,7 +1,7 @@
 {
   "name": "skillsight",
   "version": "0.1.0",
-  "description": "Read-only cross-runtime inventory of AI-agent skills, plugins, and MCP servers — grouped by folder, with provenance and which runtimes use each.",
+  "description": "Read-only cross-runtime inventory of AI-agent skills, plugins, and MCP servers, grouped by folder, with provenance and which runtimes use each.",
   "type": "module",
   "license": "MIT",
   "author": "Shane Griffiths",
@@ -45,6 +45,7 @@
   },
   "scripts": {
     "build": "tsup",
+    "prepare": "npm run build",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",
