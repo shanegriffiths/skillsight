@@ -106,8 +106,8 @@ function columnsFor(variant: TableVariant, contentW: number): Col[] {
       ? // Project Scope — installed footprint, then reach.
         [NAME_COL, KIND_COL, LOCATIONS_COL, REACH_COL, RUNTIMES_COL]
       : variant === 'leaderboard'
-        ? // Leaderboard — the full state columns plus Claude Code usage.
-          [NAME_COL, KIND_COL, SCOPE_COL, VISIBILITY_COL, STATUS_COL, SOURCE_COL, USES_COL, RUNTIMES_COL]
+        ? // Leaderboard — the full state columns plus locations + Claude Code usage.
+          [NAME_COL, KIND_COL, SCOPE_COL, VISIBILITY_COL, STATUS_COL, SOURCE_COL, LOCATIONS_COL, USES_COL, RUNTIMES_COL]
         : // state — Folders + User Scope.
           [NAME_COL, KIND_COL, SCOPE_COL, VISIBILITY_COL, STATUS_COL, SOURCE_COL, RUNTIMES_COL];
 

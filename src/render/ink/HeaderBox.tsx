@@ -57,7 +57,8 @@ function MetaLine({ inv, tab }: { inv: Inventory; tab: TabId }) {
   }
   return (
     <Text wrap="truncate-end">
-      <Text bold>{label}</Text> <Text dimColor>{gloss}</Text> · {formatCounts(counts)}{' '}
+      <Text bold>{label}</Text> <Text dimColor>{gloss}</Text> · {formatCounts(counts)}
+      {tab === 'leaderboard' ? <Text dimColor> · USES = Claude Code usage</Text> : null}{' '}
       <Text dimColor>({inv.homeRoot})</Text>
     </Text>
   );

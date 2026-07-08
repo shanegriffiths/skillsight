@@ -35,7 +35,7 @@ function skillFields(s: SkillRecord): DetailField[] {
   const f: DetailField[] = [{ label: 'kind', value: 'skill' }];
   f.push({ label: 'used by', value: namesFor(s.usedBy), dim: s.usedBy.length === 0 });
   if (s.usageCount !== undefined) {
-    f.push({ label: 'uses', value: `${s.usageCount}`, dim: s.usageCount === 0 });
+    f.push({ label: 'uses', value: `${s.usageCount} · Claude Code`, dim: s.usageCount === 0 });
     if (s.lastUsedAt !== undefined) f.push({ label: 'last used', value: formatLastUsed(s.lastUsedAt, Date.now()), dim: true });
   }
   if (s.provider.source) {

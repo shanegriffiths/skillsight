@@ -62,9 +62,9 @@ describe('detailFields — skill', () => {
     expect(valueOf(f, 'plugin')).toBe('gsap-skills');
   });
 
-  it('shows Claude Code usage count + a last-used field when present', () => {
+  it('shows Claude Code usage count (labelled) + a last-used field when present', () => {
     const f = detailFields(skillRow({ usageCount: 29, lastUsedAt: 1000 }));
-    expect(valueOf(f, 'uses')).toBe('29');
+    expect(valueOf(f, 'uses')).toBe('29 · Claude Code');
     expect(f.find((x) => x.label === 'last used')).toBeDefined();
   });
 
