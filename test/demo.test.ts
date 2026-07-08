@@ -32,6 +32,7 @@ describe('buildDemoHome', () => {
     expect(gProviders.has('shared-store')).toBe(true);
     expect(gProviders.has('user')).toBe(true);
     expect(gProviders.has('runtime-builtin')).toBe(true);
+    expect(gProviders.has('plugin')).toBe(true);
 
     // a project-local skill in folio-site
     const folio = inv.folders.find((f) => f.path.endsWith('folio-site'))!;

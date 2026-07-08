@@ -108,10 +108,13 @@ export function buildDemoHome(root: string = DEFAULT_ROOT): string {
   const orbit = join(projects, 'orbit-dashboard');
   write(join(orbit, 'CLAUDE.md'), '# orbit-dashboard\nAnalytics dashboard.\n');
   link(join(orbit, '.claude', 'skills', 'vercel-react-best-practices'), vercelReact);
+  // No CLAUDE.md (or any other marker) in the checkouts: the plain walk can't
+  // discover them and they aren't in the .claude.json registry, so they can ONLY
+  // be found via worktreesBeside()'s `.git`-pointer gating — making the worktree
+  // assertions below a genuine guard on that sibling-expansion code path.
   for (const branch of ['feature-auth', 'spike-charts']) {
     const wt = join(projects, 'orbit-dashboard.worktree', branch);
     write(join(wt, '.git'), `gitdir: ${join(orbit, '.git', 'worktrees', branch)}\n`);
-    write(join(wt, 'CLAUDE.md'), `# orbit-dashboard (${branch})\n`);
   }
 
   // --- registry + skill usage (drives discovery + the leaderboard) ---
