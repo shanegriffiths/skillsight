@@ -1,8 +1,9 @@
 // test/resolve.test.ts
 import { describe, it, expect } from 'vitest';
-import { mergeBuckets, splitByScope, bucketCounts, bucketTotal } from '../src/resolve.js';
+import { mergeBuckets, splitByScope, bucketCounts, bucketTotal, sharedStoreBucket } from '../src/resolve.js';
 import { emptyBucket } from '../src/types.js';
 import type { Bucket, SkillRecord } from '../src/types.js';
+import type { SharedSkill } from '../src/sharedstore.js';
 
 function sk(over: Partial<SkillRecord>): SkillRecord {
   return {
@@ -41,6 +42,29 @@ describe('mergeBuckets skill precedence (PROVIDER_RANK)', () => {
     const a = sk({ usedBy: ['claude-code'] });
     mergeBuckets(withSkills(a), withSkills(sk({ usedBy: ['codex'] })));
     expect(a.usedBy).toEqual(['claude-code']);
+  });
+});
+
+describe('sharedStoreBucket reach', () => {
+  const shared = (over: Partial<SharedSkill>): SharedSkill => ({
+    name: 'chartli', realPath: '/hub/chartli', contentId: 'h1', skillFolderHash: 'h1', ...over,
+  });
+  // `warp`/`zed` are hub-direct (universal) agents that used to be folded in.
+  const enr = (reverse: Record<string, string[]>) =>
+    ({
+      sharedByRealpath: new Map(),
+      lastSelectedAgents: ['warp', 'zed'],
+      reverseIndex: new Map(Object.entries(reverse).map(([k, v]) => [k, new Set(v)])),
+    }) as never;
+
+  it('reach counts only runtimes that symlink the skill — not lastSelectedAgents', () => {
+    const b = sharedStoreBucket([shared({})], enr({ '/hub/chartli': ['claude-code'] }));
+    expect(b.skills[0]!.usedBy).toEqual(['claude-code']);
+  });
+
+  it('reports empty reach for a hub-direct-only skill (no symlinks)', () => {
+    const b = sharedStoreBucket([shared({ realPath: '/hub/solo', contentId: 'h2' })], enr({}));
+    expect(b.skills[0]!.usedBy).toEqual([]);
   });
 });
 

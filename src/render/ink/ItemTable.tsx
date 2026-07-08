@@ -88,7 +88,7 @@ function columnsFor(variant: TableVariant, contentW: number): Col[] {
           { header: 'NAME', width: 0, cell: nameSeg },
           { header: 'KIND', width: 6, cell: (r) => ({ text: r.expandState !== undefined ? '' : r.kind }) },
           { header: 'LOCATIONS', width: 9, cell: locationsSeg },
-          { header: 'USED', width: 4, align: 'right', cell: usedSeg },
+          { header: 'REACH', width: 5, align: 'right', cell: usedSeg },
           { header: 'RUNTIMES', width: 11, cell: (r) => ({ text: lettersFor(r.usedRuntimes ?? []) }) },
         ]
       : [

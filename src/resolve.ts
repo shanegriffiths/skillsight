@@ -2,18 +2,18 @@
  * Resolver: enrich raw adapter records with provenance + `usedBy`, dedupe across
  * runtimes, and merge inheritance layers.
  *
- * `usedBy` for shared-store skills combines the reverse-symlink scan (distinct-dir
- * runtimes) with the lock's `lastSelectedAgents` filtered to universal agents
- * (hub-direct runtimes). Dedup key is the canonical `contentId`
- * (`skillFolderHash` ‖ realpath).
+ * `usedBy` (a skill's runtime *reach*) is purely the reverse-symlink scan: the
+ * distinct-dir runtimes that symlink the skill. It is NOT invocation count, and
+ * hub-direct agents that merely read the whole hub (the lock's
+ * `lastSelectedAgents`) are deliberately not folded in — that inflated every hub
+ * skill uniformly. Dedup key is the canonical `contentId` (`skillFolderHash` ‖
+ * realpath).
  */
 import type { Bucket, McpRecord, PluginRecord, Provider, Runtime, SkillRecord } from './types.js';
 import { emptyBucket } from './types.js';
-import { KNOWN_RUNTIMES, type HomeCtx } from './runtimes.js';
+import { type HomeCtx } from './runtimes.js';
 import { lookupUsedBy } from './symlinks.js';
 import type { SharedSkill } from './sharedstore.js';
-
-const UNIVERSAL = new Set(KNOWN_RUNTIMES.filter((r) => r.universal).map((r) => r.id));
 
 const PROVIDER_RANK: Record<Provider['kind'], number> = {
   'shared-store': 6,
@@ -26,12 +26,7 @@ const PROVIDER_RANK: Record<Provider['kind'], number> = {
 
 export interface EnrichContext {
   sharedByRealpath: Map<string, SharedSkill>;
-  lastSelectedAgents: string[];
   reverseIndex: Map<string, Set<Runtime>>;
-}
-
-function universalUsedBy(lastSelectedAgents: string[]): Runtime[] {
-  return lastSelectedAgents.filter((a) => UNIVERSAL.has(a));
 }
 
 /** Enrich one adapter's bucket in place; `owner` is the producing runtime. */
@@ -46,9 +41,6 @@ export function enrichBucket(bucket: Bucket, owner: Runtime, enr: EnrichContext)
     s.contentId = info?.skillFolderHash ?? s.contentId;
 
     const used = new Set<Runtime>(lookupUsedBy(enr.reverseIndex, s.provider.path));
-    if (s.provider.kind === 'shared-store') {
-      for (const u of universalUsedBy(enr.lastSelectedAgents)) used.add(u);
-    }
     if (used.size === 0) used.add(owner);
     s.usedBy = [...used].sort();
   }
@@ -63,7 +55,6 @@ export function enrichBucket(bucket: Bucket, owner: Runtime, enr: EnrichContext)
 export function sharedStoreBucket(shared: SharedSkill[], enr: EnrichContext): Bucket {
   const skills: SkillRecord[] = shared.map((info) => {
     const used = new Set<Runtime>(lookupUsedBy(enr.reverseIndex, info.realPath));
-    for (const u of universalUsedBy(enr.lastSelectedAgents)) used.add(u);
     return {
       name: info.name,
       description: info.description,

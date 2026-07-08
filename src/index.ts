@@ -64,7 +64,6 @@ export function scan(homeRoot: string = homedir(), opts: ScanOptions = {}): Inve
   warnings.push(...shared.warnings);
   const enr: EnrichContext = {
     sharedByRealpath: new Map(shared.skills.map((s) => [s.realPath, s])),
-    lastSelectedAgents: shared.lastSelectedAgents,
     reverseIndex: buildReverseSymlinkIndex(ctx),
   };
 

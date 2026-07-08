@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 describe('scan() engine integration', () => {
-  it('dedupes a shared skill and unions usedBy across symlinks + universal lock agents', () => {
+  it('dedupes a shared skill and unions reach across symlinks (lock agents excluded)', () => {
     home = makeTempHome();
     const proj = join(home, 'proj');
 
@@ -49,8 +49,9 @@ describe('scan() engine integration', () => {
     expect(s.contentId).toBe('h1'); // canonicalized to skillFolderHash
     expect(s.provider.kind).toBe('shared-store');
     expect(s.provider.source).toBe('owner/repo');
-    // symlinks credit claude-code + codex; universal lock agent credits warp
-    expect(s.usedBy).toEqual(expect.arrayContaining(['claude-code', 'codex', 'warp']));
+    // reach = only the runtimes that symlink it (claude-code + codex); the lock's
+    // universal agent `warp` is NOT folded in.
+    expect(s.usedBy).toEqual(['claude-code', 'codex']);
 
     // folder delta carries the approved project MCP
     const folder = inv.folders.find((f) => f.path === proj)!;
@@ -107,7 +108,7 @@ describe('scan() engine integration', () => {
     expect(folder.effective.skills.find((s) => s.name === 'betaskill')!.enabled).toBe(true);
   });
 
-  it('surfaces hub-direct-only skills (no symlinks) with usedBy from lock universal agents', () => {
+  it('surfaces hub-direct-only skills (no symlinks) with empty reach — lock agents excluded', () => {
     home = makeTempHome();
     writeSkillDir(join(home, '.agents', 'skills'), 'hubonly', { description: 'Hub only' });
     writeFileEnsured(
@@ -124,7 +125,8 @@ describe('scan() engine integration', () => {
     expect(s!.provider.kind).toBe('shared-store');
     expect(s!.contentId).toBe('hh');
     expect(s!.description).toBe('Hub only');
-    expect(s!.usedBy).toEqual(['warp', 'zed']);
+    // no symlinks → empty reach, even though the lock lists universal agents.
+    expect(s!.usedBy).toEqual([]);
   });
 
   it('hub skill with no symlinks and no universal agents reports usedBy [] (no owner fallback)', () => {
