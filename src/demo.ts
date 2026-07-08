@@ -118,6 +118,9 @@ export function buildDemoHome(root: string = DEFAULT_ROOT): string {
   }
 
   // --- registry + skill usage (drives discovery + the leaderboard) ---
+  // Staggered, recent timestamps so the dashboard's provenance/detail panel
+  // shows realistic "Xd ago" values instead of a giant "56y ago" from epoch 1.
+  const day = 86_400_000;
   write(join(root, '.claude.json'), json({
     projects: {
       [acme]: { enabledMcpjsonServers: ['postgres'] },
@@ -126,10 +129,10 @@ export function buildDemoHome(root: string = DEFAULT_ROOT): string {
       [orbit]: {},
     },
     skillUsage: {
-      'agent-browser': { usageCount: 42, lastUsedAt: 1 },
-      'vercel-react-best-practices': { usageCount: 18, lastUsedAt: 1 },
-      payload: { usageCount: 7, lastUsedAt: 1 },
-      'sentry:sentry-code-review': { usageCount: 5, lastUsedAt: 1 },
+      'agent-browser': { usageCount: 42, lastUsedAt: Date.now() - 1 * day },
+      'vercel-react-best-practices': { usageCount: 18, lastUsedAt: Date.now() - 3 * day },
+      payload: { usageCount: 7, lastUsedAt: Date.now() - 6 * day },
+      'sentry:sentry-code-review': { usageCount: 5, lastUsedAt: Date.now() - 10 * day },
     },
   }));
 

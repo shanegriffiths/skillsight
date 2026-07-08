@@ -101,4 +101,9 @@ describe('resolveScan', () => {
   it('--demo with no demoHome falls back to normal resolution (defensive)', () => {
     expect(resolveScan(parseArgs(['--demo']), {}, { osHome: '/os' }).homeRoot).toBe('/os');
   });
+
+  it('--demo overrides explicit --home/--dir/--no-walk flags', () => {
+    const t = resolveScan(parseArgs(['--demo', '--home', '/x', '--no-walk']), {}, { osHome: '/os', demoHome: '/tmp/demo' });
+    expect(t).toEqual({ homeRoot: '/tmp/demo', scanOpts: { walk: true, env: {} } });
+  });
 });
