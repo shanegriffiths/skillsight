@@ -39,6 +39,7 @@ Options:
   --kind <skill|plugin|mcp...>    filter by kind
   --provenance                    (report) expand provider + "used by" per item
   --no-walk                       registry only (skip the filesystem walk)
+  --demo                          render a built-in fictional dataset (nothing real is read)
   --help
 
 When output is piped or redirected (non-TTY), skillsight prints the plain report.`;

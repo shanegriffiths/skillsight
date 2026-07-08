@@ -76,4 +76,10 @@ describe('parseArgs hardening', () => {
     expect(a.issues).toEqual([]);
     expect(a.errors).toEqual([]);
   });
+
+  it('parses --demo as a boolean flag with no issues', () => {
+    expect(parseArgs(['--demo']).demo).toBe(true);
+    expect(parseArgs([]).demo).toBe(false);
+    expect(parseArgs(['--demo']).issues).toEqual([]);
+  });
 });
