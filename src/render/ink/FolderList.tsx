@@ -31,7 +31,7 @@ export function FolderList({
   return (
     <Box flexDirection="column" width={width} borderStyle="round" borderColor={theme.border} paddingX={1}>
       <Text wrap="truncate-end" dimColor bold>
-        {PAD}PROJECT
+        {PAD}PROJECT FOLDERS
       </Text>
       <Text wrap="truncate-end" dimColor>
         {PAD}
