@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decideMode, parseArgs } from '../src/cliArgs.js';
+import { decideMode, parseArgs, resolveScan } from '../src/cliArgs.js';
 
 const flags = (o: Partial<{ json: boolean; watch: boolean; report: boolean }> = {}) => ({
   json: false,
@@ -81,5 +81,24 @@ describe('parseArgs hardening', () => {
     expect(parseArgs(['--demo']).demo).toBe(true);
     expect(parseArgs([]).demo).toBe(false);
     expect(parseArgs(['--demo']).issues).toEqual([]);
+  });
+});
+
+describe('resolveScan', () => {
+  it('--demo targets the prebuilt fixture with an empty env and forced walk', () => {
+    const t = resolveScan(parseArgs(['--demo']), { CLAUDE_CONFIG_DIR: '/real/leak' }, { osHome: '/real/home', demoHome: '/tmp/demo' });
+    expect(t.homeRoot).toBe('/tmp/demo');
+    expect(t.scanOpts).toEqual({ walk: true, env: {} });
+  });
+
+  it('without --demo, --home beats SKILLSIGHT_HOME beats OS home; walk/dir preserved', () => {
+    expect(resolveScan(parseArgs([]), {}, { osHome: '/os' }).homeRoot).toBe('/os');
+    expect(resolveScan(parseArgs([]), { SKILLSIGHT_HOME: '/env' }, { osHome: '/os' }).homeRoot).toBe('/env');
+    expect(resolveScan(parseArgs(['--home', '/flag']), { SKILLSIGHT_HOME: '/env' }, { osHome: '/os' }).homeRoot).toBe('/flag');
+    expect(resolveScan(parseArgs(['--no-walk', '--dir', '/d']), {}, { osHome: '/os' }).scanOpts).toEqual({ walk: false, dir: '/d' });
+  });
+
+  it('--demo with no demoHome falls back to normal resolution (defensive)', () => {
+    expect(resolveScan(parseArgs(['--demo']), {}, { osHome: '/os' }).homeRoot).toBe('/os');
   });
 });

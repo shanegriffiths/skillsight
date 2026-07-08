@@ -4,6 +4,7 @@
  * entry point that consumes these).
  */
 import type { Kind } from './types.js';
+import type { ScanOptions } from './index.js';
 import { runtimeById } from './runtimes.js';
 
 export interface Args {
@@ -97,4 +98,27 @@ export function parseArgs(argv: string[]): Args {
     }
   }
   return a;
+}
+
+export interface RunTarget {
+  homeRoot: string;
+  scanOpts: ScanOptions;
+}
+
+/**
+ * Decide where and how to scan. `--demo` (when a fixture has been built) wins:
+ * it scans the fixture with an empty env, so real runtime-home overrides
+ * (CLAUDE_CONFIG_DIR, CODEX_HOME, XDG_CONFIG_HOME, …) cannot reach past it.
+ * Otherwise: `--home` beats `SKILLSIGHT_HOME` beats the OS home.
+ */
+export function resolveScan(
+  args: Args,
+  env: Record<string, string | undefined>,
+  ctx: { osHome: string; demoHome?: string },
+): RunTarget {
+  if (args.demo && ctx.demoHome) {
+    return { homeRoot: ctx.demoHome, scanOpts: { walk: true, env: {} } };
+  }
+  const homeRoot = args.home || env.SKILLSIGHT_HOME || ctx.osHome;
+  return { homeRoot, scanOpts: { walk: !args.noWalk, dir: args.dir } };
 }

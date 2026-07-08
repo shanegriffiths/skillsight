@@ -57,6 +57,8 @@ Developer/Projects
 
 The dashboard goes further: git worktrees fold in under their repo, and you can filter by runtime or kind, sort, and open any item to see its provenance.
 
+Want to see it populated without pointing it at your own machine? `skillsight --demo` renders a built-in fictional setup. Handy for a first look, or for screenshots.
+
 ## Requirements
 
 - **macOS.** Built and tested here. Linux should work too (same POSIX path and symlink model) but I haven't tested it. Windows isn't supported.
@@ -93,6 +95,7 @@ skillsight watch               alias for the dashboard
   --kind <skill|plugin|mcp...> filter by kind
   --provenance                 (report) expand provider + "used by" per item
   --no-walk                    registry only (skip the filesystem walk)
+  --demo                       render a built-in fictional dataset (nothing real is read)
   --help
 ```
 

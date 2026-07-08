@@ -18,7 +18,8 @@ import { scan } from './index.js';
 import { filterInventory } from './filter.js';
 import { renderJson } from './render/json.js';
 import { renderPlain } from './render/plain.js';
-import { parseArgs, decideMode } from './cliArgs.js';
+import { parseArgs, decideMode, resolveScan } from './cliArgs.js';
+import { buildDemoHome } from './demo.js';
 
 const HELP = `skillsight — cross-runtime inventory of agent skills, plugins, and MCP servers
 
@@ -57,8 +58,8 @@ async function main(): Promise<void> {
     return;
   }
 
-  const homeRoot = args.home || process.env.SKILLSIGHT_HOME || homedir();
-  const scanOpts = { walk: !args.noWalk, dir: args.dir };
+  const demoHome = args.demo ? buildDemoHome() : undefined;
+  const { homeRoot, scanOpts } = resolveScan(args, process.env, { osHome: homedir(), demoHome });
   const filterOpts = { runtimes: args.runtimes, kinds: args.kinds };
   const mode = decideMode(args, Boolean(process.stdout.isTTY));
 
