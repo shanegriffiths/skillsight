@@ -115,11 +115,11 @@ export function HeaderBox({
 }) {
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={theme.border} paddingX={1}>
-      <Title />
-      <Box justifyContent="space-between">
-        <Text dimColor wrap="truncate-end">{controls}</Text>
+      <Box justifyContent="space-between" alignItems="flex-start">
+        <Title />
         <Status status={status} warnings={inv.warnings.length} />
       </Box>
+      <Text dimColor wrap="truncate-end">{controls}</Text>
       <Box marginTop={1} marginBottom={1}>
         {TABS.map((t) => {
           const active = t.id === tab;
