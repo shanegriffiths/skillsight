@@ -8,11 +8,12 @@ import { theme } from './theme.js';
  * padded string (cells joined by ` │ `, a `─┼─` rule under the header) so the
  * grid is exact and the cursor row can invert edge-to-edge.
  *
- * Variants: `state` (NAME/KIND/SCOPE/VISIBILITY/STATUS/SOURCE/RUNTIMES — the
- * folders + global tabs) and `leaderboard` (NAME/USED/RUNTIMES — reach).
+ * Variants: `state` (NAME/KIND/SCOPE/VISIBILITY/STATUS/SOURCE/RUNTIMES — Folders +
+ * User Scope), `footprint` (NAME/KIND/LOCATIONS/REACH/RUNTIMES — Project Scope),
+ * and `leaderboard` (the state columns + REACH — the Leaderboard).
  * Narrow panes shed SOURCE, then RUNTIMES, then SCOPE before crushing NAME.
  */
-export type TableVariant = 'state' | 'leaderboard';
+export type TableVariant = 'state' | 'footprint' | 'leaderboard';
 
 /** Lines of vertical chrome the table adds around its rows: border 2 + header + rule. */
 export const TABLE_CHROME = 4;
@@ -80,29 +81,31 @@ function locationsSeg(row: ItemRow): Seg {
   return n > 0 ? { text: String(n) } : { text: '·', dim: true };
 }
 
+const NAME_COL: Col = { header: 'NAME', width: 0, cell: nameSeg };
+const KIND_COL: Col = { header: 'KIND', width: 6, cell: (r) => ({ text: r.kind }) };
+const SCOPE_COL: Col = { header: 'SCOPE', width: 7, cell: (r) => ({ text: r.scope ?? '' }) };
+const VISIBILITY_COL: Col = { header: 'VISIBILITY', width: 10, cell: visibilitySeg };
+const STATUS_COL: Col = { header: 'STATUS', width: 8, cell: statusSeg };
+const SOURCE_COL: Col = { header: 'SOURCE', width: 22, cell: (r) => ({ text: r.source ?? '' }) };
+const REACH_COL: Col = { header: 'REACH', width: 5, align: 'right', cell: usedSeg };
+const LOCATIONS_COL: Col = { header: 'LOCATIONS', width: 9, cell: locationsSeg };
+const RUNTIMES_COL: Col = { header: 'RUNTIMES', width: 11, cell: (r) => ({ text: lettersFor(r.usedRuntimes ?? []) }) };
+
 /** Resolve the column set for a variant into exact widths summing to `contentW`. */
 function columnsFor(variant: TableVariant, contentW: number): Col[] {
   const cols: Col[] =
-    variant === 'leaderboard'
-      ? [
-          { header: 'NAME', width: 0, cell: nameSeg },
-          { header: 'KIND', width: 6, cell: (r) => ({ text: r.expandState !== undefined ? '' : r.kind }) },
-          { header: 'LOCATIONS', width: 9, cell: locationsSeg },
-          { header: 'REACH', width: 5, align: 'right', cell: usedSeg },
-          { header: 'RUNTIMES', width: 11, cell: (r) => ({ text: lettersFor(r.usedRuntimes ?? []) }) },
-        ]
-      : [
-          { header: 'NAME', width: 0, cell: nameSeg },
-          { header: 'KIND', width: 6, cell: (r) => ({ text: r.kind }) },
-          { header: 'SCOPE', width: 7, cell: (r) => ({ text: r.scope ?? '' }) },
-          { header: 'VISIBILITY', width: 10, cell: visibilitySeg },
-          { header: 'STATUS', width: 8, cell: statusSeg },
-          { header: 'SOURCE', width: 22, cell: (r) => ({ text: r.source ?? '' }) },
-          { header: 'RUNTIMES', width: 11, cell: (r) => ({ text: lettersFor(r.usedRuntimes ?? []) }) },
-        ];
+    variant === 'footprint'
+      ? // Project Scope — installed footprint, then reach.
+        [NAME_COL, KIND_COL, LOCATIONS_COL, REACH_COL, RUNTIMES_COL]
+      : variant === 'leaderboard'
+        ? // Leaderboard — the full state columns plus the reach it's ranked by.
+          [NAME_COL, KIND_COL, SCOPE_COL, VISIBILITY_COL, STATUS_COL, SOURCE_COL, REACH_COL, RUNTIMES_COL]
+        : // state — Folders + User Scope.
+          [NAME_COL, KIND_COL, SCOPE_COL, VISIBILITY_COL, STATUS_COL, SOURCE_COL, RUNTIMES_COL];
 
-  // Shed trailing-priority columns until NAME keeps a readable width (only those present).
-  const shedOrder = ['SOURCE', 'RUNTIMES', 'SCOPE', 'LOCATIONS', 'KIND'];
+  // Shed trailing-priority columns until NAME keeps a readable width (only those
+  // present). REACH is never shed — it's the ranked metric; NAME is floored below.
+  const shedOrder = ['SOURCE', 'RUNTIMES', 'SCOPE', 'LOCATIONS', 'KIND', 'STATUS', 'VISIBILITY'];
   const fits = (cs: Col[]) =>
     contentW - cs.reduce((sum, c) => sum + c.width, 0) - SEP.length * (cs.length - 1) >= MIN_NAME;
   let active = cols;

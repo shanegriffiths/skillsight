@@ -132,9 +132,9 @@ export function App({
       {tab === 'folders' ? (
         <FoldersView inv={inv} inputActive={!filtering} pendingFolder={pendingFolder} onConsumePending={() => setPendingFolder(null)} onControls={setControls} onSort={setSortLabel} />
       ) : null}
-      {tab === 'installed' ? <RankedView inv={inv} rows={installed(inv)} inputActive={!filtering} sortModes={PROJECT_SORTS} onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} /> : null}
+      {tab === 'installed' ? <RankedView inv={inv} rows={installed(inv)} inputActive={!filtering} sortModes={PROJECT_SORTS} variant="footprint" onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} /> : null}
       {tab === 'global' ? <GlobalView inv={inv} inputActive={!filtering} onControls={setControls} onSort={setSortLabel} /> : null}
-      {tab === 'leaderboard' ? <RankedView inv={inv} rows={leaderboard(inv)} showStats inputActive={!filtering} sortModes={LEADERBOARD_SORTS} onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} /> : null}
+      {tab === 'leaderboard' ? <RankedView inv={inv} rows={leaderboard(inv)} showStats inputActive={!filtering} sortModes={LEADERBOARD_SORTS} variant="leaderboard" onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} /> : null}
     </Box>
   );
 }

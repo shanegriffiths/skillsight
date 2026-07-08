@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
-import { ItemTable, TABLE_CHROME } from './ItemTable.js';
+import { ItemTable, TABLE_CHROME, type TableVariant } from './ItemTable.js';
 import { DetailView } from './DetailView.js';
 import { groupKey, type ItemRow } from './rows.js';
 import { summaryStats, groupBySource, type SummaryStats } from './stats.js';
@@ -114,6 +114,7 @@ export function RankedView({
   showStats = false,
   inputActive = true,
   sortModes,
+  variant,
   onOpenProject,
   onControls,
   onSort,
@@ -124,6 +125,8 @@ export function RankedView({
   inputActive?: boolean;
   /** This tab's sort cycle (native order first) — e.g. Leaderboard vs Project Scope. */
   sortModes: SortMode[];
+  /** Column set: `footprint` (Project Scope) or `leaderboard` (state cols + reach). */
+  variant: TableVariant;
   /** Jump to a project folder on the Folders tab (invoked from the detail's project list). */
   onOpenProject?: (path: string) => void;
   /** Report the current key hints up to the header. */
@@ -205,7 +208,7 @@ export function RankedView({
       {grouped.length === 0 ? (
         <Text dimColor>nothing to show</Text>
       ) : (
-        <ItemTable rows={grouped.slice(start, end)} variant="leaderboard" width={size.columns} selectedIndex={selected - start} />
+        <ItemTable rows={grouped.slice(start, end)} variant={variant} width={size.columns} selectedIndex={selected - start} />
       )}
       <Position start={start} end={end} total={grouped.length} height={height} />
       {showStats ? <StatsBand stats={summaryStats(inv)} /> : null}
