@@ -7,6 +7,7 @@ import { groupKey, type ItemRow } from './rows.js';
 import { summaryStats, groupBySource, type SummaryStats } from './stats.js';
 import { useListDetail } from './listDetail.js';
 import { useItemSort } from './useItemSort.js';
+import type { SortMode } from './sortModes.js';
 import { RuntimeLetters } from './RuntimeLetters.js';
 import { marksFor } from './runtimeMark.js';
 import { Band } from './Band.js';
@@ -112,7 +113,7 @@ export function RankedView({
   rows,
   showStats = false,
   inputActive = true,
-  nativeSortLabel,
+  sortModes,
   onOpenProject,
   onControls,
   onSort,
@@ -121,8 +122,8 @@ export function RankedView({
   rows: ItemRow[];
   showStats?: boolean;
   inputActive?: boolean;
-  /** Label for this tab's native (pre-ranked) order — e.g. `reach` / `footprint`. */
-  nativeSortLabel: string;
+  /** This tab's sort cycle (native order first) — e.g. Leaderboard vs Project Scope. */
+  sortModes: SortMode[];
   /** Jump to a project folder on the Folders tab (invoked from the detail's project list). */
   onOpenProject?: (path: string) => void;
   /** Report the current key hints up to the header. */
@@ -134,9 +135,9 @@ export function RankedView({
   const chrome = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1 + (showStats ? STATS_BAND_LINES : 0);
   const height = Math.max(3, size.rows - chrome);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const sort = useItemSort(nativeSortLabel);
+  const sort = useItemSort(sortModes);
   const grouped = sort.apply(groupBySource(rows, expanded));
-  const { detail, selected, start, end, onInput } = useListDetail(grouped.length, height, sort.mode);
+  const { detail, selected, start, end, onInput } = useListDetail(grouped.length, height, sort.index);
   const [projSel, setProjSel] = useState(0);
 
   useEffect(() => {

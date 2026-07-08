@@ -8,6 +8,7 @@ import { ItemTable, TABLE_CHROME } from './ItemTable.js';
 import { DetailView } from './DetailView.js';
 import { useListDetail } from './listDetail.js';
 import { useItemSort } from './useItemSort.js';
+import { USERSCOPE_SORTS } from './sortModes.js';
 import { Position } from './Position.js';
 import { HEADER_BOX_HEIGHT } from './HeaderBox.js';
 import { FILTER_BAR_HEIGHT } from './FilterBar.js';
@@ -19,12 +20,12 @@ const CHROME = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1;
 
 export function GlobalView({ inv, inputActive = true, onControls, onSort }: { inv: Inventory; inputActive?: boolean; onControls?: (text: string) => void; onSort?: (label: string) => void }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const sort = useItemSort('default');
+  const sort = useItemSort(USERSCOPE_SORTS);
   const base = useMemo(() => groupedRows(inv.global, emptyBucket(), expanded), [inv.global, expanded]);
   const rows = sort.apply(base);
   const size = useWindowSize();
   const height = Math.max(3, size.rows - CHROME);
-  const { detail, selected, start, end, onInput } = useListDetail(rows.length, height, sort.mode);
+  const { detail, selected, start, end, onInput } = useListDetail(rows.length, height, sort.index);
 
   const footer = detail
     ? 'Esc/← back · 1/2/3/4 or Tab switch · q quit'

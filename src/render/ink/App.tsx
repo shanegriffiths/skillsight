@@ -14,6 +14,7 @@ import { FoldersView } from './FoldersView.js';
 import { GlobalView } from './GlobalView.js';
 import { RankedView } from './RankedView.js';
 import { leaderboard, installed } from './stats.js';
+import { LEADERBOARD_SORTS, PROJECT_SORTS } from './sortModes.js';
 
 export function App({
   homeRoot,
@@ -131,9 +132,9 @@ export function App({
       {tab === 'folders' ? (
         <FoldersView inv={inv} inputActive={!filtering} pendingFolder={pendingFolder} onConsumePending={() => setPendingFolder(null)} onControls={setControls} onSort={setSortLabel} />
       ) : null}
-      {tab === 'installed' ? <RankedView inv={inv} rows={installed(inv)} inputActive={!filtering} nativeSortLabel="footprint" onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} /> : null}
+      {tab === 'installed' ? <RankedView inv={inv} rows={installed(inv)} inputActive={!filtering} sortModes={PROJECT_SORTS} onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} /> : null}
       {tab === 'global' ? <GlobalView inv={inv} inputActive={!filtering} onControls={setControls} onSort={setSortLabel} /> : null}
-      {tab === 'leaderboard' ? <RankedView inv={inv} rows={leaderboard(inv)} showStats inputActive={!filtering} nativeSortLabel="reach" onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} /> : null}
+      {tab === 'leaderboard' ? <RankedView inv={inv} rows={leaderboard(inv)} showStats inputActive={!filtering} sortModes={LEADERBOARD_SORTS} onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} /> : null}
     </Box>
   );
 }
