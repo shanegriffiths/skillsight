@@ -40,7 +40,7 @@ describe('sort comparators (tie-break on name)', () => {
 
 describe('per-tab sort lists', () => {
   it('label the modes to match their columns, native first', () => {
-    expect(LEADERBOARD_SORTS.map((m) => m.label)).toEqual(['uses', 'reach', 'name', 'enabled', 'visibility', 'scope', 'kind']);
+    expect(LEADERBOARD_SORTS.map((m) => m.label)).toEqual(['uses', 'reach', 'locations', 'name', 'enabled', 'visibility', 'scope', 'kind']);
     expect(PROJECT_SORTS.map((m) => m.label)).toEqual(['locations', 'name', 'enabled', 'scope', 'kind']);
     expect(USERSCOPE_SORTS.map((m) => m.label)).toEqual(['grouped', 'name', 'enabled', 'visibility', 'scope', 'kind']);
   });

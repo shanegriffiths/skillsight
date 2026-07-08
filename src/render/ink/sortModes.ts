@@ -37,7 +37,7 @@ const native = (label: string): SortMode => ({ label, apply: (rows) => rows });
 // `s` cycles these in order, wrapping to the native mode. Labels match the tab's
 // columns; each tab lists only the modes its data supports.
 export const LEADERBOARD_SORTS: SortMode[] = [
-  native('uses'), mode('reach', byReach), mode('name', byName), mode('enabled', byEnabled), mode('visibility', byVisibility), mode('scope', byScope), mode('kind', byKind),
+  native('uses'), mode('reach', byReach), mode('locations', byLocations), mode('name', byName), mode('enabled', byEnabled), mode('visibility', byVisibility), mode('scope', byScope), mode('kind', byKind),
 ];
 export const PROJECT_SORTS: SortMode[] = [
   native('locations'), mode('name', byName), mode('enabled', byEnabled), mode('scope', byScope), mode('kind', byKind),
