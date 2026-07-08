@@ -101,6 +101,25 @@ skillsight watch               alias for the dashboard
 
 Point the scan at a different home root with `--home <path>` (or the `SKILLSIGHT_HOME` env var). Handy for inspecting a backup, another account, or a copied `~` from another machine. The flag wins over the env var, and both beat the OS home.
 
+### Examples
+
+```sh
+skillsight                                # live dashboard (the default)
+skillsight --report                       # one-shot plain report
+skillsight --report --full                # full effective set per folder, not just the delta
+skillsight --report --global              # only the inherited global layer
+skillsight --report --provenance          # + origin repo and "used by" per item
+skillsight --json                         # machine-readable
+
+skillsight --dir ./some/project           # inspect a single folder
+skillsight --report --runtime claude-code codex   # filter to specific runtimes
+skillsight --report --kind skill mcp      # filter by kind (skills and MCP only)
+skillsight --demo                         # a built-in fictional dataset (nothing real is read)
+
+SKILLSIGHT_ICONS=off skillsight           # plain text, no Nerd Font glyphs (if you see tofu boxes)
+SKILLSIGHT_HOME=/path/to/home skillsight  # scan a different home (same as --home)
+```
+
 ## Supported runtimes
 
 | Runtime | Coverage |
