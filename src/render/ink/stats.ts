@@ -130,9 +130,11 @@ function statsOf(all: Bucket, runtimesDetected: Runtime[]): SummaryStats {
   return { totals, perRuntime, perProvider };
 }
 
-/** Everything ranked by usage (runtime reach) desc, then name — the Leaderboard tab. */
+/** Everything ranked by Claude Code usage desc, then reach, then name — the Leaderboard tab. */
 export function leaderboard(inv: Inventory): ItemRow[] {
-  return enrichedItems(inv).sort((a, b) => (b.used ?? -1) - (a.used ?? -1) || byName(a, b));
+  return enrichedItems(inv).sort(
+    (a, b) => (b.uses ?? -1) - (a.uses ?? -1) || (b.used ?? -1) - (a.used ?? -1) || byName(a, b),
+  );
 }
 
 /**

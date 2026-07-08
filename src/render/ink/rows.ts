@@ -16,6 +16,8 @@ export interface ItemRow {
   name: string;
   /** usedBy count for skills (incl. 0); null when not applicable (plugins, mcp). */
   used: number | null;
+  /** Claude Code usage count for skills (incl. 0); null for plugins/mcp, absent on group headers. */
+  uses?: number | null;
   /** Where it lives: owner/repo, marketplace repo, transport kind, or provider kind. */
   source: string | null;
   /** True when `source` is a fallback (provider/transport kind) and should render dim. */
@@ -78,6 +80,7 @@ function skillRow(s: SkillRecord): ItemRow {
     kind: 'skill',
     name: s.name,
     used: s.usedBy.length,
+    uses: s.usageCount ?? 0,
     source: source ?? s.provider.kind,
     sourceDim: !source,
     record: s,
@@ -94,6 +97,7 @@ function pluginRow(p: PluginRecord): ItemRow {
     kind: 'plugin',
     name: p.name,
     used: null,
+    uses: null,
     source: p.marketplaceRepo ?? p.marketplace,
     sourceDim: !p.marketplaceRepo,
     record: p,
@@ -111,6 +115,7 @@ function mcpRow(m: McpRecord): ItemRow {
     kind: 'mcp',
     name: m.name,
     used: null,
+    uses: null,
     source: m.transport.kind,
     sourceDim: true,
     record: m,

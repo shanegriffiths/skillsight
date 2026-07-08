@@ -74,6 +74,13 @@ function usedSeg(row: ItemRow): Seg {
   return { text: String(row.used) };
 }
 
+function usesSeg(row: ItemRow): Seg {
+  if (row.expandState !== undefined) return { text: '' }; // group header
+  if (row.uses == null) return { text: '—', dim: true }; // plugins/mcp: not skill usage
+  if (row.uses === 0) return { text: '·', dim: true }; // a skill never used in Claude Code
+  return { text: String(row.uses) };
+}
+
 function locationsSeg(row: ItemRow): Seg {
   if (row.expandState !== undefined) return { text: '' };
   if (row.everywhere) return { text: 'global', color: theme.good };
@@ -88,6 +95,7 @@ const VISIBILITY_COL: Col = { header: 'VISIBILITY', width: 10, cell: visibilityS
 const STATUS_COL: Col = { header: 'STATUS', width: 8, cell: statusSeg };
 const SOURCE_COL: Col = { header: 'SOURCE', width: 22, cell: (r) => ({ text: r.source ?? '' }) };
 const REACH_COL: Col = { header: 'REACH', width: 5, align: 'right', cell: usedSeg };
+const USES_COL: Col = { header: 'USES', width: 5, align: 'right', cell: usesSeg };
 const LOCATIONS_COL: Col = { header: 'LOCATIONS', width: 9, cell: locationsSeg };
 const RUNTIMES_COL: Col = { header: 'RUNTIMES', width: 11, cell: (r) => ({ text: lettersFor(r.usedRuntimes ?? []) }) };
 
@@ -98,13 +106,13 @@ function columnsFor(variant: TableVariant, contentW: number): Col[] {
       ? // Project Scope — installed footprint, then reach.
         [NAME_COL, KIND_COL, LOCATIONS_COL, REACH_COL, RUNTIMES_COL]
       : variant === 'leaderboard'
-        ? // Leaderboard — the full state columns plus the reach it's ranked by.
-          [NAME_COL, KIND_COL, SCOPE_COL, VISIBILITY_COL, STATUS_COL, SOURCE_COL, REACH_COL, RUNTIMES_COL]
+        ? // Leaderboard — the full state columns plus Claude Code usage.
+          [NAME_COL, KIND_COL, SCOPE_COL, VISIBILITY_COL, STATUS_COL, SOURCE_COL, USES_COL, RUNTIMES_COL]
         : // state — Folders + User Scope.
           [NAME_COL, KIND_COL, SCOPE_COL, VISIBILITY_COL, STATUS_COL, SOURCE_COL, RUNTIMES_COL];
 
   // Shed trailing-priority columns until NAME keeps a readable width (only those
-  // present). REACH is never shed — it's the ranked metric; NAME is floored below.
+  // present). USES/REACH are never shed — they're the ranked metric; NAME is floored below.
   const shedOrder = ['SOURCE', 'RUNTIMES', 'SCOPE', 'LOCATIONS', 'KIND', 'STATUS', 'VISIBILITY'];
   const fits = (cs: Col[]) =>
     contentW - cs.reduce((sum, c) => sum + c.width, 0) - SEP.length * (cs.length - 1) >= MIN_NAME;

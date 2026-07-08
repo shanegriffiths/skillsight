@@ -85,6 +85,9 @@ export interface SkillRecord {
   visibility?: SkillVisibility;
   /** The layer that decided `visibility` (`local > project > user`). */
   visibilitySource?: VisibilitySource;
+  /** Claude Code per-skill usage (from `~/.claude.json` `skillUsage`) — CC only. */
+  usageCount?: number;
+  lastUsedAt?: number;
   scope: Scope;
 }
 

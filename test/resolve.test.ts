@@ -1,6 +1,6 @@
 // test/resolve.test.ts
 import { describe, it, expect } from 'vitest';
-import { mergeBuckets, splitByScope, bucketCounts, bucketTotal, sharedStoreBucket } from '../src/resolve.js';
+import { mergeBuckets, splitByScope, bucketCounts, bucketTotal, sharedStoreBucket, enrichBucket } from '../src/resolve.js';
 import { emptyBucket } from '../src/types.js';
 import type { Bucket, SkillRecord } from '../src/types.js';
 import type { SharedSkill } from '../src/sharedstore.js';
@@ -53,7 +53,7 @@ describe('sharedStoreBucket reach', () => {
   const enr = (reverse: Record<string, string[]>) =>
     ({
       sharedByRealpath: new Map(),
-      lastSelectedAgents: ['warp', 'zed'],
+      usageByKey: new Map(),
       reverseIndex: new Map(Object.entries(reverse).map(([k, v]) => [k, new Set(v)])),
     }) as never;
 
@@ -65,6 +65,36 @@ describe('sharedStoreBucket reach', () => {
   it('reports empty reach for a hub-direct-only skill (no symlinks)', () => {
     const b = sharedStoreBucket([shared({ realPath: '/hub/solo', contentId: 'h2' })], enr({}));
     expect(b.skills[0]!.usedBy).toEqual([]);
+  });
+});
+
+describe('usage enrichment', () => {
+  it('sets usageCount by name (standalone) and plugin:name (bundled)', () => {
+    const bucket = withSkills(
+      sk({ name: 'agent-browser', provider: { kind: 'project-local', path: '/p/ab' } }),
+      sk({ name: 'brainstorming', contentId: 'c2', bundledInPlugin: 'superpowers@claude-plugins-official', provider: { kind: 'plugin', path: '/p/br' } }),
+    );
+    const enr = {
+      sharedByRealpath: new Map(),
+      reverseIndex: new Map(),
+      usageByKey: new Map([
+        ['agent-browser', { count: 29, lastUsedAt: 111 }],
+        ['superpowers:brainstorming', { count: 90 }],
+      ]),
+    } as never;
+    enrichBucket(bucket, 'claude-code', enr);
+    const byName = Object.fromEntries(bucket.skills.map((s) => [s.name, s]));
+    expect(byName['agent-browser']!.usageCount).toBe(29);
+    expect(byName['agent-browser']!.lastUsedAt).toBe(111);
+    expect(byName['brainstorming']!.usageCount).toBe(90);
+  });
+
+  it('preserves usageCount through merge', () => {
+    const a = sk({ usageCount: 12 });
+    const b = sk({ provider: { kind: 'shared-store', path: '/hub/a' } }); // higher rank, no usage
+    const merged = mergeBuckets(withSkills(b), withSkills(a)).skills[0]!;
+    expect(merged.provider.kind).toBe('shared-store');
+    expect(merged.usageCount).toBe(12);
   });
 });
 

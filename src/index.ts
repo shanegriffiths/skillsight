@@ -11,6 +11,7 @@ import { emptyBucket } from './types.js';
 import type { HomeCtx } from './runtimes.js';
 import { collectSharedStore } from './sharedstore.js';
 import { buildReverseSymlinkIndex } from './symlinks.js';
+import { readSkillUsage } from './skillusage.js';
 import { claudeCodeAdapter } from './adapters/claude-code.js';
 import { codexAdapter } from './adapters/codex.js';
 import { hermesAdapter } from './adapters/hermes.js';
@@ -65,6 +66,7 @@ export function scan(homeRoot: string = homedir(), opts: ScanOptions = {}): Inve
   const enr: EnrichContext = {
     sharedByRealpath: new Map(shared.skills.map((s) => [s.realPath, s])),
     reverseIndex: buildReverseSymlinkIndex(ctx),
+    usageByKey: readSkillUsage(ctx),
   };
 
   const active = ADAPTERS.filter((a) => a.detect(ctx));

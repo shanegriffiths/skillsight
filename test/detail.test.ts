@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detailFields } from '../src/render/ink/detail.js';
+import { detailFields, formatLastUsed } from '../src/render/ink/detail.js';
 import type { ItemRow } from '../src/render/ink/rows.js';
 import type { McpRecord, PluginRecord, SkillRecord, Runtime } from '../src/types.js';
 
@@ -60,6 +60,18 @@ describe('detailFields — skill', () => {
   it('shows the bundling plugin when present', () => {
     const f = detailFields(skillRow({ bundledInPlugin: 'gsap-skills' }));
     expect(valueOf(f, 'plugin')).toBe('gsap-skills');
+  });
+
+  it('shows Claude Code usage count + a last-used field when present', () => {
+    const f = detailFields(skillRow({ usageCount: 29, lastUsedAt: 1000 }));
+    expect(valueOf(f, 'uses')).toBe('29');
+    expect(f.find((x) => x.label === 'last used')).toBeDefined();
+  });
+
+  it('omits usage fields when the skill has no usageCount', () => {
+    const f = detailFields(skillRow({}));
+    expect(valueOf(f, 'uses')).toBeUndefined();
+    expect(f.find((x) => x.label === 'last used')).toBeUndefined();
   });
 
   it('marks the about field as wrapped so the full description shows', () => {
@@ -152,6 +164,18 @@ describe('detailFields — mcp', () => {
   it('has no about field — mcp configs carry no description', () => {
     const f = detailFields(mcpRow({ kind: 'stdio', command: 'npx' }));
     expect(valueOf(f, 'about')).toBeUndefined();
+  });
+});
+
+describe('formatLastUsed', () => {
+  const now = 10_000_000_000_000;
+  it('renders compact relative buckets', () => {
+    expect(formatLastUsed(now - 30_000, now)).toBe('just now');
+    expect(formatLastUsed(now - 5 * 60_000, now)).toBe('5m ago');
+    expect(formatLastUsed(now - 3 * 3_600_000, now)).toBe('3h ago');
+    expect(formatLastUsed(now - 2 * 86_400_000, now)).toBe('2d ago');
+    expect(formatLastUsed(now - 60 * 86_400_000, now)).toBe('2mo ago');
+    expect(formatLastUsed(now - 400 * 86_400_000, now)).toBe('1y ago');
   });
 });
 

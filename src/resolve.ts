@@ -14,6 +14,7 @@ import { emptyBucket } from './types.js';
 import { type HomeCtx } from './runtimes.js';
 import { lookupUsedBy } from './symlinks.js';
 import type { SharedSkill } from './sharedstore.js';
+import { usageKey, type SkillUsage } from './skillusage.js';
 
 const PROVIDER_RANK: Record<Provider['kind'], number> = {
   'shared-store': 6,
@@ -27,6 +28,16 @@ const PROVIDER_RANK: Record<Provider['kind'], number> = {
 export interface EnrichContext {
   sharedByRealpath: Map<string, SharedSkill>;
   reverseIndex: Map<string, Set<Runtime>>;
+  usageByKey: Map<string, SkillUsage>;
+}
+
+/** Attach Claude Code usage to a skill, matched by name / plugin:name. */
+function applyUsage(s: SkillRecord, usageByKey: Map<string, SkillUsage>): void {
+  const u = usageByKey.get(usageKey(s.name, s.bundledInPlugin));
+  if (u) {
+    s.usageCount = u.count;
+    s.lastUsedAt = u.lastUsedAt;
+  }
 }
 
 /** Enrich one adapter's bucket in place; `owner` is the producing runtime. */
@@ -43,6 +54,7 @@ export function enrichBucket(bucket: Bucket, owner: Runtime, enr: EnrichContext)
     const used = new Set<Runtime>(lookupUsedBy(enr.reverseIndex, s.provider.path));
     if (used.size === 0) used.add(owner);
     s.usedBy = [...used].sort();
+    applyUsage(s, enr.usageByKey);
   }
   return bucket;
 }
@@ -55,6 +67,7 @@ export function enrichBucket(bucket: Bucket, owner: Runtime, enr: EnrichContext)
 export function sharedStoreBucket(shared: SharedSkill[], enr: EnrichContext): Bucket {
   const skills: SkillRecord[] = shared.map((info) => {
     const used = new Set<Runtime>(lookupUsedBy(enr.reverseIndex, info.realPath));
+    const usage = enr.usageByKey.get(usageKey(info.name)); // hub skills are never plugin-bundled
     return {
       name: info.name,
       description: info.description,
@@ -67,6 +80,8 @@ export function sharedStoreBucket(shared: SharedSkill[], enr: EnrichContext): Bu
         skillFolderHash: info.skillFolderHash,
       },
       usedBy: [...used].sort(),
+      usageCount: usage?.count,
+      lastUsedAt: usage?.lastUsedAt,
       enabled: true,
       scope: 'global',
     };
@@ -85,6 +100,8 @@ function mergeSkill(into: Map<string, SkillRecord>, s: SkillRecord): void {
   base.usedBy = [...new Set([...existing.usedBy, ...s.usedBy])].sort();
   base.bundledInPlugin ??= keepNew ? existing.bundledInPlugin : s.bundledInPlugin;
   base.description ??= keepNew ? existing.description : s.description;
+  base.usageCount ??= keepNew ? existing.usageCount : s.usageCount;
+  base.lastUsedAt ??= keepNew ? existing.lastUsedAt : s.lastUsedAt;
   into.set(s.contentId, base);
 }
 

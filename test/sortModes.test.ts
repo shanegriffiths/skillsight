@@ -40,13 +40,13 @@ describe('sort comparators (tie-break on name)', () => {
 
 describe('per-tab sort lists', () => {
   it('label the modes to match their columns, native first', () => {
-    expect(LEADERBOARD_SORTS.map((m) => m.label)).toEqual(['reach', 'name', 'enabled', 'visibility', 'scope', 'kind']);
+    expect(LEADERBOARD_SORTS.map((m) => m.label)).toEqual(['uses', 'reach', 'name', 'enabled', 'visibility', 'scope', 'kind']);
     expect(PROJECT_SORTS.map((m) => m.label)).toEqual(['locations', 'name', 'enabled', 'scope', 'kind']);
     expect(USERSCOPE_SORTS.map((m) => m.label)).toEqual(['grouped', 'name', 'enabled', 'visibility', 'scope', 'kind']);
   });
   it('native mode is identity; a keyed mode reorders', () => {
     const rows = [row({ name: 'b' }), row({ name: 'a' })];
-    expect(LEADERBOARD_SORTS[0]!.apply(rows).map((r) => r.name)).toEqual(['b', 'a']); // native reach = identity
-    expect(LEADERBOARD_SORTS[1]!.apply(rows).map((r) => r.name)).toEqual(['a', 'b']); // name
+    expect(LEADERBOARD_SORTS[0]!.apply(rows).map((r) => r.name)).toEqual(['b', 'a']); // native uses = identity
+    expect(LEADERBOARD_SORTS[1]!.apply(rows).map((r) => r.name)).toEqual(['a', 'b']); // reach (ties break on name)
   });
 });
