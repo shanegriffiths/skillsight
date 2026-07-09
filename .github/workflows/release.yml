@@ -1,0 +1,54 @@
+name: Release
+
+# Publishes to npm when a v* tag is pushed, e.g. `git tag v0.1.0 && git push --tags`.
+# The published tarball carries a signed provenance statement linking it to this
+# exact commit and workflow run (the verified badge on npmjs.com).
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write # REQUIRED: lets the runner mint the OIDC token that signs provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - run: npm ci
+
+      # Guard: the git tag (v0.1.0) must match the package.json version (0.1.0),
+      # so you can never ship a tarball whose version disagrees with its tag.
+      - name: Verify tag matches package.json version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Tag v$TAG does not match package.json version $PKG"
+            exit 1
+          fi
+
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+      # `--provenance` + `--access public` are also set in package.json#publishConfig;
+      # passing them here keeps the intent visible at the call site.
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          # Bootstrap: a granular, publish-scoped token created for the FIRST release.
+          # Once the package exists, configure a Trusted Publisher on npmjs.com pointing
+          # at this repo + workflow, delete the NPM_TOKEN secret, and releases go fully
+          # tokenless via OIDC (this env line becomes a harmless no-op you can remove).
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
