@@ -14,7 +14,7 @@ import { emptyBucket } from '../types.js';
 import { runtimeById, runtimeHome, type HomeCtx } from '../runtimes.js';
 import { exists, readText, readDirEntries } from '../fsread.js';
 import { realpathSafe } from '../symlinks.js';
-import { scanSkillsDir } from '../skillscan.js';
+import { scanSkillsDir, scanProjectHub } from '../skillscan.js';
 import { readFrontmatterFile } from '../frontmatter.js';
 import { normalizeCodexTransport, buildMcpRecords } from '../mcp.js';
 import type { RuntimeAdapter } from './index.js';
@@ -124,8 +124,12 @@ export const codexAdapter: RuntimeAdapter = {
 
   collectForDirectory(dir, ctx) {
     const bucket: Bucket = emptyBucket();
-    // project skills live in .codex/skills; the shared .agents/skills project hub is not scanned yet (ROADMAP "Beyond v0.2")
-    bucket.skills.push(...scanSkillsDir(join(dir, '.codex', 'skills'), ctx, 'project-scoped'));
+    // Codex reads project skills from its own .codex/skills AND, as a universal
+    // runtime, the shared .agents/skills project hub directly.
+    bucket.skills.push(
+      ...scanSkillsDir(join(dir, '.codex', 'skills'), ctx, 'project-scoped'),
+      ...scanProjectHub(dir, ctx),
+    );
     return bucket;
   },
 };

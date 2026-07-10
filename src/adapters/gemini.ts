@@ -11,7 +11,7 @@ import type { Bucket } from '../types.js';
 import { emptyBucket } from '../types.js';
 import { runtimeById, runtimeHome, type HomeCtx } from '../runtimes.js';
 import { exists, readJson, readDirEntries } from '../fsread.js';
-import { scanSkillsDir } from '../skillscan.js';
+import { scanSkillsDir, scanProjectHub } from '../skillscan.js';
 import { normalizeGeminiTransport, buildMcpRecords } from '../mcp.js';
 import type { RuntimeAdapter } from './index.js';
 
@@ -79,7 +79,10 @@ export const geminiAdapter: RuntimeAdapter = {
     bucket.mcp.push(
       ...buildMcpRecords(settings?.mcpServers, normalizeGeminiTransport, 'project-scoped', { kind: 'project-local', path: settingsPath }),
     );
-    bucket.skills.push(...scanSkillsDir(join(dir, '.gemini', 'skills'), ctx, 'project-scoped'));
+    bucket.skills.push(
+      ...scanSkillsDir(join(dir, '.gemini', 'skills'), ctx, 'project-scoped'),
+      ...scanProjectHub(dir, ctx), // shared .agents/skills project hub (universal read)
+    );
     return bucket;
   },
 };

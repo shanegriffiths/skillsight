@@ -22,6 +22,17 @@ describe('codex collectForDirectory', () => {
     expect(s.scope).toBe('project-scoped');
     expect(s.provider.kind).toBe('project-local');
   });
+
+  it('also scans the shared .agents/skills project hub (universal read) as project-scoped', () => {
+    home = makeTempHome();
+    const proj = join(home, 'proj');
+    writeSkillDir(join(proj, '.agents', 'skills'), 'hub-skill');
+    const d = codexAdapter.collectForDirectory(proj, ctxOf(home), []);
+    const s = d.skills.find((x) => x.name === 'hub-skill')!;
+    expect(s).toBeDefined();
+    expect(s.scope).toBe('project-scoped');
+    expect(s.provider.kind).toBe('project-local');
+  });
 });
 
 describe('gemini collectForDirectory', () => {
@@ -38,6 +49,14 @@ describe('gemini collectForDirectory', () => {
     expect(m.transport.kind).toBe('http'); // httpUrl => http (footgun invariant)
     expect(m.scope).toBe('project-scoped');
     expect(d.skills.map((s) => s.name)).toContain('gs');
+  });
+
+  it('also scans the shared .agents/skills project hub as project-scoped', () => {
+    home = makeTempHome();
+    const proj = join(home, 'proj');
+    writeSkillDir(join(proj, '.agents', 'skills'), 'hub-skill');
+    const d = geminiAdapter.collectForDirectory(proj, ctxOf(home), []);
+    expect(d.skills.map((s) => s.name)).toContain('hub-skill');
   });
 });
 
@@ -57,5 +76,13 @@ describe('opencode collectForDirectory', () => {
     expect(m.transport.args).toEqual(['x', 'srv']); // command array split
     expect(m.transport.envKeys).toEqual(['KEY']); // names only (privacy)
     expect(d.skills.map((s) => s.name)).toContain('op-skill');
+  });
+
+  it('also scans the shared .agents/skills project hub as project-scoped', () => {
+    home = makeTempHome();
+    const proj = join(home, 'proj');
+    writeSkillDir(join(proj, '.agents', 'skills'), 'hub-skill');
+    const d = opencodeAdapter.collectForDirectory(proj, ctxOf(home), []);
+    expect(d.skills.map((s) => s.name)).toContain('hub-skill');
   });
 });

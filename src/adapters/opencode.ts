@@ -10,7 +10,7 @@ import type { Bucket, Warning } from '../types.js';
 import { emptyBucket } from '../types.js';
 import { runtimeById, runtimeHome, type HomeCtx } from '../runtimes.js';
 import { exists, readText, readJson } from '../fsread.js';
-import { scanSkillsDir } from '../skillscan.js';
+import { scanSkillsDir, scanProjectHub } from '../skillscan.js';
 import { normalizeOpencodeTransport, buildMcpRecords } from '../mcp.js';
 import type { RuntimeAdapter } from './index.js';
 
@@ -75,7 +75,10 @@ export const opencodeAdapter: RuntimeAdapter = {
     bucket.mcp.push(
       ...buildMcpRecords(config?.mcp, normalizeOpencodeTransport, 'project-scoped', { kind: 'project-local', path }),
     );
-    bucket.skills.push(...scanSkillsDir(join(dir, '.opencode', 'skills'), ctx, 'project-scoped'));
+    bucket.skills.push(
+      ...scanSkillsDir(join(dir, '.opencode', 'skills'), ctx, 'project-scoped'),
+      ...scanProjectHub(dir, ctx), // shared .agents/skills project hub (universal read)
+    );
     return bucket;
   },
 };

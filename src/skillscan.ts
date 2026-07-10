@@ -41,6 +41,23 @@ export function providerForRealpath(real: string, ctx: HomeCtx, scope: Scope): P
 }
 
 /**
+ * Scan a project's shared agent hub (`<project>/.agents/skills`) — the
+ * cross-runtime skill store that every `universal` runtime reads *directly* at
+ * project scope (the folder-scoped mirror of the global `~/.agents/skills` hub).
+ *
+ * Every universal skill-adapter (Codex, Gemini, OpenCode) calls this for its
+ * folder pass. The resolver dedupes the identical physical skills across those
+ * adapters by `contentId` and unions their `usedBy` (each contributes itself via
+ * the owner fallback), so a bare project-hub skill honestly reports every
+ * detected universal runtime that can reach it — not just one. Skills a runtime
+ * already symlinks into the hub via its own project dir dedupe to the same
+ * record, so calling this alongside a `.codex/skills`-style scan never double-lists.
+ */
+export function scanProjectHub(dir: string, ctx: HomeCtx): SkillRecord[] {
+  return scanSkillsDir(join(dir, '.agents', 'skills'), ctx, 'project-scoped');
+}
+
+/**
  * Scan a skills directory. Each child entry is a skill dir (possibly a symlink
  * into the hub); content is read through the link via realpath.
  */

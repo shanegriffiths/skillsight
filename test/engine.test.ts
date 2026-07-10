@@ -137,6 +137,28 @@ describe('scan() engine integration', () => {
     expect(s).toBeDefined();
     expect(s!.usedBy).toEqual([]);
   });
+
+  it('surfaces a bare project .agents/skills hub skill and unions reach across detected universal runtimes', () => {
+    home = makeTempHome();
+    const proj = join(home, 'proj');
+    // codex + gemini present (detected); opencode absent
+    writeFileEnsured(join(home, '.codex', 'config.toml'), '');
+    writeFileEnsured(join(home, '.gemini', 'settings.json'), JSON.stringify({}));
+    // a bare project shared hub — no per-runtime symlink dirs point into it
+    writeSkillDir(join(proj, '.agents', 'skills'), 'teamskill');
+
+    const inv = scan(home, { walk: false, dir: proj, env: {} });
+    const folder = inv.folders.find((f) => f.path === proj)!;
+    const s = folder.projectScoped.skills.find((x) => x.name === 'teamskill')!;
+    expect(s).toBeDefined();
+    expect(s.scope).toBe('project-scoped');
+    expect(s.provider.kind).toBe('project-local');
+    // read directly by every detected universal skill-runtime → reach unions them
+    expect(s.usedBy).toContain('codex');
+    expect(s.usedBy).toContain('gemini-cli');
+    // opencode isn't installed, so it must NOT be credited
+    expect(s.usedBy).not.toContain('opencode');
+  });
 });
 
 describe('scan() skill visibility (per-folder effective)', () => {
