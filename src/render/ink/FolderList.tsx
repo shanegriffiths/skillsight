@@ -29,7 +29,7 @@ export function FolderList({
   const PAD = ' ';
   const contentW = Math.max(10, width - 4 - 2 * PAD.length);
   return (
-    <Box flexDirection="column" width={width} borderStyle="round" borderColor={theme.border} paddingX={1}>
+    <Box flexDirection="column" width={width} flexShrink={0} borderStyle="round" borderColor={theme.border} paddingX={1}>
       <Text wrap="truncate-end" dimColor bold>
         {PAD}PROJECT FOLDERS
       </Text>
