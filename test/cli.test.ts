@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { decideMode, parseArgs, resolveScan } from '../src/cliArgs.js';
 
-const flags = (o: Partial<{ json: boolean; watch: boolean; report: boolean }> = {}) => ({
+const flags = (o: Partial<{ json: boolean; watch: boolean; report: boolean; show: boolean }> = {}) => ({
   json: false,
   watch: false,
   report: false,
+  show: false,
   ...o,
 });
 
@@ -33,6 +34,11 @@ describe('decideMode — dashboard is the default', () => {
 
   it('watch wins over --report when both are given', () => {
     expect(decideMode(flags({ watch: true, report: true }), false)).toBe('dashboard');
+  });
+
+  it('show wins mode selection, even with --json', () => {
+    expect(decideMode(flags({ json: true, show: true }), true)).toBe('show');
+    expect(decideMode(flags({ show: true }), false)).toBe('show');
   });
 });
 
@@ -81,6 +87,18 @@ describe('parseArgs hardening', () => {
     expect(parseArgs(['--demo']).demo).toBe(true);
     expect(parseArgs([]).demo).toBe(false);
     expect(parseArgs(['--demo']).issues).toEqual([]);
+  });
+
+  it('parses show with a ref', () => {
+    const a = parseArgs(['show', 'obsidian-cli']);
+    expect(a.show).toBe(true);
+    expect(a.showRef).toBe('obsidian-cli');
+    expect(a.errors).toEqual([]);
+  });
+
+  it('show without a ref is a fatal error', () => {
+    const a = parseArgs(['show']);
+    expect(a.errors).toContain('show requires a <ref> (item name or id prefix)');
   });
 });
 

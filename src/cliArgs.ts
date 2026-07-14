@@ -11,6 +11,8 @@ export interface Args {
   watch: boolean;
   json: boolean;
   report: boolean;
+  show: boolean;
+  showRef?: string;
   full: boolean;
   provenance: boolean;
   global: boolean;
@@ -28,20 +30,21 @@ export interface Args {
   errors: string[];
 }
 
-export type Mode = 'json' | 'dashboard' | 'report';
+export type Mode = 'json' | 'dashboard' | 'report' | 'show';
 
 const KINDS: Kind[] = ['skill', 'plugin', 'mcp'];
 const KIND_SET = new Set<string>(KINDS);
 
 /**
- * Choose the output mode. `--json` always wins; an explicit `watch`/`--report`
- * forces that mode; otherwise the dashboard is the default on a TTY and the
- * plain report is used when output is non-interactive.
+ * Choose the output mode. `show` wins first; then `--json` wins; then an explicit
+ * `watch`/`--report` forces that mode; otherwise the dashboard is the default on
+ * a TTY and the plain report is used when output is non-interactive.
  */
 export function decideMode(
-  args: { json: boolean; watch: boolean; report: boolean },
+  args: { json: boolean; watch: boolean; report: boolean; show: boolean },
   isTTY: boolean,
 ): Mode {
+  if (args.show) return 'show';
   if (args.json) return 'json';
   if (args.watch) return 'dashboard';
   if (args.report) return 'report';
@@ -54,7 +57,7 @@ function isFlag(s: string | undefined): boolean {
 
 export function parseArgs(argv: string[]): Args {
   const a: Args = {
-    watch: false, json: false, report: false, full: false, provenance: false,
+    watch: false, json: false, report: false, show: false, full: false, provenance: false,
     global: false, noWalk: false, demo: false, help: false, runtimes: [], kinds: [],
     issues: [], errors: [],
   };
@@ -62,6 +65,11 @@ export function parseArgs(argv: string[]): Args {
     const arg = argv[i]!;
     switch (arg) {
       case 'watch': a.watch = true; break;
+      case 'show':
+        a.show = true;
+        if (i + 1 < argv.length && !isFlag(argv[i + 1])) a.showRef = argv[++i];
+        else a.errors.push('show requires a <ref> (item name or id prefix)');
+        break;
       case '--json': a.json = true; break;
       case '--report': a.report = true; break;
       case '--full': a.full = true; break;
