@@ -66,6 +66,12 @@ export interface Provider {
   path: string;
 }
 
+/** A physical duplicate of a skill's content that dedup merged away. */
+export interface SkillCopy {
+  path: string;
+  providerKind: Provider['kind'];
+}
+
 export interface SkillRecord {
   name: string;
   description?: string;
@@ -88,6 +94,11 @@ export interface SkillRecord {
   /** Claude Code per-skill usage (from `~/.claude.json` `skillUsage`) — CC only. */
   usageCount?: number;
   lastUsedAt?: number;
+  /**
+   * Merged-away duplicate physical paths (dedup bookkeeping; never includes
+   * `provider.path`). Internal: stripped from bulk JSON, surfaced via `show`.
+   */
+  copies?: SkillCopy[];
   scope: Scope;
 }
 

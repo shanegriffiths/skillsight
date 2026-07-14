@@ -147,3 +147,50 @@ describe('bucketTotal', () => {
     expect(bucketTotal(emptyBucket())).toBe(0);
   });
 });
+
+// helper local to the new describe block
+const skillAt = (path: string, contentId: string, kind: string = 'project-local'): SkillRecord => ({
+  name: 'dupe', contentId,
+  provider: { kind: kind as any, path },
+  usedBy: [], enabled: true, scope: 'project-scoped',
+});
+
+describe('mergeSkill copies retention', () => {
+  it('keeps the merged-away path as a copy', () => {
+    const merged = mergeBuckets(
+      { ...emptyBucket(), skills: [skillAt('/a/x', 'c1')] },
+      { ...emptyBucket(), skills: [skillAt('/b/x', 'c1')] },
+    );
+    expect(merged.skills).toHaveLength(1);
+    expect(merged.skills[0]!.copies).toEqual([{ path: '/b/x', providerKind: 'project-local' }]);
+  });
+
+  it('does not record the survivor path or duplicates as copies', () => {
+    const merged = mergeBuckets(
+      { ...emptyBucket(), skills: [skillAt('/a/x', 'c1')] },
+      { ...emptyBucket(), skills: [skillAt('/a/x', 'c1')] },
+    );
+    expect(merged.skills[0]!.copies).toBeUndefined();
+  });
+
+  it('accumulates copies across repeated merges', () => {
+    const first = mergeBuckets(
+      { ...emptyBucket(), skills: [skillAt('/a/x', 'c1')] },
+      { ...emptyBucket(), skills: [skillAt('/b/x', 'c1')] },
+    );
+    const merged = mergeBuckets(first, { ...emptyBucket(), skills: [skillAt('/c/x', 'c1')] });
+    expect(merged.skills[0]!.copies).toEqual([
+      { path: '/b/x', providerKind: 'project-local' },
+      { path: '/c/x', providerKind: 'project-local' },
+    ]);
+  });
+
+  it('a higher-ranked newcomer keeps the demoted record as a copy', () => {
+    const merged = mergeBuckets(
+      { ...emptyBucket(), skills: [skillAt('/proj/x', 'c1', 'project-local')] },
+      { ...emptyBucket(), skills: [skillAt('/hub/x', 'c1', 'shared-store')] },
+    );
+    expect(merged.skills[0]!.provider.path).toBe('/hub/x');
+    expect(merged.skills[0]!.copies).toEqual([{ path: '/proj/x', providerKind: 'project-local' }]);
+  });
+});

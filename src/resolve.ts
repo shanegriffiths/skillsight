@@ -9,7 +9,7 @@
  * skill uniformly. Dedup key is the canonical `contentId` (`skillFolderHash` ‖
  * realpath).
  */
-import type { Bucket, McpRecord, PluginRecord, Provider, Runtime, SkillRecord } from './types.js';
+import type { Bucket, McpRecord, PluginRecord, Provider, Runtime, SkillRecord, SkillCopy } from './types.js';
 import { emptyBucket } from './types.js';
 import { type HomeCtx } from './runtimes.js';
 import { lookupUsedBy, type SiteIndex } from './symlinks.js';
@@ -104,11 +104,22 @@ function mergeSkill(into: Map<string, SkillRecord>, s: SkillRecord): void {
   }
   const keepNew = PROVIDER_RANK[s.provider.kind] > PROVIDER_RANK[existing.provider.kind];
   const base = keepNew ? { ...s } : existing;
+  const loser = keepNew ? existing : s;
   base.usedBy = [...new Set([...existing.usedBy, ...s.usedBy])].sort();
   base.bundledInPlugin ??= keepNew ? existing.bundledInPlugin : s.bundledInPlugin;
   base.description ??= keepNew ? existing.description : s.description;
   base.usageCount ??= keepNew ? existing.usageCount : s.usageCount;
   base.lastUsedAt ??= keepNew ? existing.lastUsedAt : s.lastUsedAt;
+  // Retain the merged-away physical path (agent-handoff topology; see show.ts).
+  const copies = new Map<string, SkillCopy>();
+  for (const c of [
+    ...(existing.copies ?? []),
+    ...(s.copies ?? []),
+    { path: loser.provider.path, providerKind: loser.provider.kind },
+  ]) {
+    if (c.path !== base.provider.path) copies.set(c.path, c);
+  }
+  base.copies = copies.size ? [...copies.values()] : undefined;
   into.set(s.contentId, base);
 }
 
