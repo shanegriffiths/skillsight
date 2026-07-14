@@ -10,7 +10,7 @@ import type { FolderReport, Inventory, Runtime, Warning } from './types.js';
 import { emptyBucket } from './types.js';
 import type { HomeCtx } from './runtimes.js';
 import { collectSharedStore } from './sharedstore.js';
-import { buildReverseSymlinkIndex } from './symlinks.js';
+import { buildReverseSymlinkIndex, type SiteIndex } from './symlinks.js';
 import { readSkillUsage } from './skillusage.js';
 import { claudeCodeAdapter } from './adapters/claude-code.js';
 import { codexAdapter } from './adapters/codex.js';
@@ -57,15 +57,22 @@ export interface ScanOptions {
   env?: Record<string, string | undefined>;
 }
 
-export function scan(homeRoot: string = homedir(), opts: ScanOptions = {}): Inventory {
+export interface ScanResult {
+  inventory: Inventory;
+  /** realpath -> runtime -> symlink path; powers `show`'s `sites` output. */
+  sites: SiteIndex;
+}
+
+export function scanFull(homeRoot: string = homedir(), opts: ScanOptions = {}): ScanResult {
   const ctx: HomeCtx = { homeRoot, env: opts.env ?? process.env };
   const warnings: Warning[] = [];
 
   const shared = collectSharedStore(ctx);
   warnings.push(...shared.warnings);
+  const sites = buildReverseSymlinkIndex(ctx);
   const enr: EnrichContext = {
     sharedByRealpath: new Map(shared.skills.map((s) => [s.realPath, s])),
-    reverseIndex: buildReverseSymlinkIndex(ctx),
+    reverseIndex: sites,
     usageByKey: readSkillUsage(ctx),
   };
 
@@ -97,13 +104,20 @@ export function scan(homeRoot: string = homedir(), opts: ScanOptions = {}): Inve
   });
 
   return {
-    generatedAt: new Date().toISOString(),
-    homeRoot,
-    runtimesDetected: detected,
-    warnings,
-    global,
-    folders,
+    inventory: {
+      generatedAt: new Date().toISOString(),
+      homeRoot,
+      runtimesDetected: detected,
+      warnings,
+      global,
+      folders,
+    },
+    sites,
   };
+}
+
+export function scan(homeRoot: string = homedir(), opts: ScanOptions = {}): Inventory {
+  return scanFull(homeRoot, opts).inventory;
 }
 
 export * from './types.js';

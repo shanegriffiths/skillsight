@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { join } from 'node:path';
 import { makeTempHome, cleanup, writeFileEnsured, writeSkillDir, symlinkInto } from './helpers.js';
-import { scan } from '../src/index.js';
+import { scan, scanFull } from '../src/index.js';
+import { lookupSites, realpathSafe } from '../src/symlinks.js';
 
 let home = '';
 afterEach(() => {
@@ -136,6 +137,18 @@ describe('scan() engine integration', () => {
     const s = inv.global.skills.find((x) => x.name === 'idle');
     expect(s).toBeDefined();
     expect(s!.usedBy).toEqual([]);
+  });
+
+  it('scanFull exposes the symlink site index beside the inventory', () => {
+    home = makeTempHome();
+    const real = writeSkillDir(join(home, '.agents', 'skills'), 'sited');
+    symlinkInto(join(home, '.claude', 'skills', 'sited'), real);
+    const { inventory, sites } = scanFull(home, { walk: false });
+    expect(inventory.runtimesDetected).toContain('claude-code');
+    expect(lookupSites(sites, realpathSafe(real))).toContainEqual({
+      runtime: 'claude-code',
+      linkPath: join(home, '.claude', 'skills', 'sited'),
+    });
   });
 
   it('surfaces a bare project .agents/skills hub skill and unions reach across detected universal runtimes', () => {
