@@ -12,6 +12,7 @@ import type { Bucket, Inventory, Kind, McpRecord, PluginRecord, Provider, SkillR
 import { scanFull, type ScanOptions } from './index.js';
 import { lookupSites, type SiteIndex, type SymlinkSite } from './symlinks.js';
 import { gitLink, type GitLink } from './git.js';
+import { renderShowPanel } from './render/show.js';
 
 const VERSION = (createRequire(import.meta.url)('../package.json') as { version: string }).version;
 
@@ -286,11 +287,6 @@ export function runShow(homeRoot: string, opts: ScanOptions, ref: string, io: Sh
   }
 
   const rec = assembleShow(inventory, sites, res.hit);
-  if (io.json || !io.isTTY) {
-    io.out(JSON.stringify(rec, null, 2));
-  } else {
-    // TODO(task-6): render human panel on TTY via renderShowPanel(rec) from src/render/show.ts
-    io.out(JSON.stringify(rec, null, 2));
-  }
+  io.out((io.json || !io.isTTY ? JSON.stringify(rec, null, 2) : renderShowPanel(rec)) + '\n');
   return 0;
 }
