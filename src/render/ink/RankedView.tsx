@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { ItemTable, TABLE_CHROME, type TableVariant } from './ItemTable.js';
@@ -18,8 +18,23 @@ import { SCREEN_RESERVE } from './layout.js';
 import { theme } from './theme.js';
 import { agentCommand } from './detail.js';
 import { useYank } from './useYank.js';
+import { gitLink } from '../../git.js';
 
 const STATS_BAND_LINES = 5;
+
+/**
+ * gitLink is a synchronous fs walk; a path's worktree status is stable for the
+ * process lifetime (same trade-off as the mount-time watch set), so cache it.
+ */
+const wtCache = new Map<string, boolean>();
+function isWorktreePath(p: string): boolean {
+  let v = wtCache.get(p);
+  if (v === undefined) {
+    v = Boolean(gitLink(p)?.isWorktree);
+    wtCache.set(p, v);
+  }
+  return v;
+}
 
 function StatsBand({ stats }: { stats: SummaryStats }) {
   const providers = stats.perProvider.map((p) => `${p.kind} ${p.skills}`).join(' · ') || 'none';
@@ -56,11 +71,14 @@ function Locations({
   homeRoot,
   sel,
   navigable,
+  wtMarks,
 }: {
   row: ItemRow | undefined;
   homeRoot: string;
   sel: number;
   navigable: boolean;
+  /** Paths that are git worktree checkouts, for the dim `(worktree)` suffix. */
+  wtMarks: Map<string, boolean>;
 }) {
   if (!row) return null;
   const locs = row.locations ?? [];
@@ -90,13 +108,16 @@ function Locations({
       <Box flexDirection="column" borderStyle="round" borderColor={theme.border} paddingX={1}>
         {locs.map((p, i) => {
           const label = ` ${p.replace(homeRoot, '~')}`;
+          const suffix = wtMarks.get(p) ? <Text dimColor> (worktree)</Text> : null;
           return i === sel ? (
             <Text key={p} wrap="truncate-end" inverse bold>
               {label}
+              {suffix}
             </Text>
           ) : (
             <Text key={p} wrap="truncate-end" dimColor>
               {label}
+              {suffix}
             </Text>
           );
         })}
@@ -158,6 +179,7 @@ export function RankedView({
   const isHeader = selRow?.expandState !== undefined;
   const locs = selRow?.locations ?? [];
   const projNavigable = detail && !isHeader && !selRow?.everywhere && locs.length > 0 && !!onOpenProject;
+  const wtMarks = useMemo(() => new Map(locs.map((p) => [p, isWorktreePath(p)])), [locs]);
 
   // Reset the project cursor whenever the detail target changes / closes.
   useEffect(() => {
@@ -218,7 +240,13 @@ export function RankedView({
         <Box borderStyle="round" borderColor={theme.border} paddingX={1}>
           <DetailView row={selRow} />
         </Box>
-        <Locations row={selRow} homeRoot={inv.homeRoot} sel={Math.min(projSel, Math.max(0, locs.length - 1))} navigable={!!projNavigable} />
+        <Locations
+          row={selRow}
+          homeRoot={inv.homeRoot}
+          sel={Math.min(projSel, Math.max(0, locs.length - 1))}
+          navigable={!!projNavigable}
+          wtMarks={wtMarks}
+        />
       </Box>
     );
   }

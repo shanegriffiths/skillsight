@@ -85,6 +85,7 @@ skillsight                     live dashboard (default on a terminal)
 skillsight --report            one-shot plain report
 skillsight --json              machine-readable output
 skillsight watch               alias for the dashboard
+skillsight show <ref>          full record for one item (name or id prefix)
 
   --report                     plain grouped report instead of the dashboard
   --full                       (report) full effective set per folder
@@ -119,6 +120,59 @@ skillsight --demo                         # a built-in fictional dataset (nothin
 SKILLSIGHT_ICONS=off skillsight           # plain text, no Nerd Font glyphs (if you see tofu boxes)
 SKILLSIGHT_HOME=/path/to/home skillsight  # scan a different home (same as --home)
 ```
+
+## Agent handoff
+
+Every detail pane carries a dim `agent` line: the exact command to re-fetch that record, plus `y` to yank it (and `Y` for the full JSON) straight to your clipboard over OSC 52 — works over SSH and inside tmux too. The workflow this is built for: browse the dashboard, screenshot whatever's interesting, drop it in a chat with your agent, and it runs the command itself.
+
+```sh
+skillsight show <ref>          # plain panel on a TTY, JSON on a pipe
+skillsight show <ref> --json   # force JSON
+```
+
+`<ref>` is a name or an id prefix (4+ chars) — use the prefix when a name is ambiguous, e.g. `skillsight show obsidian-cli` might match more than one thing across runtimes, `skillsight show 86ffa49bc5d7` won't. Exit codes carry the result so an agent doesn't have to parse stderr to know what happened:
+
+- **0** — found, record printed
+- **1** — no match (stderr suggests near-miss names)
+- **2** — ambiguous (stderr lists every candidate with a distinguishing id prefix)
+
+The JSON record is the part worth building against. `copies[]` is the interesting bit: every physical location of a skill across the whole scan, deduped, each one carrying its own git context — so worktree checkouts of the same repo fold back into one main checkout instead of reporting as unrelated projects:
+
+```jsonc
+{
+  "schemaVersion": 1,
+  "scanTime": "2026-07-14T09:12:03.000Z",
+  "skillsightVersion": "0.1.0",
+  "homeRoot": "/Users/you",
+  "kind": "skill",
+  "item": { "name": "obsidian-cli", "contentId": "86ffa49bc5d7...", "scope": "global", "usedBy": ["claude-code"] /* … */ },
+  "copies": [
+    {
+      "path": "/Users/you/Developer/Projects/notes-app/.claude/skills/obsidian-cli",
+      "folders": ["global"],
+      "providerKind": "shared-store",
+      "git": { "repoRoot": "/Users/you/Developer/Projects/notes-app", "isWorktree": false }
+    },
+    {
+      "path": "/Users/you/Developer/Projects/notes-app-wt1/.claude/skills/obsidian-cli",
+      "folders": ["/Users/you/Developer/Projects/notes-app-wt1"],
+      "providerKind": "shared-store",
+      "git": {
+        "repoRoot": "/Users/you/Developer/Projects/notes-app-wt1",
+        "isWorktree": true,
+        "mainCheckout": "/Users/you/Developer/Projects/notes-app"
+      }
+    }
+    // … one entry per physical copy, across every project …
+  ],
+  "sites": [{ "runtime": "claude-code", "linkPath": "/Users/you/.claude/skills/obsidian-cli" }],
+  "collisions": []
+}
+```
+
+`sites[]` is where the shared-store symlink actually lands per runtime. `collisions[]` lists same-name-but-different-content items, so an agent doesn't silently grab the wrong one.
+
+`schemaVersion: 1` is the part of this I'm committing to keep stable — build against it. `copies` is exclusive to `show`: it's internal dedup bookkeeping, stripped out of the bulk `skillsight --json` contract, which has never exposed it.
 
 ## Supported runtimes
 
