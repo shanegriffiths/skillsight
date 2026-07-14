@@ -12,7 +12,7 @@
 import type { Bucket, McpRecord, PluginRecord, Provider, Runtime, SkillRecord } from './types.js';
 import { emptyBucket } from './types.js';
 import { type HomeCtx } from './runtimes.js';
-import { lookupUsedBy } from './symlinks.js';
+import { lookupUsedBy, type SiteIndex } from './symlinks.js';
 import { hashSkillFolder } from './fsread.js';
 import type { SharedSkill } from './sharedstore.js';
 import { usageKey, type SkillUsage } from './skillusage.js';
@@ -28,7 +28,7 @@ const PROVIDER_RANK: Record<Provider['kind'], number> = {
 
 export interface EnrichContext {
   sharedByRealpath: Map<string, SharedSkill>;
-  reverseIndex: Map<string, Set<Runtime>>;
+  reverseIndex: SiteIndex;
   usageByKey: Map<string, SkillUsage>;
 }
 
