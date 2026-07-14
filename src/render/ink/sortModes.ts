@@ -23,6 +23,15 @@ export const byVisibility: RowCmp = then((a, b) => (a.visibility ? VIS[a.visibil
 export const byReach: RowCmp = then((a, b) => (b.used ?? -1) - (a.used ?? -1));
 export const byLocations: RowCmp = then((a, b) => (b.locations?.length ?? -1) - (a.locations?.length ?? -1));
 
+// SOURCE tiers: real repo/marketplace sources lead, dim fallback kinds trail,
+// empty cells last. A `src:` group header renders an empty SOURCE cell but its
+// name IS the source label, so it sorts alongside its repo's leaves.
+const sourceKey = (r: ItemRow): string | null => r.source ?? (r.groupId?.startsWith('src:') ? r.name : null);
+const sourceTier = (r: ItemRow): number => (sourceKey(r) === null ? 2 : r.sourceDim ? 1 : 0);
+export const bySource: RowCmp = then(
+  (a, b) => sourceTier(a) - sourceTier(b) || (sourceKey(a) ?? '').localeCompare(sourceKey(b) ?? ''),
+);
+
 /** A selectable sort: its `label` names the column; `apply` reorders grouped rows. */
 export interface SortMode {
   label: string;
@@ -37,11 +46,11 @@ const native = (label: string): SortMode => ({ label, apply: (rows) => rows });
 // `s` cycles these in order, wrapping to the native mode. Labels match the tab's
 // columns; each tab lists only the modes its data supports.
 export const LEADERBOARD_SORTS: SortMode[] = [
-  native('uses'), mode('reach', byReach), mode('locations', byLocations), mode('name', byName), mode('enabled', byEnabled), mode('visibility', byVisibility), mode('scope', byScope), mode('kind', byKind),
+  native('uses'), mode('reach', byReach), mode('locations', byLocations), mode('name', byName), mode('source', bySource), mode('enabled', byEnabled), mode('visibility', byVisibility), mode('scope', byScope), mode('kind', byKind),
 ];
 export const PROJECT_SORTS: SortMode[] = [
   native('locations'), mode('name', byName), mode('enabled', byEnabled), mode('scope', byScope), mode('kind', byKind),
 ];
 export const USERSCOPE_SORTS: SortMode[] = [
-  native('grouped'), mode('name', byName), mode('enabled', byEnabled), mode('visibility', byVisibility), mode('scope', byScope), mode('kind', byKind),
+  native('grouped'), mode('name', byName), mode('source', bySource), mode('enabled', byEnabled), mode('visibility', byVisibility), mode('scope', byScope), mode('kind', byKind),
 ];

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  byEnabled, byKind, byScope, byVisibility, byReach, byLocations,
+  byEnabled, byKind, byScope, byVisibility, byReach, byLocations, bySource,
   LEADERBOARD_SORTS, PROJECT_SORTS, USERSCOPE_SORTS,
 } from '../src/render/ink/sortModes.js';
 import type { ItemRow } from '../src/render/ink/rows.js';
@@ -32,6 +32,28 @@ describe('sort comparators (tie-break on name)', () => {
     const rows = [row({ name: 'a', locations: ['x'] }), row({ name: 'b', locations: ['x', 'y', 'z'] }), row({ name: 'c', locations: [] })];
     expect([...rows].sort(byLocations).map((r) => r.name)).toEqual(['b', 'a', 'c']);
   });
+  it('bySource orders real repos < dim fallbacks < empty, alphabetical within tiers', () => {
+    const rows = [
+      row({ name: 'a', source: 'stdio', sourceDim: true }),
+      row({ name: 'b', source: 'zeta/repo' }),
+      row({ name: 'c', source: null }),
+      row({ name: 'd', source: 'builtin', sourceDim: true }),
+      row({ name: 'e', source: 'anthropics/skills' }),
+    ];
+    expect([...rows].sort(bySource).map((r) => r.source ?? '—')).toEqual(['anthropics/skills', 'zeta/repo', 'builtin', 'stdio', '—']);
+  });
+  it('bySource ties break on name', () => {
+    const rows = [row({ name: 'z', source: 'same/repo' }), row({ name: 'a', source: 'same/repo' })];
+    expect([...rows].sort(bySource).map((r) => r.name)).toEqual(['a', 'z']);
+  });
+  it('bySource keys a src: group header by its name, plugin headers stay empty-last', () => {
+    const rows = [
+      row({ name: 'zeta/repo', source: null, groupId: 'src:zeta/repo', expandState: 'collapsed' }),
+      row({ name: 'my-plugin', source: null, groupId: 'plugin:my-plugin@mp', expandState: 'collapsed' }),
+      row({ name: 'a', source: 'obra/superpowers' }),
+    ];
+    expect([...rows].sort(bySource).map((r) => r.name)).toEqual(['a', 'zeta/repo', 'my-plugin']);
+  });
   it('ties break on name', () => {
     const rows = [row({ name: 'z', status: 'enabled' }), row({ name: 'a', status: 'enabled' })];
     expect([...rows].sort(byEnabled).map((r) => r.name)).toEqual(['a', 'z']);
@@ -40,9 +62,9 @@ describe('sort comparators (tie-break on name)', () => {
 
 describe('per-tab sort lists', () => {
   it('label the modes to match their columns, native first', () => {
-    expect(LEADERBOARD_SORTS.map((m) => m.label)).toEqual(['uses', 'reach', 'locations', 'name', 'enabled', 'visibility', 'scope', 'kind']);
+    expect(LEADERBOARD_SORTS.map((m) => m.label)).toEqual(['uses', 'reach', 'locations', 'name', 'source', 'enabled', 'visibility', 'scope', 'kind']);
     expect(PROJECT_SORTS.map((m) => m.label)).toEqual(['locations', 'name', 'enabled', 'scope', 'kind']);
-    expect(USERSCOPE_SORTS.map((m) => m.label)).toEqual(['grouped', 'name', 'enabled', 'visibility', 'scope', 'kind']);
+    expect(USERSCOPE_SORTS.map((m) => m.label)).toEqual(['grouped', 'name', 'source', 'enabled', 'visibility', 'scope', 'kind']);
   });
   it('native mode is identity; a keyed mode reorders', () => {
     const rows = [row({ name: 'b' }), row({ name: 'a' })];
