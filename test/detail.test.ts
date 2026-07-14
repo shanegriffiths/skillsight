@@ -145,6 +145,19 @@ describe('detailFields — plugin', () => {
   });
 });
 
+describe('detailFields — agent handshake', () => {
+  it('appends the agent handshake line per kind', () => {
+    const skill = detailFields(skillRow({}));
+    expect(skill.at(-1)).toEqual({ label: 'agent', value: 'skillsight show abcdef123456 --json', dim: true });
+
+    const plugin = detailFields(pluginRow({}));
+    expect(plugin.at(-1)!.value).toBe('skillsight show gsap-skills --json');
+
+    const mcp = detailFields(mcpRow({ kind: 'stdio', command: 'npx' }));
+    expect(mcp.at(-1)!.value).toBe('skillsight show linear --json');
+  });
+});
+
 describe('detailFields — mcp', () => {
   it('renders env/header KEY NAMES only — never values (privacy)', () => {
     const f = detailFields(mcpRow({ kind: 'http', url: 'https://mcp.example/sse', headerKeys: ['AUTHORIZATION', 'X_API_KEY'] }));

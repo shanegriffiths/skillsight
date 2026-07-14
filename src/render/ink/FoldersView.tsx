@@ -16,6 +16,9 @@ import { FILTER_BAR_HEIGHT } from './FilterBar.js';
 import { SCREEN_RESERVE } from './layout.js';
 import { icons } from './icons.js';
 import { theme } from './theme.js';
+import type { ItemRow } from './rows.js';
+import { agentCommand } from './detail.js';
+import { useYank } from './useYank.js';
 
 // Fixed vertical chrome around the right column's content: header box + filter
 // bar + the path line (key hints moved up into the header).
@@ -40,6 +43,7 @@ export function FoldersView({
   onConsumePending,
   onControls,
   onSort,
+  yankJson,
 }: {
   inv: Inventory;
   inputActive?: boolean;
@@ -50,6 +54,8 @@ export function FoldersView({
   onControls?: (text: string) => void;
   /** Report the folder-column sort label up to the app-level filter box. */
   onSort?: (label: string) => void;
+  /** Builds the full agent-handoff JSON for `Y` yank, from the raw inventory. */
+  yankJson?: (row: ItemRow) => string | undefined;
 }) {
   const [nav, setNav] = useState(initialNav);
   const [sort, setSort] = useState<SortMode>('items');
@@ -116,6 +122,13 @@ export function FoldersView({
   const pWin = scrollWindow(rows.length, Math.max(1, pVisible), itemIdx);
   const gWin = scrollWindow(globalRows.length, Math.max(1, gVisible), gItemIdx);
 
+  const detailList = nav.detailFrom === 'globals' ? globalRows : rows;
+  const detailRow =
+    nav.focus === 'detail' && nav.detailItem !== null
+      ? detailList[clampIndex(nav.detailItem, detailList.length)]
+      : undefined;
+  const yank = useYank();
+
   useInput((input, key) => {
     if (nav.focus === 'folders' && input === 's') {
       setSort((m) => (m === 'items' ? 'name' : 'items'));
@@ -125,6 +138,19 @@ export function FoldersView({
       setShowHidden((v) => !v);
       return;
     }
+    // `y`/`Y` yank the agent handoff (detail focus only, and never on a group header).
+    if (nav.focus === 'detail' && detailRow?.record) {
+      if (input === 'y') {
+        const cmd = agentCommand(detailRow);
+        if (cmd) yank.copy(cmd, 'agent cmd');
+        return;
+      }
+      if (input === 'Y') {
+        const json = yankJson?.(detailRow);
+        if (json) yank.copy(json, 'json record');
+        return;
+      }
+    }
     const action = toAction(input, key);
     if (!action) return;
     // `folderRows`/`rows`/`globalRows` are render-time snapshots; the nav indices
@@ -132,12 +158,6 @@ export function FoldersView({
     // from rapid input self-corrects (never crashes).
     setNav((s) => folderNav(s, action, { folderRows, rows, globalRows }));
   }, { isActive: inputActive });
-
-  const detailList = nav.detailFrom === 'globals' ? globalRows : rows;
-  const detailRow =
-    nav.focus === 'detail' && nav.detailItem !== null
-      ? detailList[clampIndex(nav.detailItem, detailList.length)]
-      : undefined;
 
   const globalsFooter =
     nav.globalItem < 0
@@ -150,7 +170,7 @@ export function FoldersView({
         ? '↑/↓ move · → expand/open · ← back · Enter open · ↓ globals · Esc folders · q quit'
         : nav.focus === 'globals'
           ? globalsFooter
-          : 'Esc/← back · 1/2/3/4 or Tab switch · q quit';
+          : (yank.toast ? `✓ ${yank.toast} · ` : '') + 'y agent cmd · Y json · Esc/← back · 1/2/3/4 or Tab switch · q quit';
   useEffect(() => {
     onControls?.(footer);
   }, [footer, onControls]);

@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Box, useApp, useInput } from 'ink';
 import chokidar from 'chokidar';
 import type { Inventory, Runtime, Kind } from '../../types.js';
-import { scan, type ScanOptions } from '../../index.js';
+import { scanFull, type ScanOptions } from '../../index.js';
 import { filterInventory, type FilterOptions } from '../../filter.js';
+import { assembleShow, type ShowHit } from '../../show.js';
+import type { SiteIndex } from '../../symlinks.js';
 import { computeWatchPaths } from './watchpaths.js';
 import { clampIndex } from './scroll.js';
 import { chips as buildChips, toggleChip } from './filterChips.js';
@@ -15,19 +17,23 @@ import { GlobalView } from './GlobalView.js';
 import { RankedView } from './RankedView.js';
 import { leaderboard, installed } from './stats.js';
 import { LEADERBOARD_SORTS, PROJECT_SORTS } from './sortModes.js';
+import type { ItemRow } from './rows.js';
 
 export function App({
   homeRoot,
   opts,
   filter,
   initial,
+  initialSites,
 }: {
   homeRoot: string;
   opts: ScanOptions;
   filter: FilterOptions;
   initial: Inventory;
+  initialSites: SiteIndex;
 }) {
   const [raw, setRaw] = useState<Inventory>(initial);
+  const [sites, setSites] = useState<SiteIndex>(initialSites);
   const [status, setStatus] = useState<'idle' | 'rescanning'>('idle');
   const [tab, setTab] = useState<TabId>('folders');
   const [runtimes, setRuntimes] = useState<Set<Runtime>>(() => new Set(filter.runtimes ?? []));
@@ -47,6 +53,14 @@ export function App({
   const openProject = (path: string) => {
     setPendingFolder(path);
     setTab('folders');
+  };
+
+  // Built from the RAW (unfiltered) inventory so a filtered-out row still yanks
+  // its full agent-handoff record.
+  const yankJson = (row: ItemRow): string | undefined => {
+    if (!row.record) return undefined;
+    const hit = { kind: row.kind, record: row.record } as ShowHit;
+    return JSON.stringify(assembleShow(raw, sites, hit), null, 2);
   };
 
   const inv = useMemo(
@@ -114,7 +128,9 @@ export function App({
       setStatus('rescanning');
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
-        setRaw(scan(homeRoot, opts));
+        const r = scanFull(homeRoot, opts);
+        setRaw(r.inventory);
+        setSites(r.sites);
         setStatus('idle');
       }, 150);
     };
@@ -130,11 +146,11 @@ export function App({
       <HeaderBox inv={inv} status={status} tab={tab} controls={controls} />
       <FilterBar chips={chipList} runtimes={runtimes} kinds={kinds} cursor={safeCursor} filtering={filtering} sortLabel={sortLabel} />
       {tab === 'folders' ? (
-        <FoldersView inv={inv} inputActive={!filtering} pendingFolder={pendingFolder} onConsumePending={() => setPendingFolder(null)} onControls={setControls} onSort={setSortLabel} />
+        <FoldersView inv={inv} inputActive={!filtering} pendingFolder={pendingFolder} onConsumePending={() => setPendingFolder(null)} onControls={setControls} onSort={setSortLabel} yankJson={yankJson} />
       ) : null}
-      {tab === 'installed' ? <RankedView inv={inv} rows={installed(inv)} inputActive={!filtering} sortModes={PROJECT_SORTS} variant="footprint" onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} /> : null}
-      {tab === 'global' ? <GlobalView inv={inv} inputActive={!filtering} onControls={setControls} onSort={setSortLabel} /> : null}
-      {tab === 'leaderboard' ? <RankedView inv={inv} rows={leaderboard(inv)} showStats inputActive={!filtering} sortModes={LEADERBOARD_SORTS} variant="leaderboard" onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} /> : null}
+      {tab === 'installed' ? <RankedView inv={inv} rows={installed(inv)} inputActive={!filtering} sortModes={PROJECT_SORTS} variant="footprint" onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} yankJson={yankJson} /> : null}
+      {tab === 'global' ? <GlobalView inv={inv} inputActive={!filtering} onControls={setControls} onSort={setSortLabel} yankJson={yankJson} /> : null}
+      {tab === 'leaderboard' ? <RankedView inv={inv} rows={leaderboard(inv)} showStats inputActive={!filtering} sortModes={LEADERBOARD_SORTS} variant="leaderboard" onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} yankJson={yankJson} /> : null}
     </Box>
   );
 }

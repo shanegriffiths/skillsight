@@ -8,7 +8,7 @@
 import { render } from 'ink';
 import chokidar from 'chokidar';
 import type { Inventory } from '../../types.js';
-import { scan, type ScanOptions } from '../../index.js';
+import { scan, scanFull, type ScanOptions } from '../../index.js';
 import { filterInventory, type FilterOptions } from '../../filter.js';
 import { renderPlain } from '../plain.js';
 import { computeWatchPaths } from './watchpaths.js';
@@ -19,13 +19,13 @@ export async function runWatch(
   opts: ScanOptions,
   filter: FilterOptions,
 ): Promise<void> {
-  const initial = scan(homeRoot, opts);
+  const initial = scanFull(homeRoot, opts);
 
   if (!process.stdout.isTTY) {
     const print = (inv: Inventory) =>
       process.stdout.write('\n' + renderPlain(filterInventory(inv, filter), {}) + '\n');
-    print(initial);
-    const watcher = chokidar.watch(computeWatchPaths(homeRoot, initial, opts.env ?? process.env), {
+    print(initial.inventory);
+    const watcher = chokidar.watch(computeWatchPaths(homeRoot, initial.inventory, opts.env ?? process.env), {
       ignoreInitial: true,
     });
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -37,6 +37,8 @@ export async function runWatch(
     return;
   }
 
-  const { waitUntilExit } = render(<App homeRoot={homeRoot} opts={opts} filter={filter} initial={initial} />);
+  const { waitUntilExit } = render(
+    <App homeRoot={homeRoot} opts={opts} filter={filter} initial={initial.inventory} initialSites={initial.sites} />,
+  );
   await waitUntilExit();
 }

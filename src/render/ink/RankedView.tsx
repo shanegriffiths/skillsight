@@ -16,6 +16,8 @@ import { HEADER_BOX_HEIGHT } from './HeaderBox.js';
 import { FILTER_BAR_HEIGHT } from './FilterBar.js';
 import { SCREEN_RESERVE } from './layout.js';
 import { theme } from './theme.js';
+import { agentCommand } from './detail.js';
+import { useYank } from './useYank.js';
 
 const STATS_BAND_LINES = 5;
 
@@ -119,6 +121,7 @@ export function RankedView({
   onOpenProject,
   onControls,
   onSort,
+  yankJson,
 }: {
   inv: Inventory;
   rows: ItemRow[];
@@ -134,6 +137,8 @@ export function RankedView({
   onControls?: (text: string) => void;
   /** Report the active sort label up to the app-level filter box. */
   onSort?: (label: string) => void;
+  /** Builds the full agent-handoff JSON for `Y` yank, from the raw inventory. */
+  yankJson?: (row: ItemRow) => string | undefined;
 }) {
   const size = useWindowSize();
   const chrome = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1 + (showStats ? STATS_BAND_LINES : 0);
@@ -143,6 +148,7 @@ export function RankedView({
   const grouped = sort.apply(groupBySource(rows, expanded));
   const { detail, selected, start, end, onInput } = useListDetail(grouped.length, height, sort.index);
   const [projSel, setProjSel] = useState(0);
+  const yank = useYank();
 
   useEffect(() => {
     onSort?.(sort.label);
@@ -159,7 +165,7 @@ export function RankedView({
   }, [detail, selected]);
 
   const footer = detail
-    ? 'Esc/← back · 1/2/3/4 or Tab switch · q quit'
+    ? (yank.toast ? `✓ ${yank.toast} · ` : '') + 'y agent cmd · Y json · Esc/← back · 1/2/3/4 or Tab switch · q quit'
     : '↑/↓ move · → expand source · Enter detail · 1/2/3/4 or Tab · q quit';
   useEffect(() => {
     onControls?.(footer);
@@ -169,6 +175,19 @@ export function RankedView({
     (input, key) => {
       // `s` toggles this tab's sort (list mode only); it resets the cursor + detail.
       if (!detail && sort.handleKey(input)) return;
+      // `y`/`Y` yank the agent handoff (detail mode only, and never on a group header).
+      if (detail && selRow && !isHeader) {
+        if (input === 'y') {
+          const cmd = agentCommand(selRow);
+          if (cmd) yank.copy(cmd, 'agent cmd');
+          return;
+        }
+        if (input === 'Y') {
+          const json = yankJson?.(selRow);
+          if (json) yank.copy(json, 'json record');
+          return;
+        }
+      }
       // A source-group header expands/collapses in place (like Folders/User Scope).
       if (!detail && isHeader && (key.return || key.rightArrow || key.leftArrow)) {
         const id = groupKey(selRow!);

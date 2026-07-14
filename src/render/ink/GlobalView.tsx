@@ -3,6 +3,7 @@ import { Box, Text, useInput, useWindowSize } from 'ink';
 import type { Inventory } from '../../types.js';
 import { emptyBucket } from '../../types.js';
 import { groupKey } from './rows.js';
+import type { ItemRow } from './rows.js';
 import { groupedRows } from './grouping.js';
 import { ItemTable, TABLE_CHROME } from './ItemTable.js';
 import { DetailView } from './DetailView.js';
@@ -14,12 +15,27 @@ import { HEADER_BOX_HEIGHT } from './HeaderBox.js';
 import { FILTER_BAR_HEIGHT } from './FilterBar.js';
 import { SCREEN_RESERVE } from './layout.js';
 import { theme } from './theme.js';
+import { agentCommand } from './detail.js';
+import { useYank } from './useYank.js';
 
 // Header box + bottom filter bar + table chrome + position line (key hints are
 // in the header now, not a bottom footer).
 const CHROME = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1;
 
-export function GlobalView({ inv, inputActive = true, onControls, onSort }: { inv: Inventory; inputActive?: boolean; onControls?: (text: string) => void; onSort?: (label: string) => void }) {
+export function GlobalView({
+  inv,
+  inputActive = true,
+  onControls,
+  onSort,
+  yankJson,
+}: {
+  inv: Inventory;
+  inputActive?: boolean;
+  onControls?: (text: string) => void;
+  onSort?: (label: string) => void;
+  /** Builds the full agent-handoff JSON for `Y` yank, from the raw inventory. */
+  yankJson?: (row: ItemRow) => string | undefined;
+}) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const sort = useItemSort(USERSCOPE_SORTS);
   const base = useMemo(() => groupedRows(inv.global, emptyBucket(), expanded), [inv.global, expanded]);
@@ -27,9 +43,10 @@ export function GlobalView({ inv, inputActive = true, onControls, onSort }: { in
   const size = useWindowSize();
   const height = Math.max(3, size.rows - CHROME - SCREEN_RESERVE);
   const { detail, selected, start, end, onInput } = useListDetail(rows.length, height, sort.index);
+  const yank = useYank();
 
   const footer = detail
-    ? 'Esc/← back · 1/2/3/4 or Tab switch · q quit'
+    ? (yank.toast ? `✓ ${yank.toast} · ` : '') + 'y agent cmd · Y json · Esc/← back · 1/2/3/4 or Tab switch · q quit'
     : '↑/↓ move · Enter expand/detail · 1/2/3/4 or Tab switch · q quit';
   useEffect(() => {
     onControls?.(footer);
@@ -41,9 +58,22 @@ export function GlobalView({ inv, inputActive = true, onControls, onSort }: { in
   useInput((input, key) => {
     // `s` toggles sort (list mode only); it resets the cursor + detail.
     if (!detail && sort.handleKey(input)) return;
+    const row = rows[selected];
+    // `y`/`Y` yank the agent handoff (detail mode only, and never on a group header).
+    if (detail && row?.record) {
+      if (input === 'y') {
+        const cmd = agentCommand(row);
+        if (cmd) yank.copy(cmd, 'agent cmd');
+        return;
+      }
+      if (input === 'Y') {
+        const json = yankJson?.(row);
+        if (json) yank.copy(json, 'json record');
+        return;
+      }
+    }
     // Plugin-group headers expand/collapse in place; everything else follows
     // the shared list/detail mapping.
-    const row = rows[selected];
     if (!detail && row?.expandState !== undefined && (key.return || key.rightArrow || key.leftArrow)) {
       const id = groupKey(row);
       setExpanded((prev) => {

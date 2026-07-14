@@ -16,6 +16,20 @@ function shortId(id: string): string {
   return id.length > 12 ? `${id.slice(0, 12)}…` : id;
 }
 
+/** The ref an agent passes to `skillsight show` for this row's record. */
+export function agentRef(row: ItemRow): string | undefined {
+  if (!row.record) return undefined;
+  if (row.kind === 'skill') return (row.record as SkillRecord).contentId.slice(0, 12);
+  if (row.kind === 'plugin') return (row.record as PluginRecord).id;
+  return row.name;
+}
+
+/** The screenshot-visible handshake: how an agent re-fetches this record. */
+export function agentCommand(row: ItemRow): string | undefined {
+  const ref = agentRef(row);
+  return ref ? `skillsight show ${ref} --json` : undefined;
+}
+
 /** Compact relative time for a `lastUsedAt` epoch-ms against `now`. */
 export function formatLastUsed(ms: number, now: number): string {
   const s = Math.max(0, Math.floor((now - ms) / 1000));
@@ -91,12 +105,17 @@ function mcpFields(m: McpRecord): DetailField[] {
 /** Labelled detail fields for a cursored row. `[]` for synthetic group headers (no record). */
 export function detailFields(row: ItemRow): DetailField[] {
   if (!row.record) return [];
-  switch (row.kind) {
-    case 'skill':
-      return skillFields(row.record as SkillRecord);
-    case 'plugin':
-      return pluginFields(row.record as PluginRecord);
-    case 'mcp':
-      return mcpFields(row.record as McpRecord);
-  }
+  const fields = (() => {
+    switch (row.kind) {
+      case 'skill':
+        return skillFields(row.record as SkillRecord);
+      case 'plugin':
+        return pluginFields(row.record as PluginRecord);
+      case 'mcp':
+        return mcpFields(row.record as McpRecord);
+    }
+  })();
+  const cmd = agentCommand(row);
+  if (cmd) fields.push({ label: 'agent', value: cmd, dim: true });
+  return fields;
 }
