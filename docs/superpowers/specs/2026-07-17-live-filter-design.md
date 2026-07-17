@@ -25,14 +25,24 @@ the Inventory, the chip filter, or scan state.
     query**; the cursor lands on that row in the restored full list.
   - `Esc` closes the box, clears the query, and restores the full list with the
     cursor on the row that was selected.
-  - Cursor mapping on close (both `Enter` and `Esc`): the selected row is
-    located in the restored full list by identity (`groupKey`/`nodeId`). If it
-    is hidden there — a child of a group the user had collapsed — the cursor
-    lands on its group header instead. If the list is empty or nothing was
-    selected (zero matches), the cursor falls back to index 0.
-  - Every other key — including `q`, `f`, `s`, `.`, `y`, `1`–`4`, Tab, `h`/`j`/
-    `k`/`l` — is plain text and goes into the query. App-level and view-level
-    key handlers are suspended while the box is open.
+  - Cursor mapping on `Esc`: the selected row is located in the restored full
+    list by identity (`groupKey`/`nodeId`). If it is hidden there — a child of
+    a group the user had collapsed — the cursor lands on its group header
+    instead. If nothing was selected (zero matches), the cursor falls back to
+    index 0.
+  - Cursor mapping on `Enter`: opening a row must make it visible, so if the
+    target is a child of a user-collapsed group, that group is expanded (the
+    expansion persists into the user's expansion state) and the row opens with
+    the cursor on it. `Enter` on a group-header row closes the box with the
+    cursor on that header — no detail opens. `Enter` on the folder column
+    selects the folder (expanding ancestor tree nodes as needed) and moves
+    focus into its items table when it has rows — the same as pressing `Enter`
+    on a folder row today; on a non-project tree node it just closes with the
+    cursor there.
+  - Every other key — including `q`, `f`, `s`, `.`, `y`, `1`–`4`, `h`/`j`/`k`/
+    `l` — is plain text and goes into the query. Tab and control/meta chords
+    are suspended no-ops (they neither switch tabs nor type). App-level and
+    view-level key handlers are suspended while the box is open.
 - Zero matches: the box stays visible with a dim "no matches" note and an empty
   table; `Enter` does nothing.
 - Backspace on an empty query does nothing; `Esc` is the only way out besides
@@ -56,7 +66,8 @@ the Inventory, the chip filter, or scan state.
   owner/repo, marketplace repo, transport/provider kind). Typing `superpowers`
   narrows to that plugin family.
 - **Folder rows** (`FolderRow`): match against `label` and the `nodeId` path
-  (so a path fragment like `Projects/skill` works).
+  with the home-root prefix stripped (so a path fragment like `Projects/skill`
+  works without every row matching the shared `~/...` prefix).
 
 ## Group behaviour under a live query
 
