@@ -129,7 +129,7 @@ export function FoldersView({
   const listHeight = Math.max(3, rightBudget - TABLE_COST - (paneSearch('folders') ? 1 : 0));
   const tableW = Math.max(40, size.columns - FOLDER_W - 1);
 
-  const globalsShown = !!selFolder && shownGlobalRows.length > 0;
+  const globalsShown = !!selFolder && (shownGlobalRows.length > 0 || paneSearch('globals'));
   const projectHasTable = shownRows.length > 0;
 
   // Divide the right column's vertical budget across the project table, the
