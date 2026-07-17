@@ -83,12 +83,14 @@ export function expandAllFolders(build: (expanded: ReadonlySet<string>) => Folde
 }
 
 const isItemLeaf = (r: ItemRow) => r.expandState === undefined;
-const isFolderLeaf = (r: FolderRow) => r.kind === 'project' && !r.hasChildren;
+const isFolderLeaf = (r: FolderRow) => r.kind === 'project';
 
 export function itemMatchCount(filtered: ItemRow[], full: ItemRow[]): string {
   return `${filtered.filter(isItemLeaf).length}/${full.filter(isItemLeaf).length}`;
 }
 
-export function folderMatchCount(filtered: FolderRow[], full: FolderRow[]): string {
-  return `${filtered.filter(isFolderLeaf).length}/${full.filter((r) => r.kind === 'project').length}`;
+export function folderMatchCount(filtered: FolderRow[], full: FolderRow[], query: string, homeRoot: string): string {
+  // Count DIRECT hits only — ancestors kept as tree context aren't matches.
+  const hits = filtered.filter((r) => isFolderLeaf(r) && matchesFolderRow(r, query, homeRoot)).length;
+  return `${hits}/${full.filter(isFolderLeaf).length}`;
 }

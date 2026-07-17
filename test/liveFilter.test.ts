@@ -149,7 +149,12 @@ describe('match counts', () => {
   it('counts non-header item rows only', () => {
     expect(itemMatchCount(filterItemRows(grouped, 'brainstorm'), grouped)).toBe('1/3');
   });
-  it('counts project folder rows only', () => {
-    expect(folderMatchCount(filterFolderRows(tree, 'feature-x', HOME), tree)).toBe('1/3');
+  it('counts direct project matches, not ancestor context rows', () => {
+    expect(folderMatchCount(filterFolderRows(tree, 'feature-x', HOME), tree, 'feature-x', HOME)).toBe('1/3');
+  });
+  it('counts a directly-matching repo header as a hit', () => {
+    // `skillsight` hits the repo row itself AND the checkout (path contains
+    // `skillsight.worktree/`); the worktrees grouping node is never counted.
+    expect(folderMatchCount(filterFolderRows(tree, 'skillsight', HOME), tree, 'skillsight', HOME)).toBe('2/3');
   });
 });
