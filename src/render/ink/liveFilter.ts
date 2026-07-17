@@ -123,6 +123,6 @@ export function searchAction(input: string, key: SearchKey): SearchAction {
   if (key.downArrow) return { type: 'down' };
   if (key.backspace || key.delete) return { type: 'backspace' };
   if (key.ctrl || key.meta || key.tab) return { type: 'none' };
-  const text = [...input].filter((ch) => ch >= ' ' && ch !== '').join('');
+  const text = [...input].filter((ch) => ch >= ' ' && ch !== '\u007f').join('');
   return text ? { type: 'type', text } : { type: 'none' };
 }

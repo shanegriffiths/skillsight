@@ -196,6 +196,6 @@ describe('searchAction', () => {
   });
   it('strips control characters from pasted text', () => {
     expect(searchAction('abc', k())).toEqual({ type: 'type', text: 'abc' });
-    expect(searchAction('', k())).toEqual({ type: 'none' });
+    expect(searchAction('\u0007', k())).toEqual({ type: 'none' });
   });
 });
