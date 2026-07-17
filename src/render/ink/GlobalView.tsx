@@ -100,8 +100,9 @@ export function GlobalView({
           rows,
           selected,
         );
-        search.clear();
+        // Zero matches: Enter is a no-op and the box stays open (spec).
         if (!r) return;
+        search.clear();
         setExpanded(r.expanded);
         // Headers and record-less synthetic rows just take the cursor; leaves open detail.
         if (target?.expandState === undefined && target?.record) openAt(r.index);
