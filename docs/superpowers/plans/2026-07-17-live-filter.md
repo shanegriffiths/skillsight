@@ -1386,6 +1386,12 @@ and for the two item windows:
   const gWin = scrollWindow(shownGlobalRows.length, Math.max(1, gVisible - (paneSearch('globals') ? 1 : 0)), gItemIdx);
 ```
 
+The globals section must stay visible while its pane is being searched even with zero matches (spec: the box stays visible with "no matches"):
+
+```tsx
+  const globalsShown = !!selFolder && (shownGlobalRows.length > 0 || paneSearch('globals'));
+```
+
 Effects — add:
 
 ```tsx
