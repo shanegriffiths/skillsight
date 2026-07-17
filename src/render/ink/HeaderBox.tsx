@@ -7,8 +7,17 @@ import { formatCounts } from '../format.js';
 import { WORDMARK, WORDMARK_WIDTH } from './wordmark.js';
 import { theme } from './theme.js';
 
-/** Static height estimate (art visible): 6 art + 1 path + 3 tab chips + 1 gap + 1 meta + 2 border. */
-export const HEADER_BOX_HEIGHT = 14;
+/**
+ * Static height estimate (art visible): 6 art + 1 hints + 3 tab chips
+ * + 2 gaps (the chip row has BOTH marginTop and marginBottom) + 1 meta
+ * + 2 border = 15. This MUST equal the box's real rendered height: an
+ * undercount silently eats each view's SCREEN_RESERVE, putting a full-height
+ * list back at Ink's fullscreen `clearTerminal` threshold — heavy flicker on
+ * scroll. On a small terminal the art is dropped and the box is shorter, so
+ * this over-reserves by a few rows there, which is harmless (a slightly shorter
+ * list, never flicker). Pinned by test/headerBoxHeight.test.ts.
+ */
+export const HEADER_BOX_HEIGHT = 15;
 
 /** Below these the ANSI-Shadow wordmark is dropped for a plain title. The width
  *  margin keeps the art off the edges (at ~80 cols it renders but crowds the

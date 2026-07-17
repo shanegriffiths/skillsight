@@ -24,7 +24,16 @@ import { useLiveFilter } from './useLiveFilter.js';
 import { cursorAfterEscape, revealTarget } from './searchCursor.js';
 import { clampIndex } from './scroll.js';
 
-const STATS_BAND_LINES = 5;
+/**
+ * Rows the stats band occupies in the leaderboard's height budget:
+ *   1 marginTop blank + 2 round-border rows + 3 content lines (STATS / by
+ *   runtime / by source) = 6.
+ * This MUST equal the band's real rendered height. An undercount silently eats
+ * SCREEN_RESERVE and puts the full-height leaderboard (the only tab with a band)
+ * back at exactly terminal height — Ink's fullscreen `clearTerminal` threshold —
+ * which reads as heavy flicker on scroll. Pinned by test/statsBandHeight.test.ts.
+ */
+export const STATS_BAND_LINES = 6;
 
 /**
  * gitLink is a synchronous fs walk; a path's worktree status is stable for the
@@ -40,7 +49,7 @@ function isWorktreePath(p: string): boolean {
   return v;
 }
 
-function StatsBand({ stats }: { stats: SummaryStats }) {
+export function StatsBand({ stats }: { stats: SummaryStats }) {
   const providers = stats.perProvider.map((p) => `${p.kind} ${p.skills}`).join(' · ') || 'none';
   return (
     <Band marginTop={1}>
