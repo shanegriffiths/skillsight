@@ -29,5 +29,8 @@ yarn-error.log*
 .idea/
 *.swp
 
-# Claude Code personal (machine-local) settings
-.claude/settings.local.json
+# Internal working docs and machine-local agent config — kept on disk, not published
+.claude/
+docs/
+PUBLISHING.md
+ROADMAP.md

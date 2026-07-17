@@ -18,7 +18,7 @@ export function isInside(p: string, dir: string): boolean {
 // Hub + personal-repo realpaths are stable per scan; resolving them per skill
 // costs two realpath syscalls each — memoize per HomeCtx.
 // NOTE: `~/Developer/Skills` is a personal-repo convention, not a cross-runtime
-// standard; other setups classify as user/project-local (see ROADMAP "Beyond v0.2").
+// standard; other setups classify as user/project-local (configurable path is planned).
 const classifierRootsCache = new WeakMap<HomeCtx, { hub: string; personal: string }>();
 
 function classifierRoots(ctx: HomeCtx): { hub: string; personal: string } {

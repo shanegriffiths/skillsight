@@ -5,7 +5,7 @@
  * versioned ShowRecord: every physical copy (dedup survivors + merged-away
  * paths), symlink sites, pure-fs git worktree grouping, and same-name
  * collisions. Read-only by design: skillsight reports topology; the agent
- * executes mutations. See docs/superpowers/specs/2026-07-14-agent-handoff-show-design.md.
+ * executes mutations.
  */
 import { createRequire } from 'node:module';
 import type { Bucket, Inventory, Kind, McpRecord, PluginRecord, Provider, SkillRecord } from './types.js';

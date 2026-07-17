@@ -254,7 +254,7 @@ Secret-bearing fields are key-names-only (`envKeys`, `headerKeys`).
 
 ## Roadmap
 
-See [`ROADMAP.md`](ROADMAP.md) for the full backlog. Some of what's next:
+Some of what's next:
 
 - A web UI that consumes `skillsight --json` (a React port of the Ink components).
 - First-class non-skill units: Cursor **rules**, Gemini **extensions**, Codex/OpenCode **agents**.
