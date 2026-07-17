@@ -54,6 +54,8 @@ export function FoldersView({
   onControls?: (text: string) => void;
   /** Report the folder-column sort label up to the app-level filter box. */
   onSort?: (label: string) => void;
+  /** Report the `/` box's open state up so App suspends its global keys. Wired in Task 5. */
+  onSearchActive?: (active: boolean) => void;
   /** Builds the full agent-handoff JSON for `Y` yank, from the raw inventory. */
   yankJson?: (row: ItemRow) => string | undefined;
 }) {
