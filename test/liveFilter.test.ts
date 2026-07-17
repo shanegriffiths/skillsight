@@ -8,6 +8,8 @@ import {
   expandAllFolders,
   itemMatchCount,
   folderMatchCount,
+  searchAction,
+  type SearchKey,
 } from '../src/render/ink/liveFilter.js';
 import type { ItemRow } from '../src/render/ink/rows.js';
 import type { FolderRow } from '../src/render/ink/tree.js';
@@ -156,5 +158,44 @@ describe('match counts', () => {
     // `skillsight` hits the repo row itself AND the checkout (path contains
     // `skillsight.worktree/`); the worktrees grouping node is never counted.
     expect(folderMatchCount(filterFolderRows(tree, 'skillsight', HOME), tree, 'skillsight', HOME)).toBe('2/3');
+  });
+});
+
+const k = (over: Partial<SearchKey> = {}): SearchKey => ({
+  escape: false,
+  return: false,
+  upArrow: false,
+  downArrow: false,
+  backspace: false,
+  delete: false,
+  ctrl: false,
+  meta: false,
+  tab: false,
+  ...over,
+});
+
+describe('searchAction', () => {
+  it('maps the control keys', () => {
+    expect(searchAction('', k({ escape: true }))).toEqual({ type: 'escape' });
+    expect(searchAction('', k({ return: true }))).toEqual({ type: 'enter' });
+    expect(searchAction('', k({ upArrow: true }))).toEqual({ type: 'up' });
+    expect(searchAction('', k({ downArrow: true }))).toEqual({ type: 'down' });
+    // Ink reports Backspace as `delete` on some terminals — treat both as backspace.
+    expect(searchAction('', k({ backspace: true }))).toEqual({ type: 'backspace' });
+    expect(searchAction('', k({ delete: true }))).toEqual({ type: 'backspace' });
+  });
+  it('treats reserved app keys as plain text', () => {
+    for (const ch of ['q', 'f', 's', '.', 'y', '1', '4', 'j', 'h', '/']) {
+      expect(searchAction(ch, k())).toEqual({ type: 'type', text: ch });
+    }
+  });
+  it('suspends tab and ctrl/meta chords as no-ops', () => {
+    expect(searchAction('\t', k({ tab: true }))).toEqual({ type: 'none' });
+    expect(searchAction('c', k({ ctrl: true }))).toEqual({ type: 'none' });
+    expect(searchAction('v', k({ meta: true }))).toEqual({ type: 'none' });
+  });
+  it('strips control characters from pasted text', () => {
+    expect(searchAction('abc', k())).toEqual({ type: 'type', text: 'abc' });
+    expect(searchAction('', k())).toEqual({ type: 'none' });
   });
 });

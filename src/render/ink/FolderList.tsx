@@ -1,6 +1,7 @@
 import { Box, Text } from 'ink';
 import type { FolderRow } from './tree.js';
 import { icons } from './icons.js';
+import { SearchLine } from './SearchLine.js';
 import { theme } from './theme.js';
 
 /**
@@ -16,11 +17,14 @@ export function FolderList({
   selected,
   dimmed = false,
   width,
+  search,
 }: {
   rows: FolderRow[];
   selected: number;
   dimmed?: boolean;
   width: number;
+  /** When present, render the live-filter line under the header rule (+1 line of chrome). */
+  search?: { query: string; count: string };
 }) {
   // A one-space gutter carried inside each line on BOTH sides: the leading pad
   // insets the folder icon from the border and lets the selected row's inverse
@@ -37,7 +41,9 @@ export function FolderList({
         {PAD}
         {'─'.repeat(contentW)}
       </Text>
-      {rows.length === 0 ? <Text dimColor>no folders discovered</Text> : null}
+      {search ? <SearchLine query={search.query} count={search.count} /> : null}
+      {search && rows.length === 0 ? <Text dimColor> no matches</Text> : null}
+      {rows.length === 0 && !search ? <Text dimColor>no folders discovered</Text> : null}
       {rows.map((r, i) => {
         const active = i === selected;
         const isWorktrees = r.kind === 'worktrees';

@@ -6,6 +6,7 @@
  * child matches (only the hits shown). Folder trees keep the ancestors of any
  * match so the tree stays navigable. Never touches Inventory or chip filters.
  */
+import type { Key } from 'ink';
 import type { ItemRow } from './rows.js';
 import { groupKey } from './rows.js';
 import type { FolderRow } from './tree.js';
@@ -93,4 +94,35 @@ export function folderMatchCount(filtered: FolderRow[], full: FolderRow[], query
   // Count DIRECT hits only — ancestors kept as tree context aren't matches.
   const hits = filtered.filter((r) => isFolderLeaf(r) && matchesFolderRow(r, query, homeRoot)).length;
   return `${hits}/${full.filter(isFolderLeaf).length}`;
+}
+
+export type SearchKey = Pick<
+  Key,
+  'escape' | 'return' | 'upArrow' | 'downArrow' | 'backspace' | 'delete' | 'ctrl' | 'meta' | 'tab'
+>;
+
+export type SearchAction =
+  | { type: 'type'; text: string }
+  | { type: 'backspace' }
+  | { type: 'escape' }
+  | { type: 'enter' }
+  | { type: 'up' }
+  | { type: 'down' }
+  | { type: 'none' };
+
+/**
+ * Keypress → search-box action. Everything printable is query text (including
+ * `q`/`f`/digits — app keys are suspended while the box is open); Tab and
+ * ctrl/meta chords are deliberate no-ops. Ink reports Backspace as `delete`
+ * on some terminals, so both flags mean backspace.
+ */
+export function searchAction(input: string, key: SearchKey): SearchAction {
+  if (key.escape) return { type: 'escape' };
+  if (key.return) return { type: 'enter' };
+  if (key.upArrow) return { type: 'up' };
+  if (key.downArrow) return { type: 'down' };
+  if (key.backspace || key.delete) return { type: 'backspace' };
+  if (key.ctrl || key.meta || key.tab) return { type: 'none' };
+  const text = [...input].filter((ch) => ch >= ' ' && ch !== '').join('');
+  return text ? { type: 'type', text } : { type: 'none' };
 }
