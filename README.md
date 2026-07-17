@@ -30,7 +30,7 @@ node dist/cli.js
 
 ## What you'll see
 
-The default is a live dashboard: arrow keys or `j`/`k` to move between folders, `q` to quit. It re-renders as your config changes, so you can edit a `.mcp.json` in another window and watch it update.
+The default is a live dashboard: arrow keys or `j`/`k` to move between folders, `/` to filter the focused list as you type (Enter opens the selected match, Esc clears), `q` to quit. It re-renders as your config changes, so you can edit a `.mcp.json` in another window and watch it update.
 
 If you'd rather have plain text (or you're piping the output somewhere), there are one-shot modes:
 
