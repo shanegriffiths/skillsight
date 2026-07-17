@@ -1,6 +1,6 @@
 {
   "name": "skillsight",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Read-only cross-runtime inventory of AI-agent skills, plugins, and MCP servers, grouped by folder, with provenance and which runtimes use each.",
   "type": "module",
   "license": "MIT",
