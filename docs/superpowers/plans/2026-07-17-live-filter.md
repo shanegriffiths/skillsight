@@ -36,7 +36,7 @@
   - `allItemGroupIds(rows: ItemRow[]): Set<string>`
   - `expandAllFolders(build: (expanded: ReadonlySet<string>) => FolderRow[]): FolderRow[]`
   - `itemMatchCount(filtered: ItemRow[], full: ItemRow[]): string` (e.g. `"7/43"`, counting non-header rows)
-  - `folderMatchCount(filtered: FolderRow[], full: FolderRow[]): string` (counting `kind === 'project'` rows)
+  - `folderMatchCount(filtered: FolderRow[], full: FolderRow[], query: string, homeRoot: string): string` — numerator counts `kind === 'project'` rows in `filtered` that DIRECTLY match the query (ancestor rows kept only as context don't count); denominator counts `kind === 'project'` rows in `full`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -194,8 +194,13 @@ describe('match counts', () => {
   it('counts non-header item rows only', () => {
     expect(itemMatchCount(filterItemRows(grouped, 'brainstorm'), grouped)).toBe('1/3');
   });
-  it('counts project folder rows only', () => {
-    expect(folderMatchCount(filterFolderRows(tree, 'feature-x', HOME), tree)).toBe('1/3');
+  it('counts direct project matches, not ancestor context rows', () => {
+    expect(folderMatchCount(filterFolderRows(tree, 'feature-x', HOME), tree, 'feature-x', HOME)).toBe('1/3');
+  });
+  it('counts a directly-matching repo header as a hit', () => {
+    // `skillsight` hits the repo row itself AND the checkout (path contains
+    // `skillsight.worktree/`); the worktrees grouping node is never counted.
+    expect(folderMatchCount(filterFolderRows(tree, 'skillsight', HOME), tree, 'skillsight', HOME)).toBe('2/3');
   });
 });
 ```
@@ -301,8 +306,10 @@ export function itemMatchCount(filtered: ItemRow[], full: ItemRow[]): string {
   return `${filtered.filter(isItemLeaf).length}/${full.filter(isItemLeaf).length}`;
 }
 
-export function folderMatchCount(filtered: FolderRow[], full: FolderRow[]): string {
-  return `${filtered.filter(isFolderLeaf).length}/${full.filter(isFolderLeaf).length}`;
+export function folderMatchCount(filtered: FolderRow[], full: FolderRow[], query: string, homeRoot: string): string {
+  // Count DIRECT hits only — ancestors kept as tree context aren't matches.
+  const hits = filtered.filter((r) => isFolderLeaf(r) && matchesFolderRow(r, query, homeRoot)).length;
+  return `${hits}/${full.filter(isFolderLeaf).length}`;
 }
 ```
 
@@ -1499,7 +1506,7 @@ JSX — pass the search line to the pane that owns it:
           selected={folderIdx - fWin.start}
           dimmed={nav.focus !== 'folders'}
           width={FOLDER_W}
-          search={paneSearch('folders') ? { query: search.query, count: folderMatchCount(shownFolderRows, fullFolderRows) } : undefined}
+          search={paneSearch('folders') ? { query: search.query, count: folderMatchCount(shownFolderRows, fullFolderRows, search.query, inv.homeRoot) } : undefined}
         />
 ```
 
