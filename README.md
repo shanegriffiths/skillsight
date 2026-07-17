@@ -1,46 +1,76 @@
-# skillsight
+```
+███████╗██╗  ██╗██╗██╗     ██╗     ███████╗██╗ ██████╗ ██╗  ██╗████████╗
+██╔════╝██║ ██╔╝██║██║     ██║     ██╔════╝██║██╔════╝ ██║  ██║╚══██╔══╝
+███████╗█████╔╝ ██║██║     ██║     ███████╗██║██║  ███╗███████║   ██║
+╚════██║██╔═██╗ ██║██║     ██║     ╚════██║██║██║   ██║██╔══██║   ██║
+███████║██║  ██╗██║███████╗███████╗███████║██║╚██████╔╝██║  ██║   ██║
+╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚══════╝╚═╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝
+```
 
-> A read-only, cross-runtime inventory of your AI-agent skills, plugins, and MCP servers, grouped by folder, with provenance and which runtimes actually use each.
+[![npm version](https://img.shields.io/npm/v/skillsight)](https://www.npmjs.com/package/skillsight)
+[![node >=22](https://img.shields.io/node/v/skillsight)](#requirements)
+[![licence](https://img.shields.io/npm/l/skillsight)](LICENSE)
 
-I run a lot of AI coding agents (Claude Code, Codex, Hermes, a few others), and over time my skills, plugins, and MCP servers ended up scattered everywhere. Some global, some in a shared store, some bundled inside plugins, some pinned to a single project. At some point I genuinely couldn't tell what was switched on where, or where half of it had come from.
+## Every skill, plugin, and MCP server. Every project. Every runtime. One screen.
 
-Most tools only show what one agent declares in the folder you're sitting in. They stay quiet about the big inherited layer above it, and about where things actually come from. skillsight is my answer to that. It scans your machine and shows, grouped by folder, the skills, plugins, and MCP servers effectively enabled for each. It resolves the `global → project-scoped → local` inheritance and labels every item with where it came from and which runtimes use it.
+skillsight is a live terminal dashboard that shows you everything your AI coding agents can actually use, across your whole machine. Which skills. Which plugins. Which MCP servers. Where each one came from, and which runtimes are using it.
 
-It only ever reads. It never writes to your config, and it never reads or prints secret values (MCP `env` and `headers` are reduced to key names only). There's a fuller note on that below, because you're about to point it at your real setup.
+If you run more than one agent (Claude Code, Codex, Cursor, Gemini CLI, and friends), your setup is spread across a dozen config files in different formats. Some things are global. Some are pinned to a single project. Some are bundled inside plugins, or symlinked in from a shared store. Sooner or later, nobody can say what's switched on where. skillsight reads the lot and shows you the whole picture.
 
-<!-- Drop a hero screenshot here once there's a clean one, e.g. ![skillsight](docs/skillsight.png) -->
+<!-- VIDEO: hero, 60-second dashboard tour -->
 
 ## Try it
 
-It's not on npm yet, so for now you install it straight from GitHub. You'll need **Node 22+**.
-
 ```sh
-npx github:shanegriffiths/skillsight
+npx skillsight
 ```
 
-That builds it on first run (give it a moment) and opens the live dashboard. Prefer to clone it and poke around?
+That's it. You'll need **Node 22+**. Want it around permanently?
 
 ```sh
-git clone https://github.com/shanegriffiths/skillsight.git
-cd skillsight
-npm install
-npm run build
-node dist/cli.js
+npm install -g skillsight
 ```
 
-## What you'll see
-
-The default is a live dashboard: arrow keys or `j`/`k` to move between folders, `/` to filter the focused list as you type (Enter opens the selected match, Esc clears), `q` to quit. It re-renders as your config changes, so you can edit a `.mcp.json` in another window and watch it update.
-
-If you'd rather have plain text (or you're piping the output somewhere), there are one-shot modes:
+Not ready to point it at your real setup? There's a demo mode that renders a built-in fictional machine (nothing real is read):
 
 ```sh
-npx github:shanegriffiths/skillsight --report               # grouped text report
-npx github:shanegriffiths/skillsight --report --provenance  # + origin repo and "used by"
-npx github:shanegriffiths/skillsight --json                 # machine-readable
+npx skillsight --demo
 ```
 
-A trimmed report reads roughly like this: the global layer once, then each folder showing only what it adds on top.
+And because you *are* about to point it at your real config, the short version of the trust story: skillsight **only ever reads**. No writes, no network, no telemetry, and secret values are never read into memory (MCP `env` and `headers` are reduced to key names). The full detail is in [Privacy and security](#privacy-and-security) below.
+
+## What you get
+
+The dashboard opens on a flat list of your projects, each showing what it adds on top of the global layer. Four tabs, switched with `1`–`4` or `tab`:
+
+- **Folders**: every project on your machine, with what each adds beyond global
+- **Project Scope**: everything installed at project level, across all projects
+- **User Scope (Global)**: the inherited layer everything else sits on
+- **Leaderboard**: skills ranked by reach (how many runtimes actually use each one)
+
+Arrow keys or `j`/`k` to move. `/` filters the focused list as you type (Enter opens the selected match, Esc clears). Open any item for a detail pane with its full provenance: origin repo, install path, scope, and which runtimes point at it. Git worktrees fold in under their main repo instead of showing up as unrelated projects. `q` quits.
+
+It's live, too. The dashboard re-renders as your config changes, so you can edit a `.mcp.json` in another window and watch the change land.
+
+<!-- VIDEO: tabs + live filter walkthrough -->
+
+## The bit that makes it useful
+
+Most tools only show what one agent declares in the folder you're sitting in. They stay quiet about the big inherited layer above it, and about where things actually come from.
+
+skillsight resolves the full `global → project-scoped → local` inheritance for every folder, then labels every item with its origin (shared store, plugin bundle, project-local file) and its reach (which runtimes use it). So instead of "here's a config file", you get answers: is this skill on here? Where did it come from? And is anything else even using it?
+
+## Plain text and JSON
+
+Piping the output somewhere, or just prefer text? There are one-shot modes:
+
+```sh
+skillsight --report               # grouped text report
+skillsight --report --provenance  # + origin repo and "used by"
+skillsight --json                 # machine-readable
+```
+
+A trimmed report reads like this: the global layer once, then each folder showing only what it adds on top.
 
 ```
 GLOBAL
@@ -55,18 +85,14 @@ Developer/Projects
     + web-design-guidelines [project-local]
 ```
 
-The dashboard goes further: git worktrees fold in under their repo, and you can filter by runtime or kind, sort, and open any item to see its provenance.
-
-Want to see it populated without pointing it at your own machine? `skillsight --demo` renders a built-in fictional setup. Handy for a first look, or for screenshots.
-
 ## Requirements
 
-- **macOS.** Built and tested here. Linux should work too (same POSIX path and symlink model) but I haven't tested it. Windows isn't supported.
-- **Node.js ≥ 22.** The live dashboard runs on [Ink](https://github.com/vadimdemedes/ink) 7, which needs Node 22+. The `--report` and `--json` modes are lighter, but 22 is still the floor.
-- **A [Nerd Font](https://www.nerdfonts.com/)** for the dashboard's folder and branch icons. Without one they show as tofu boxes (`□`). You've got three options:
+- **macOS.** Built and tested here. Linux should work too (same POSIX path and symlink model) but is untested. Windows isn't supported yet.
+- **Node.js ≥ 22.** The dashboard runs on [Ink](https://github.com/vadimdemedes/ink) 7, which needs Node 22+.
+- **A [Nerd Font](https://www.nerdfonts.com/)** for the folder and branch icons. Without one they show as tofu boxes (`□`). Three options:
   - set your terminal font to any patched *Nerd Font* build (e.g. `JetBrainsMono Nerd Font`), or
-  - keep your current font and add **Symbols Nerd Font Mono** to your terminal's font-fallback list (it supplies just the icon glyphs, no font change, and is the least intrusive option), or
-  - turn glyphs off with `SKILLSIGHT_ICONS=off` (plain text, no icons).
+  - keep your current font and add **Symbols Nerd Font Mono** to your terminal's font-fallback list (icon glyphs only, no font change, the least intrusive option), or
+  - turn glyphs off with `SKILLSIGHT_ICONS=off`.
 
 ## Privacy and security
 
@@ -123,20 +149,22 @@ SKILLSIGHT_HOME=/path/to/home skillsight  # scan a different home (same as --hom
 
 ## Agent handoff
 
-Every detail pane carries a dim `agent` line: the exact command to re-fetch that record, plus `y` to yank it (and `Y` for the full JSON) straight to your clipboard over OSC 52 — works over SSH and inside tmux too. The workflow this is built for: browse the dashboard, screenshot whatever's interesting, drop it in a chat with your agent, and it runs the command itself.
+Every detail pane carries a dim `agent` line: the exact command to re-fetch that record, plus `y` to yank it (and `Y` for the full JSON) straight to your clipboard over OSC 52. Works over SSH and inside tmux too. The workflow this is built for: browse the dashboard, screenshot whatever's interesting, drop it in a chat with your agent, and it runs the command itself.
 
 ```sh
 skillsight show <ref>          # plain panel on a TTY, JSON on a pipe
 skillsight show <ref> --json   # force JSON
 ```
 
-`<ref>` is a name or an id prefix (4+ chars) — use the prefix when a name is ambiguous, e.g. `skillsight show obsidian-cli` might match more than one thing across runtimes, `skillsight show 86ffa49bc5d7` won't. Exit codes carry the result so an agent doesn't have to parse stderr to know what happened:
+`<ref>` is a name or an id prefix (4+ chars). Use the prefix when a name is ambiguous, e.g. `skillsight show obsidian-cli` might match more than one thing across runtimes, `skillsight show 86ffa49bc5d7` won't. Exit codes carry the result so an agent doesn't have to parse stderr to know what happened:
 
-- **0** — found, record printed
-- **1** — no match (stderr suggests near-miss names)
-- **2** — ambiguous (stderr lists every candidate with a distinguishing id prefix)
+- **0**: found, record printed
+- **1**: no match (stderr suggests near-miss names)
+- **2**: ambiguous (stderr lists every candidate with a distinguishing id prefix)
 
-The JSON record is the part worth building against. `copies[]` is the interesting bit: every physical location of a skill across the whole scan, deduped, each one carrying its own git context — so worktree checkouts of the same repo fold back into one main checkout instead of reporting as unrelated projects:
+<!-- VIDEO: dashboard → screenshot → agent runs `skillsight show` -->
+
+The JSON record is the part worth building against. `copies[]` is the interesting bit: every physical location of a skill across the whole scan, deduped, each one carrying its own git context, so worktree checkouts of the same repo fold back into one main checkout instead of reporting as unrelated projects:
 
 ```jsonc
 {
@@ -172,17 +200,17 @@ The JSON record is the part worth building against. `copies[]` is the interestin
 
 `sites[]` is where the shared-store symlink actually lands per runtime. `collisions[]` lists same-name-but-different-content items, so an agent doesn't silently grab the wrong one.
 
-`schemaVersion: 1` is the part of this I'm committing to keep stable — build against it. `copies` is exclusive to `show`: it's internal dedup bookkeeping, stripped out of the bulk `skillsight --json` contract, which has never exposed it.
+`schemaVersion: 1` is the part of this committed to stay stable. Build against it. `copies` is exclusive to `show`: it's internal dedup bookkeeping, stripped out of the bulk `skillsight --json` contract, which has never exposed it.
 
 ## Supported runtimes
 
-| Runtime | Coverage |
-| --- | --- |
-| Claude Code | full: plugins (`enabledPlugins` + `defaultEnabled`), skills, MCP (3 scopes) |
-| Codex | full: `config.toml` MCP/plugins, `~/.codex/skills` + `.system` builtins |
-| Hermes (Kit) | full: `~/.hermes/skills/<domain>/<skill>` |
-| Gemini CLI · Cursor · OpenCode | best-effort: MCP servers + native skills (Cursor: MCP only) |
-| ~70 others | detected for **used-by** attribution via the shared-hub reverse-symlink scan |
+| Runtime                        | Coverage                                                                     |
+| ------------------------------ | ---------------------------------------------------------------------------- |
+| Claude Code                    | full: plugins (`enabledPlugins` + `defaultEnabled`), skills, MCP (3 scopes)  |
+| Codex                          | full: `config.toml` MCP/plugins, `~/.codex/skills` + `.system` builtins      |
+| Hermes                         | full: `~/.hermes/skills/<domain>/<skill>`                                    |
+| Gemini CLI · Cursor · OpenCode | best-effort: MCP servers + native skills (Cursor: MCP only)                  |
+| ~70 others                     | detected for **used-by** attribution via the shared-hub reverse-symlink scan |
 
 The runtime registry mirrors [`vercel-labs/skills`](https://github.com/vercel-labs/skills).
 
@@ -228,14 +256,17 @@ Secret-bearing fields are key-names-only (`envKeys`, `headerKeys`).
 
 See [`ROADMAP.md`](ROADMAP.md) for the full backlog. Some of what's next:
 
-- **v0.2, the dashboard as a real interface:** tabbed nav (Folders / Global / Leaderboard), flat project list, plugin grouping, per-item scope/visibility/status columns, live filter and sort.
 - A web UI that consumes `skillsight --json` (a React port of the Ink components).
 - First-class non-skill units: Cursor **rules**, Gemini **extensions**, Codex/OpenCode **agents**.
 - Windows path and symlink handling.
 
+## Why I built this
+
+I run a lot of AI coding agents, and over time my skills, plugins, and MCP servers ended up scattered everywhere. Some global, some in a shared store, some bundled inside plugins, some pinned to a single project. At some point I genuinely couldn't tell what was switched on where, or where half of it had come from. skillsight is my answer to that (and honestly, the first scan of my own machine was a little humbling).
+
 ## Feedback
 
-This is early. It's v0.1, macOS-first, and until now I've mostly run it against my own machine. If you're kind enough to try it, I'd love to know what broke, what confused you, or what it got wrong about your setup. Open an issue, or just message me. Honest reactions are the most useful thing right now, even the blunt ones.
+This is early: v0.1, macOS-first, and until recently mostly run against my own machine. If you're kind enough to try it, I'd love to know what broke, what confused you, or what it got wrong about your setup. Open an issue, or just message me. Honest reactions are the most useful thing right now, even the blunt ones.
 
 ## Contributing
 
