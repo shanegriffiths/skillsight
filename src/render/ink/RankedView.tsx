@@ -19,7 +19,7 @@ import { theme } from './theme.js';
 import { agentCommand } from './detail.js';
 import { useYank } from './useYank.js';
 import { gitLink } from '../../git.js';
-import { filterItemRows, allItemGroupIds, itemMatchCount, searchAction } from './liveFilter.js';
+import { filterItemRows, allItemGroupIds, itemMatchCount, matchesItemRow, searchAction } from './liveFilter.js';
 import { useLiveFilter } from './useLiveFilter.js';
 import { cursorAfterEscape, revealTarget } from './searchCursor.js';
 import { clampIndex } from './scroll.js';
@@ -191,7 +191,10 @@ export function RankedView({
     return () => onSearchActive?.(false);
   }, [search.open, onSearchActive]);
   useEffect(() => {
-    if (search.open) select(0);
+    if (!search.open) return;
+    // Snap to the first directly-matching row (skip context-only headers).
+    const i = grouped.findIndex((r) => matchesItemRow(r, search.query));
+    select(i >= 0 ? i : 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.query]);
 

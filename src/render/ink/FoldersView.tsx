@@ -22,6 +22,8 @@ import { useYank } from './useYank.js';
 import {
   filterItemRows,
   filterFolderRows,
+  matchesItemRow,
+  matchesFolderRow,
   allItemGroupIds,
   expandAllFolders,
   itemMatchCount,
@@ -300,9 +302,18 @@ export function FoldersView({
   }, [search.open, onSearchActive]);
   useEffect(() => {
     if (!search.open) return;
-    if (searchPane === 'folders') setNav((s) => ({ ...s, folder: 0 }));
-    else if (searchPane === 'items') setNav((s) => ({ ...s, item: 0 }));
-    else setNav((s) => ({ ...s, globalItem: 0 }));
+    // Snap to the first DIRECTLY-matching row, not an ancestor/header kept for
+    // context — otherwise Enter would open the wrong folder (spec: "first match").
+    if (searchPane === 'folders') {
+      const i = shownFolderRows.findIndex((r) => r.kind === 'project' && matchesFolderRow(r, search.query, inv.homeRoot));
+      setNav((s) => ({ ...s, folder: i >= 0 ? i : 0 }));
+    } else if (searchPane === 'items') {
+      const i = shownRows.findIndex((r) => matchesItemRow(r, search.query));
+      setNav((s) => ({ ...s, item: i >= 0 ? i : 0 }));
+    } else {
+      const i = shownGlobalRows.findIndex((r) => matchesItemRow(r, search.query));
+      setNav((s) => ({ ...s, globalItem: i >= 0 ? i : 0 }));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.query]);
 
