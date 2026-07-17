@@ -39,5 +39,9 @@ export function useScroll(length: number, height: number, resetKey?: unknown) {
   const moveUp = () => setSelected(() => clampIndex(sel - 1, length));
   const moveDown = () => setSelected(() => clampIndex(sel + 1, length));
   const { start, end } = scrollWindow(length, height, sel);
-  return { selected: sel, start, end, moveUp, moveDown };
+  // Jump the cursor to an absolute index (used when the `/` filter closes).
+  // No clamp here: callers may pass an index valid only after a pending rows
+  // rebuild; the render-time clampIndex above corrects any overshoot.
+  const select = (i: number) => setSelected(Math.max(0, i));
+  return { selected: sel, start, end, moveUp, moveDown, select };
 }

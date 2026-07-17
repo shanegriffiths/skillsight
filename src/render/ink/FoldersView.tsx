@@ -19,6 +19,19 @@ import { theme } from './theme.js';
 import type { ItemRow } from './rows.js';
 import { agentCommand } from './detail.js';
 import { useYank } from './useYank.js';
+import {
+  filterItemRows,
+  filterFolderRows,
+  matchesItemRow,
+  matchesFolderRow,
+  allItemGroupIds,
+  expandAllFolders,
+  itemMatchCount,
+  folderMatchCount,
+  searchAction,
+} from './liveFilter.js';
+import { useLiveFilter } from './useLiveFilter.js';
+import { cursorAfterEscape, revealTarget, folderCursorAfterEscape, revealFolderTarget } from './searchCursor.js';
 
 // Fixed vertical chrome around the right column's content: header box + filter
 // bar + the path line (key hints moved up into the header).
@@ -43,6 +56,7 @@ export function FoldersView({
   onConsumePending,
   onControls,
   onSort,
+  onSearchActive,
   yankJson,
 }: {
   inv: Inventory;
@@ -54,29 +68,43 @@ export function FoldersView({
   onControls?: (text: string) => void;
   /** Report the folder-column sort label up to the app-level filter box. */
   onSort?: (label: string) => void;
+  /** Report the `/` box's open state up so App suspends its global keys. */
+  onSearchActive?: (active: boolean) => void;
   /** Builds the full agent-handoff JSON for `Y` yank, from the raw inventory. */
   yankJson?: (row: ItemRow) => string | undefined;
 }) {
   const [nav, setNav] = useState(initialNav);
   const [sort, setSort] = useState<SortMode>('items');
   const [showHidden, setShowHidden] = useState(false);
+  const search = useLiveFilter();
+  // The pane that owns the open box. Focus can't move while the box is open,
+  // so a single live query suffices; the pane tag routes keys and rendering.
+  const [searchPane, setSearchPane] = useState<'folders' | 'items' | 'globals'>('folders');
+  const searching = search.open && search.query.length > 0;
+  const paneSearch = (pane: 'folders' | 'items' | 'globals') => search.open && searchPane === pane;
 
   const folderRows = useMemo(
     () => buildFolderRows(inv.folders, inv.homeRoot, { sort, showHidden, expanded: nav.folderExpanded }),
     [inv.folders, inv.homeRoot, sort, showHidden, nav.folderExpanded],
   );
 
+  const buildFolders = (exp: ReadonlySet<string>) =>
+    buildFolderRows(inv.folders, inv.homeRoot, { sort, showHidden, expanded: exp });
+  const fullFolderRows = searching && searchPane === 'folders' ? expandAllFolders(buildFolders) : folderRows;
+  const shownFolderRows =
+    searching && searchPane === 'folders' ? filterFolderRows(fullFolderRows, search.query, inv.homeRoot) : folderRows;
+
   // Consume a cross-tab "open this project" request: select the matching folder.
   useEffect(() => {
     if (!pendingFolder) return;
-    const idx = folderRows.findIndex((r) => r.nodeId === pendingFolder && r.folder);
+    const idx = shownFolderRows.findIndex((r) => r.nodeId === pendingFolder && r.folder);
     if (idx >= 0) setNav((s) => ({ ...s, folder: idx, focus: 'folders' }));
     onConsumePending?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingFolder]);
 
-  const folderIdx = clampIndex(nav.folder, folderRows.length);
-  const sel = folderRows[folderIdx];
+  const folderIdx = clampIndex(nav.folder, shownFolderRows.length);
+  const sel = shownFolderRows[folderIdx];
   const selFolder = sel?.folder ?? null;
   const rows = useMemo(
     () => (selFolder ? groupedRows(selFolder.projectScoped, selFolder.local, nav.expanded) : []),
@@ -90,13 +118,21 @@ export function FoldersView({
     [selFolder, inv.global, nav.globalExpanded],
   );
 
+  const buildItems = (exp: Set<string>) =>
+    selFolder ? groupedRows(selFolder.projectScoped, selFolder.local, exp) : [];
+  const buildGlobals = (exp: Set<string>) => (selFolder ? groupedRows(inv.global, emptyBucket(), exp) : []);
+  const itemsAll = searching && searchPane === 'items' ? buildItems(new Set(allItemGroupIds(rows))) : rows;
+  const shownRows = searching && searchPane === 'items' ? filterItemRows(itemsAll, search.query) : rows;
+  const globalsAll = searching && searchPane === 'globals' ? buildGlobals(new Set(allItemGroupIds(globalRows))) : globalRows;
+  const shownGlobalRows = searching && searchPane === 'globals' ? filterItemRows(globalsAll, search.query) : globalRows;
+
   const size = useWindowSize();
   const rightBudget = Math.max(6, size.rows - RIGHT_FIXED - SCREEN_RESERVE);
-  const listHeight = Math.max(3, rightBudget - TABLE_COST);
+  const listHeight = Math.max(3, rightBudget - TABLE_COST - (paneSearch('folders') ? 1 : 0));
   const tableW = Math.max(40, size.columns - FOLDER_W - 1);
 
-  const globalsShown = !!selFolder && globalRows.length > 0;
-  const projectHasTable = rows.length > 0;
+  const globalsShown = !!selFolder && (shownGlobalRows.length > 0 || paneSearch('globals'));
+  const projectHasTable = shownRows.length > 0;
 
   // Divide the right column's vertical budget across the project table, the
   // globals header line, and (when open) the globals table.
@@ -116,13 +152,13 @@ export function FoldersView({
   pVisible = Math.max(pVisible, projectHasTable ? 3 : 0);
   gVisible = Math.max(gVisible, nav.globalsOpen ? 3 : 0);
 
-  const itemIdx = clampIndex(nav.item, rows.length);
-  const gItemIdx = clampIndex(Math.max(0, nav.globalItem), globalRows.length);
-  const fWin = scrollWindow(folderRows.length, listHeight, folderIdx);
-  const pWin = scrollWindow(rows.length, Math.max(1, pVisible), itemIdx);
-  const gWin = scrollWindow(globalRows.length, Math.max(1, gVisible), gItemIdx);
+  const itemIdx = clampIndex(nav.item, shownRows.length);
+  const gItemIdx = clampIndex(Math.max(0, nav.globalItem), shownGlobalRows.length);
+  const fWin = scrollWindow(shownFolderRows.length, listHeight, folderIdx);
+  const pWin = scrollWindow(shownRows.length, Math.max(1, pVisible - (paneSearch('items') ? 1 : 0)), itemIdx);
+  const gWin = scrollWindow(shownGlobalRows.length, Math.max(1, gVisible - (paneSearch('globals') ? 1 : 0)), gItemIdx);
 
-  const detailList = nav.detailFrom === 'globals' ? globalRows : rows;
+  const detailList = nav.detailFrom === 'globals' ? shownGlobalRows : shownRows;
   const detailRow =
     nav.focus === 'detail' && nav.detailItem !== null
       ? detailList[clampIndex(nav.detailItem, detailList.length)]
@@ -130,6 +166,88 @@ export function FoldersView({
   const yank = useYank();
 
   useInput((input, key) => {
+    if (search.open) {
+      const a = searchAction(input, key);
+      if (a.type === 'up' || a.type === 'down') {
+        const d = a.type === 'down' ? 1 : -1;
+        if (searchPane === 'folders') setNav((s) => ({ ...s, folder: clampIndex(s.folder + d, shownFolderRows.length) }));
+        else if (searchPane === 'items') setNav((s) => ({ ...s, item: clampIndex(s.item + d, shownRows.length) }));
+        else setNav((s) => ({ ...s, globalItem: clampIndex(Math.max(0, s.globalItem) + d, shownGlobalRows.length) }));
+        return;
+      }
+      if (a.type === 'escape') {
+        if (searchPane === 'folders') {
+          const idx = folderCursorAfterEscape(folderRows, shownFolderRows, folderIdx);
+          search.clear();
+          setNav((s) => ({ ...s, folder: idx }));
+        } else if (searchPane === 'items') {
+          const idx = cursorAfterEscape(rows, shownRows, itemIdx);
+          search.clear();
+          setNav((s) => ({ ...s, item: idx }));
+        } else {
+          const idx = cursorAfterEscape(globalRows, shownGlobalRows, gItemIdx);
+          search.clear();
+          setNav((s) => ({ ...s, globalItem: idx }));
+        }
+        return;
+      }
+      if (a.type === 'enter') {
+        if (searchPane === 'folders') {
+          const target = shownFolderRows[folderIdx];
+          const r = revealFolderTarget(buildFolders, nav.folderExpanded, shownFolderRows, folderIdx);
+          // Zero matches: Enter is a no-op and the box stays open (spec).
+          if (!r) return;
+          search.clear();
+          // Select the revealed folder; a real project with items also opens
+          // its table (same as a plain Enter on a folder row today).
+          const openItems = !!target?.folder && (target?.count ?? 0) > 0;
+          setNav((s) => ({
+            ...s,
+            folderExpanded: r.expanded,
+            folder: r.index,
+            ...(openItems ? { focus: 'items' as const, item: 0 } : {}),
+          }));
+        } else if (searchPane === 'items') {
+          const target = shownRows[itemIdx];
+          const r = revealTarget(buildItems, nav.expanded, shownRows, itemIdx);
+          // Zero matches: Enter is a no-op and the box stays open (spec).
+          if (!r) return;
+          search.clear();
+          const openDetail = target?.expandState === undefined && !!target?.record;
+          setNav((s) => ({
+            ...s,
+            expanded: r.expanded,
+            item: r.index,
+            ...(openDetail ? { focus: 'detail' as const, detailItem: r.index, detailFrom: 'items' as const } : {}),
+          }));
+        } else {
+          const target = shownGlobalRows[gItemIdx];
+          const r = revealTarget(buildGlobals, nav.globalExpanded, shownGlobalRows, gItemIdx);
+          // Zero matches: Enter is a no-op and the box stays open (spec).
+          if (!r) return;
+          search.clear();
+          const openDetail = target?.expandState === undefined && !!target?.record;
+          setNav((s) => ({
+            ...s,
+            globalExpanded: r.expanded,
+            globalItem: r.index,
+            ...(openDetail ? { focus: 'detail' as const, detailItem: r.index, detailFrom: 'globals' as const } : {}),
+          }));
+        }
+        return;
+      }
+      search.edit(a);
+      return;
+    }
+    if (input === '/' && nav.focus !== 'detail') {
+      const pane = nav.focus === 'folders' ? 'folders' : nav.focus === 'items' ? 'items' : 'globals';
+      setSearchPane(pane);
+      search.start();
+      // Searching the globals section implies looking at its rows: open it and
+      // move off the header so ↑/↓ and Enter act on rows immediately.
+      if (pane === 'globals') setNav((s) => ({ ...s, globalsOpen: true, globalItem: Math.max(0, s.globalItem) }));
+      return;
+    }
     if (nav.focus === 'folders' && input === 's') {
       setSort((m) => (m === 'items' ? 'name' : 'items'));
       return;
@@ -156,18 +274,19 @@ export function FoldersView({
     // `folderRows`/`rows`/`globalRows` are render-time snapshots; the nav indices
     // are re-clamped against fresh rows on the next render — so a stale snapshot
     // from rapid input self-corrects (never crashes).
-    setNav((s) => folderNav(s, action, { folderRows, rows, globalRows }));
+    setNav((s) => folderNav(s, action, { folderRows: shownFolderRows, rows: shownRows, globalRows: shownGlobalRows }));
   }, { isActive: inputActive });
 
   const globalsFooter =
     nav.globalItem < 0
       ? '→/Enter expand · ↓ enter · ↑/Esc back to items · q quit'
       : '↑/↓ move · → expand/open · ← back · Enter open · Esc header · q quit';
-  const footer =
-    nav.focus === 'folders'
-      ? `hidden: ${showHidden ? 'on' : 'off'} · ↑/↓ move · →/Enter open · ← collapse · . hidden · q quit`
+  const footer = search.open
+    ? 'type to filter · ↑/↓ move · Enter open · Esc clear'
+    : nav.focus === 'folders'
+      ? `hidden: ${showHidden ? 'on' : 'off'} · ↑/↓ move · →/Enter open · ← collapse · . hidden · / filter · q quit`
       : nav.focus === 'items'
-        ? '↑/↓ move · → expand/open · ← back · Enter open · ↓ globals · Esc folders · q quit'
+        ? '↑/↓ move · → expand/open · ← back · Enter open · ↓ globals · / filter · Esc folders · q quit'
         : nav.focus === 'globals'
           ? globalsFooter
           : (yank.toast ? `✓ ${yank.toast} · ` : '') + 'y agent cmd · Y json · Esc/← back · 1/2/3/4 or Tab switch · q quit';
@@ -177,6 +296,26 @@ export function FoldersView({
   useEffect(() => {
     onSort?.(sort);
   }, [sort, onSort]);
+  useEffect(() => {
+    onSearchActive?.(search.open);
+    return () => onSearchActive?.(false);
+  }, [search.open, onSearchActive]);
+  useEffect(() => {
+    if (!search.open) return;
+    // Snap to the first DIRECTLY-matching row, not an ancestor/header kept for
+    // context — otherwise Enter would open the wrong folder (spec: "first match").
+    if (searchPane === 'folders') {
+      const i = shownFolderRows.findIndex((r) => r.kind === 'project' && matchesFolderRow(r, search.query, inv.homeRoot));
+      setNav((s) => ({ ...s, folder: i >= 0 ? i : 0 }));
+    } else if (searchPane === 'items') {
+      const i = shownRows.findIndex((r) => matchesItemRow(r, search.query));
+      setNav((s) => ({ ...s, item: i >= 0 ? i : 0 }));
+    } else {
+      const i = shownGlobalRows.findIndex((r) => matchesItemRow(r, search.query));
+      setNav((s) => ({ ...s, globalItem: i >= 0 ? i : 0 }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.query]);
 
   // A selected row with no folder is a grouping node (the worktrees group, or a
   // repo whose main checkout wasn't discovered) — it has no item table.
@@ -194,10 +333,11 @@ export function FoldersView({
     <Box flexDirection="column">
       <Box>
         <FolderList
-          rows={folderRows.slice(fWin.start, fWin.end)}
+          rows={shownFolderRows.slice(fWin.start, fWin.end)}
           selected={folderIdx - fWin.start}
           dimmed={nav.focus !== 'folders'}
           width={FOLDER_W}
+          search={paneSearch('folders') ? { query: search.query, count: folderMatchCount(shownFolderRows, fullFolderRows, search.query, inv.homeRoot) } : undefined}
         />
         <Box flexDirection="column" flexGrow={1} marginLeft={1}>
           {path ? (
@@ -224,7 +364,7 @@ export function FoldersView({
             </Text>
           ) : (
             <>
-              {rows.length === 0 ? (
+              {shownRows.length === 0 && !paneSearch('items') ? (
                 <Text dimColor>
                   {globalsShown
                     ? 'no project-scoped items — inherited globals below'
@@ -233,11 +373,12 @@ export function FoldersView({
               ) : (
                 <>
                   <ItemTable
-                    rows={rows.slice(pWin.start, pWin.end)}
+                    rows={shownRows.slice(pWin.start, pWin.end)}
                     width={tableW}
                     selectedIndex={nav.focus === 'items' ? itemIdx - pWin.start : undefined}
+                    search={paneSearch('items') ? { query: search.query, count: itemMatchCount(shownRows, itemsAll) } : undefined}
                   />
-                  <Position start={pWin.start} end={pWin.end} total={rows.length} height={Math.max(1, pVisible)} />
+                  <Position start={pWin.start} end={pWin.end} total={shownRows.length} height={Math.max(1, pVisible)} />
                 </>
               )}
               {globalsShown ? (
@@ -248,11 +389,12 @@ export function FoldersView({
                   {nav.globalsOpen ? (
                     <>
                       <ItemTable
-                        rows={globalRows.slice(gWin.start, gWin.end)}
+                        rows={shownGlobalRows.slice(gWin.start, gWin.end)}
                         width={tableW}
                         selectedIndex={nav.focus === 'globals' && nav.globalItem >= 0 ? gItemIdx - gWin.start : undefined}
+                        search={paneSearch('globals') ? { query: search.query, count: itemMatchCount(shownGlobalRows, globalsAll) } : undefined}
                       />
-                      <Position start={gWin.start} end={gWin.end} total={globalRows.length} height={Math.max(1, gVisible)} />
+                      <Position start={gWin.start} end={gWin.end} total={shownGlobalRows.length} height={Math.max(1, gVisible)} />
                     </>
                   ) : null}
                 </>

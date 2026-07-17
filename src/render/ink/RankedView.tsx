@@ -19,6 +19,10 @@ import { theme } from './theme.js';
 import { agentCommand } from './detail.js';
 import { useYank } from './useYank.js';
 import { gitLink } from '../../git.js';
+import { filterItemRows, allItemGroupIds, itemMatchCount, matchesItemRow, searchAction } from './liveFilter.js';
+import { useLiveFilter } from './useLiveFilter.js';
+import { cursorAfterEscape, revealTarget } from './searchCursor.js';
+import { clampIndex } from './scroll.js';
 
 const STATS_BAND_LINES = 5;
 
@@ -142,6 +146,7 @@ export function RankedView({
   onOpenProject,
   onControls,
   onSort,
+  onSearchActive,
   yankJson,
 }: {
   inv: Inventory;
@@ -158,22 +163,40 @@ export function RankedView({
   onControls?: (text: string) => void;
   /** Report the active sort label up to the app-level filter box. */
   onSort?: (label: string) => void;
+  /** Report the `/` box's open state up so App suspends its global keys. */
+  onSearchActive?: (active: boolean) => void;
   /** Builds the full agent-handoff JSON for `Y` yank, from the raw inventory. */
   yankJson?: (row: ItemRow) => string | undefined;
 }) {
   const size = useWindowSize();
-  const chrome = HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1 + (showStats ? STATS_BAND_LINES : 0);
+  const search = useLiveFilter();
+  const chrome =
+    HEADER_BOX_HEIGHT + FILTER_BAR_HEIGHT + TABLE_CHROME + 1 + (showStats ? STATS_BAND_LINES : 0) + (search.open ? 1 : 0);
   const height = Math.max(3, size.rows - chrome - SCREEN_RESERVE);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const sort = useItemSort(sortModes);
-  const grouped = sort.apply(groupBySource(rows, expanded));
-  const { detail, selected, start, end, onInput } = useListDetail(grouped.length, height, sort.index);
+  const userGrouped = sort.apply(groupBySource(rows, expanded));
+  const searching = search.open && search.query.length > 0;
+  const expandedAll = searching ? sort.apply(groupBySource(rows, allItemGroupIds(userGrouped))) : userGrouped;
+  const grouped = searching ? filterItemRows(expandedAll, search.query) : userGrouped;
+  const { detail, selected, start, end, onInput, select, openAt } = useListDetail(grouped.length, height, sort.index);
   const [projSel, setProjSel] = useState(0);
   const yank = useYank();
 
   useEffect(() => {
     onSort?.(sort.label);
   }, [sort.label, onSort]);
+  useEffect(() => {
+    onSearchActive?.(search.open);
+    return () => onSearchActive?.(false);
+  }, [search.open, onSearchActive]);
+  useEffect(() => {
+    if (!search.open) return;
+    // Snap to the first directly-matching row (skip context-only headers).
+    const i = grouped.findIndex((r) => matchesItemRow(r, search.query));
+    select(i >= 0 ? i : 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.query]);
 
   const selRow = grouped[selected];
   const isHeader = selRow?.expandState !== undefined;
@@ -186,15 +209,47 @@ export function RankedView({
     setProjSel(0);
   }, [detail, selected]);
 
-  const footer = detail
-    ? (yank.toast ? `✓ ${yank.toast} · ` : '') + 'y agent cmd · Y json · Esc/← back · 1/2/3/4 or Tab switch · q quit'
-    : '↑/↓ move · → expand source · Enter detail · 1/2/3/4 or Tab · q quit';
+  const footer = search.open
+    ? 'type to filter · ↑/↓ move · Enter open · Esc clear'
+    : detail
+      ? (yank.toast ? `✓ ${yank.toast} · ` : '') + 'y agent cmd · Y json · Esc/← back · 1/2/3/4 or Tab switch · q quit'
+      : '↑/↓ move · → expand source · Enter detail · s sort · / filter · 1/2/3/4 or Tab · q quit';
   useEffect(() => {
     onControls?.(footer);
   }, [footer, onControls]);
 
   useInput(
     (input, key) => {
+      if (search.open) {
+        const a = searchAction(input, key);
+        if (a.type === 'up' || a.type === 'down') {
+          onInput(input, key);
+          return;
+        }
+        if (a.type === 'escape') {
+          const idx = cursorAfterEscape(userGrouped, grouped, selected);
+          search.clear();
+          select(idx);
+          return;
+        }
+        if (a.type === 'enter') {
+          const target = grouped[clampIndex(selected, grouped.length)];
+          const r = revealTarget((exp) => sort.apply(groupBySource(rows, exp)), expanded, grouped, selected);
+          // Zero matches: Enter is a no-op and the box stays open (spec).
+          if (!r) return;
+          search.clear();
+          setExpanded(r.expanded);
+          if (target?.expandState === undefined && target?.record) openAt(r.index);
+          else select(r.index);
+          return;
+        }
+        search.edit(a);
+        return;
+      }
+      if (input === '/' && !detail) {
+        search.start();
+        return;
+      }
       // `s` toggles this tab's sort (list mode only); it resets the cursor + detail.
       if (!detail && sort.handleKey(input)) return;
       // `y`/`Y` yank the agent handoff (detail mode only, and never on a group header).
@@ -253,10 +308,16 @@ export function RankedView({
 
   return (
     <Box flexDirection="column">
-      {grouped.length === 0 ? (
+      {grouped.length === 0 && !search.open ? (
         <Text dimColor>nothing to show</Text>
       ) : (
-        <ItemTable rows={grouped.slice(start, end)} variant={variant} width={size.columns} selectedIndex={selected - start} />
+        <ItemTable
+          rows={grouped.slice(start, end)}
+          variant={variant}
+          width={size.columns}
+          selectedIndex={selected - start}
+          search={search.open ? { query: search.query, count: itemMatchCount(grouped, expandedAll) } : undefined}
+        />
       )}
       <Position start={start} end={end} total={grouped.length} height={height} />
       {showStats ? <StatsBand stats={summaryStats(inv)} /> : null}

@@ -1,6 +1,7 @@
 import { Box, Text } from 'ink';
 import type { ItemRow } from './rows.js';
 import { lettersFor } from './runtimeMark.js';
+import { SearchLine } from './SearchLine.js';
 import { theme } from './theme.js';
 
 /**
@@ -163,6 +164,7 @@ export function ItemTable({
   variant = 'state',
   selectedIndex,
   width,
+  search,
 }: {
   rows: ItemRow[];
   variant?: TableVariant;
@@ -170,6 +172,8 @@ export function ItemTable({
   selectedIndex?: number;
   /** Total outer width of the table box (border + padding included). */
   width: number;
+  /** When present, render the live-filter line under the header rule (+1 line of chrome). */
+  search?: { query: string; count: string };
 }) {
   const contentW = Math.max(MIN_NAME + 8, width - 4 - PAD.length);
   const cols = columnsFor(variant, contentW);
@@ -185,6 +189,8 @@ export function ItemTable({
         {PAD}
         {rule}
       </Text>
+      {search ? <SearchLine query={search.query} count={search.count} /> : null}
+      {search && rows.length === 0 ? <Text dimColor> no matches</Text> : null}
       {rows.map((r, i) => (
         <RowLine key={i} row={r} cols={cols} active={i === selectedIndex} />
       ))}

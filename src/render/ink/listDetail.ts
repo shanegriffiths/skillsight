@@ -32,7 +32,7 @@ export function listDetailAction(
 }
 
 export function useListDetail(rowCount: number, height: number, resetKey?: unknown) {
-  const { selected, start, end, moveUp, moveDown } = useScroll(rowCount, height, resetKey);
+  const { selected, start, end, moveUp, moveDown, select } = useScroll(rowCount, height, resetKey);
   const [detail, setDetail] = useState(false);
   // Close the detail pane when the list is reset (e.g. a sort toggle).
   useEffect(() => {
@@ -50,5 +50,11 @@ export function useListDetail(rowCount: number, height: number, resetKey?: unkno
     }
   };
 
-  return { detail, selected, start, end, onInput };
+  // Jump the cursor and open the detail pane in one step (search-Enter).
+  const openAt = (i: number) => {
+    select(i);
+    setDetail(true);
+  };
+
+  return { detail, selected, start, end, onInput, select, openAt };
 }

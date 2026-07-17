@@ -40,6 +40,7 @@ export function App({
   const [kinds, setKinds] = useState<Set<Kind>>(() => new Set(filter.kinds ?? []));
   const [filtering, setFiltering] = useState(false);
   const [cursor, setCursor] = useState(0);
+  const [searchActive, setSearchActive] = useState(false);
   // The active view reports its per-focus key hints up here (via onControls) so
   // they render under the wordmark instead of a bottom footer.
   const [controls, setControls] = useState('');
@@ -83,7 +84,7 @@ export function App({
     const t = tabForKey(input);
     if (t) setTab(t);
     if (key.tab) setTab((cur) => nextTab(cur, key.shift ? -1 : 1));
-  });
+  }, { isActive: !searchActive });
 
   useInput(
     (input, key) => {
@@ -146,11 +147,11 @@ export function App({
       <HeaderBox inv={inv} status={status} tab={tab} controls={controls} />
       <FilterBar chips={chipList} runtimes={runtimes} kinds={kinds} cursor={safeCursor} filtering={filtering} sortLabel={sortLabel} />
       {tab === 'folders' ? (
-        <FoldersView inv={inv} inputActive={!filtering} pendingFolder={pendingFolder} onConsumePending={() => setPendingFolder(null)} onControls={setControls} onSort={setSortLabel} yankJson={yankJson} />
+        <FoldersView inv={inv} inputActive={!filtering} pendingFolder={pendingFolder} onConsumePending={() => setPendingFolder(null)} onControls={setControls} onSort={setSortLabel} yankJson={yankJson} onSearchActive={setSearchActive} />
       ) : null}
-      {tab === 'installed' ? <RankedView inv={inv} rows={installed(inv)} inputActive={!filtering} sortModes={PROJECT_SORTS} variant="footprint" onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} yankJson={yankJson} /> : null}
-      {tab === 'global' ? <GlobalView inv={inv} inputActive={!filtering} onControls={setControls} onSort={setSortLabel} yankJson={yankJson} /> : null}
-      {tab === 'leaderboard' ? <RankedView inv={inv} rows={leaderboard(inv)} showStats inputActive={!filtering} sortModes={LEADERBOARD_SORTS} variant="leaderboard" onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} yankJson={yankJson} /> : null}
+      {tab === 'installed' ? <RankedView inv={inv} rows={installed(inv)} inputActive={!filtering} sortModes={PROJECT_SORTS} variant="footprint" onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} yankJson={yankJson} onSearchActive={setSearchActive} /> : null}
+      {tab === 'global' ? <GlobalView inv={inv} inputActive={!filtering} onControls={setControls} onSort={setSortLabel} yankJson={yankJson} onSearchActive={setSearchActive} /> : null}
+      {tab === 'leaderboard' ? <RankedView inv={inv} rows={leaderboard(inv)} showStats inputActive={!filtering} sortModes={LEADERBOARD_SORTS} variant="leaderboard" onOpenProject={openProject} onControls={setControls} onSort={setSortLabel} yankJson={yankJson} onSearchActive={setSearchActive} /> : null}
     </Box>
   );
 }
