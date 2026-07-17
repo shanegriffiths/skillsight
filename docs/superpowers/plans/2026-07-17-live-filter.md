@@ -1089,8 +1089,9 @@ Input handler — insert at the TOP of the `useInput` callback (before the sort 
           rows,
           selected,
         );
-        search.clear();
+        // Zero matches: Enter is a no-op and the box stays open (spec).
         if (!r) return;
+        search.clear();
         setExpanded(r.expanded);
         // Headers and record-less synthetic rows just take the cursor; leaves open detail.
         if (target?.expandState === undefined && target?.record) openAt(r.index);
@@ -1242,8 +1243,9 @@ Input handler — insert at the TOP of the `useInput` callback (before the sort 
         if (a.type === 'enter') {
           const target = grouped[clampIndex(selected, grouped.length)];
           const r = revealTarget((exp) => sort.apply(groupBySource(rows, exp)), expanded, grouped, selected);
-          search.clear();
+          // Zero matches: Enter is a no-op and the box stays open (spec).
           if (!r) return;
+          search.clear();
           setExpanded(r.expanded);
           if (target?.expandState === undefined && target?.record) openAt(r.index);
           else select(r.index);
@@ -1432,8 +1434,9 @@ Input handler — insert at the TOP of the `useInput` callback:
         if (searchPane === 'folders') {
           const target = shownFolderRows[folderIdx];
           const r = revealFolderTarget(buildFolders, nav.folderExpanded, shownFolderRows, folderIdx);
-          search.clear();
+          // Zero matches: Enter is a no-op and the box stays open (spec).
           if (!r) return;
+          search.clear();
           // Select the revealed folder; a real project with items also opens
           // its table (same as a plain Enter on a folder row today).
           const openItems = !!target?.folder && (target?.count ?? 0) > 0;
@@ -1446,8 +1449,9 @@ Input handler — insert at the TOP of the `useInput` callback:
         } else if (searchPane === 'items') {
           const target = shownRows[itemIdx];
           const r = revealTarget(buildItems, nav.expanded, shownRows, itemIdx);
-          search.clear();
+          // Zero matches: Enter is a no-op and the box stays open (spec).
           if (!r) return;
+          search.clear();
           const openDetail = target?.expandState === undefined && !!target?.record;
           setNav((s) => ({
             ...s,
@@ -1458,8 +1462,9 @@ Input handler — insert at the TOP of the `useInput` callback:
         } else {
           const target = shownGlobalRows[gItemIdx];
           const r = revealTarget(buildGlobals, nav.globalExpanded, shownGlobalRows, gItemIdx);
-          search.clear();
+          // Zero matches: Enter is a no-op and the box stays open (spec).
           if (!r) return;
+          search.clear();
           const openDetail = target?.expandState === undefined && !!target?.record;
           setNav((s) => ({
             ...s,
