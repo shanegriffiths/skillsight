@@ -25,6 +25,10 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: npm
 
+      # OIDC trusted publishing needs npm >= 11.5.1; Node 22 ships npm 10.x.
+      # Harmless for any auth mode, required for the tokenless (OIDC) path.
+      - run: npm install -g npm@latest
+
       - run: npm ci
 
       # Guard: the git tag (v0.1.0) must match the package.json version (0.1.0),
@@ -42,13 +46,10 @@ jobs:
       - run: npm test
       - run: npm run build
 
-      # `--provenance` + `--access public` are also set in package.json#publishConfig;
-      # passing them here keeps the intent visible at the call site.
+      # Tokenless publish via OIDC (Trusted Publisher configured on npmjs.com for
+      # shanegriffiths/skillsight + release.yml). npm >= 11.5.1 auto-mints the
+      # credential from the id-token above — no NPM_TOKEN secret involved.
+      # `--access public` + `--provenance` are also set in package.json#publishConfig;
+      # under trusted publishing provenance is automatic, but stating it is harmless.
       - name: Publish to npm
         run: npm publish --provenance --access public
-        env:
-          # Bootstrap: a granular, publish-scoped token created for the FIRST release.
-          # Once the package exists, configure a Trusted Publisher on npmjs.com pointing
-          # at this repo + workflow, delete the NPM_TOKEN secret, and releases go fully
-          # tokenless via OIDC (this env line becomes a harmless no-op you can remove).
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
