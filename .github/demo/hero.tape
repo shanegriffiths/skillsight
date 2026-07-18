@@ -12,6 +12,11 @@
 # README, gives an exact 2:1 mapping on retina displays (crisp text). Keep
 # LineHeight at the default 1.0 — xterm.js stretches block/box glyphs (the
 # logo, borders) to fill taller cells, which distorts them.
+#
+# FontSize 22 lands at ~118 columns: the tables intentionally shed their
+# SOURCE column (it needs 146+) in exchange for much larger type. Provenance
+# still gets its own scene via the detail pane. Don't go below ~112 columns
+# or RUNTIMES sheds too.
 
 Output .github/demo/hero.gif
 Output .github/demo/hero.mp4
@@ -20,10 +25,13 @@ Require npx
 
 Set Shell "bash"
 Set FontFamily "Liga SFMono Nerd Font"
-Set FontSize 17
+Set FontSize 22
 Set Width 1800
-Set Height 1040
-Set Padding 16
+Set Height 1380
+Set Padding 20
+Set Margin 24
+Set MarginFill "#0d0d0d"
+Set BorderRadius 10
 Set WindowBar Colorful
 Set Framerate 24
 Set TypingSpeed 55ms
