@@ -6,7 +6,12 @@
 #
 # Runs the published package (`npx skillsight --demo`) against the built-in
 # fictional dataset, so the output is deterministic and nothing real is read.
-# "Hack Nerd Font Mono" must be installed for the folder/branch glyphs.
+# "Liga SFMono Nerd Font" must be installed for the folder/branch glyphs.
+#
+# Geometry is deliberate: 1800px wide, embedded with <img width="900"> in the
+# README, gives an exact 2:1 mapping on retina displays (crisp text). Keep
+# LineHeight at the default 1.0 — xterm.js stretches block/box glyphs (the
+# logo, borders) to fill taller cells, which distorts them.
 
 Output .github/demo/hero.gif
 Output .github/demo/hero.mp4
@@ -14,11 +19,10 @@ Output .github/demo/hero.mp4
 Require npx
 
 Set Shell "bash"
-Set FontFamily "Hack Nerd Font Mono"
-Set FontSize 20
-Set LineHeight 1.2
-Set Width 2050
-Set Height 1470
+Set FontFamily "Liga SFMono Nerd Font"
+Set FontSize 17
+Set Width 1800
+Set Height 1040
 Set Padding 16
 Set WindowBar Colorful
 Set Framerate 24

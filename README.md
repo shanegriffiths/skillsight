@@ -17,7 +17,7 @@ skillsight is a live terminal dashboard that shows you everything your AI coding
 
 If you run more than one agent (Claude Code, Codex, Cursor, Gemini CLI, and friends), your setup is spread across a dozen config files in different formats. Some things are global. Some are pinned to a single project. Some are bundled inside plugins, or symlinked in from a shared store. Sooner or later, nobody can say what's switched on where. skillsight reads the lot and shows you the whole picture.
 
-![The skillsight dashboard: browsing projects, expanding the inherited global layer, opening a skill's provenance, and live-filtering the leaderboard](https://raw.githubusercontent.com/shanegriffiths/skillsight/main/.github/demo/hero.gif)
+<img src="https://raw.githubusercontent.com/shanegriffiths/skillsight/main/.github/demo/hero.gif" width="900" alt="The skillsight dashboard: browsing projects, expanding the inherited global layer, opening a skill's provenance, and live-filtering the leaderboard">
 
 ## Try it
 
