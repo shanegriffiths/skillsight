@@ -15,6 +15,7 @@
  * it can be unit-tested without triggering this module's top-level `main()`.
  */
 import { homedir } from 'node:os';
+import { readFileSync } from 'node:fs';
 import { scan } from './index.js';
 import { filterInventory } from './filter.js';
 import { renderJson } from './render/json.js';
@@ -45,9 +46,25 @@ Options:
   --no-walk                       registry only (skip the filesystem walk)
   --demo                          render a built-in fictional dataset (nothing real is read)
   --help
-                                  show exits 0 found · 1 no match · 2 ambiguous; piped output is JSON
+  --version, -v                   print the version and exit
 
-When output is piped or redirected (non-TTY), skillsight prints the plain report.`;
+When output is piped or redirected (non-TTY), skillsight prints the plain report.
+show exits 0 found · 1 no match · 2 ambiguous; piped output is JSON.`;
+
+/**
+ * Read the version off the package manifest at call time rather than inlining it
+ * at build time, so a bumped package.json is never out of step with the binary.
+ * `../package.json` resolves to the package root from both `src/` (tsx) and
+ * `dist/` (built), and package.json is always present in a published tarball.
+ */
+function readVersion(): string {
+  try {
+    const raw = readFileSync(new URL('../package.json', import.meta.url), 'utf8');
+    return (JSON.parse(raw) as { version?: string }).version ?? 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
@@ -55,6 +72,10 @@ async function main(): Promise<void> {
   if (args.errors.length) {
     for (const e of args.errors) process.stderr.write(`error: ${e}\n`);
     process.exitCode = 1;
+    return;
+  }
+  if (args.version) {
+    process.stdout.write(`skillsight ${readVersion()}\n`);
     return;
   }
   if (args.help) {
