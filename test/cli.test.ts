@@ -83,6 +83,13 @@ describe('parseArgs hardening', () => {
     expect(a.errors).toEqual([]);
   });
 
+  it('parses --version / -v as a boolean flag with no issues', () => {
+    expect(parseArgs(['--version']).version).toBe(true);
+    expect(parseArgs(['-v']).version).toBe(true);
+    expect(parseArgs([]).version).toBe(false);
+    expect(parseArgs(['--version']).issues).toEqual([]);
+  });
+
   it('parses --demo as a boolean flag with no issues', () => {
     expect(parseArgs(['--demo']).demo).toBe(true);
     expect(parseArgs([]).demo).toBe(false);

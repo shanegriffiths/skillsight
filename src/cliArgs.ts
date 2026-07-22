@@ -19,6 +19,7 @@ export interface Args {
   noWalk: boolean;
   demo: boolean;
   help: boolean;
+  version: boolean;
   dir?: string;
   /** Scan root override (beats the SKILLSIGHT_HOME env var; both beat the OS home). */
   home?: string;
@@ -58,7 +59,7 @@ function isFlag(s: string | undefined): boolean {
 export function parseArgs(argv: string[]): Args {
   const a: Args = {
     watch: false, json: false, report: false, show: false, full: false, provenance: false,
-    global: false, noWalk: false, demo: false, help: false, runtimes: [], kinds: [],
+    global: false, noWalk: false, demo: false, help: false, version: false, runtimes: [], kinds: [],
     issues: [], errors: [],
   };
   for (let i = 0; i < argv.length; i++) {
@@ -78,6 +79,7 @@ export function parseArgs(argv: string[]): Args {
       case '--no-walk': a.noWalk = true; break;
       case '--demo': a.demo = true; break;
       case '--help': case '-h': a.help = true; break;
+      case '--version': case '-v': a.version = true; break;
       case '--dir':
         if (i + 1 < argv.length && !isFlag(argv[i + 1])) a.dir = argv[++i];
         else a.errors.push('--dir requires a path');
