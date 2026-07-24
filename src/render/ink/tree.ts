@@ -128,6 +128,12 @@ export function buildFolderRows(
 
   // A discovered folder whose path is a group's repoDir is that repo's main
   // checkout — fold it in so it isn't also listed as a standalone sibling.
+  // A folder whose path is a group's `<repo>.worktree` bucket (Shane's
+  // `.claude.json` registers the bucket dir itself) is represented by that
+  // group's synthetic `worktrees` node — drop it, else its row's nodeId
+  // collides with that node's (both are the container path → duplicate key).
+  const containerPaths = new Set<string>();
+  for (const g of groups.values()) containerPaths.add(g.containerPath);
   const top: TopRow[] = [];
   for (const o of others) {
     const g = groups.get(o.folder.path);
@@ -135,6 +141,7 @@ export function buildFolderRows(
       g.mainRepo = o.folder;
       continue;
     }
+    if (containerPaths.has(o.folder.path)) continue;
     top.push({
       nodeId: o.folder.path,
       label: o.outside ? o.folder.path : basename(o.folder.path),

@@ -106,6 +106,28 @@ describe('buildFolderRows — worktree grouping', () => {
     expect(allOpen.slice(2).map((r) => [r.label, r.depth, r.count])).toEqual([['case-study', 2, 3], ['animation', 2, 1]]);
   });
 
+  it('does not emit a duplicate nodeId when the .worktree container is itself discovered', () => {
+    // Shane's `.claude.json` registers the bucket dir itself as a project, so
+    // discovery hands buildFolderRows a folder whose path IS the container. It
+    // must not become a standalone row colliding with the synthetic worktrees
+    // node (both keyed by the container path → duplicate React key every render).
+    const rows = buildFolderRows(
+      [folder(repoDir, 12), folder(container, 0), wt('animation', 1)],
+      '/home',
+      opts({ expanded: new Set([repoDir, container]) }),
+    );
+    const ids = rows.map((r) => r.nodeId);
+    expect(new Set(ids).size).toBe(ids.length); // no duplicate keys
+    expect(rows.filter((r) => r.nodeId === container)).toHaveLength(1); // only the group node
+    expect(rows.map((r) => r.label)).toEqual(['snowbridge-media', 'worktrees', 'animation']);
+  });
+
+  it('never shows a discovered .worktree bucket as a standalone top-level row', () => {
+    const rows = buildFolderRows([folder(repoDir, 12), folder(container, 0), wt('animation', 1)], '/home', opts());
+    expect(rows).toHaveLength(1); // just the repo, collapsed — no lone `…worktree` sibling
+    expect(rows[0]).toMatchObject({ nodeId: repoDir, hasChildren: true });
+  });
+
   it('groups a single checkout too, even when the main checkout was not discovered', () => {
     const rows = buildFolderRows([wt('animation', 1)], '/home', opts());
     expect(rows).toHaveLength(1);
