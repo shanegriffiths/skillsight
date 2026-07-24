@@ -21,6 +21,7 @@ function invWithFolder(home: string, proj: string): Inventory {
         projectScoped: emptyBucket(),
         local: emptyBucket(),
         effective: emptyBucket(),
+        git: null,
       },
     ],
   };

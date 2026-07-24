@@ -58,7 +58,7 @@ function mcp(over: Partial<McpRecord> = {}): McpRecord {
 }
 
 function folder(path: string, group: string, projectScoped: Bucket, local: Bucket, effective: Bucket): FolderReport {
-  return { path, group, runtimes: ['claude-code', 'codex'], global: emptyBucket(), projectScoped, local, effective };
+  return { path, group, runtimes: ['claude-code', 'codex'], global: emptyBucket(), projectScoped, local, effective, git: null };
 }
 
 export function fixtureInventory(): Inventory {

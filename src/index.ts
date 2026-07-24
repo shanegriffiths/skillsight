@@ -21,6 +21,7 @@ import { opencodeAdapter } from './adapters/opencode.js';
 import type { RuntimeAdapter } from './adapters/index.js';
 import { enrichBucket, mergeBuckets, sharedStoreBucket, splitByScope, type EnrichContext } from './resolve.js';
 import { discover, groupFor } from './discovery.js';
+import { gitLink } from './git.js';
 import type { Bucket } from './types.js';
 import type { Runtime as RuntimeId } from './types.js';
 
@@ -100,6 +101,7 @@ export function scanFull(homeRoot: string = homedir(), opts: ScanOptions = {}): 
       projectScoped,
       local,
       effective,
+      git: gitLink(dir), // pure-fs worktree/main-checkout identity for grouping
     };
   });
 

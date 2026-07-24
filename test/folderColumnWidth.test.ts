@@ -24,7 +24,7 @@ function skills(n: number): Bucket {
   return { ...emptyBucket(), skills: Array.from({ length: n }, (_, i) => mk(i)) };
 }
 function folder(path: string, ps: Bucket): FolderReport {
-  return { path, group: 'g', runtimes: ['claude-code'], global: emptyBucket(), projectScoped: ps, local: emptyBucket(), effective: ps };
+  return { path, group: 'g', runtimes: ['claude-code'], global: emptyBucket(), projectScoped: ps, local: emptyBucket(), effective: ps, git: null };
 }
 
 const stripAnsi = (s: string) => s.replace(/\[[0-9;]*m/g, '');
