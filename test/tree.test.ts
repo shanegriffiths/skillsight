@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildFolderRows, isHiddenPath, type FolderRow } from '../src/render/ink/tree.js';
-import type { FolderReport, Bucket, SkillRecord } from '../src/types.js';
+import { buildFolderRows, isHiddenPath, worktreesNodeId, type FolderRow } from '../src/render/ink/tree.js';
+import type { FolderReport, Bucket, GitLink, SkillRecord } from '../src/types.js';
 import { emptyBucket } from '../src/types.js';
 
 function skill(name: string): SkillRecord {
@@ -15,7 +15,7 @@ function skill(name: string): SkillRecord {
 }
 
 /** A folder whose project-scoped layer holds `delta` skills (so ownDelta === delta). */
-function folder(path: string, delta = 0): FolderReport {
+function folder(path: string, delta = 0, git: GitLink | null = null): FolderReport {
   const ps: Bucket = { ...emptyBucket(), skills: Array.from({ length: delta }, (_, i) => skill(`${path}#${i}`)) };
   return {
     path,
@@ -25,7 +25,13 @@ function folder(path: string, delta = 0): FolderReport {
     projectScoped: ps,
     local: emptyBucket(),
     effective: emptyBucket(),
+    git,
   };
+}
+
+/** A worktree checkout of `repoDir`, linked the way git's registry records it. */
+function checkout(path: string, delta: number, repoDir: string): FolderReport {
+  return folder(path, delta, { repoRoot: path, isWorktree: true, mainCheckout: repoDir });
 }
 
 const opts = (over: Partial<{ sort: 'items' | 'name'; showHidden: boolean; expanded: ReadonlySet<string> }> = {}) => ({
@@ -77,7 +83,9 @@ describe('buildFolderRows — flat projects', () => {
 describe('buildFolderRows — worktree grouping', () => {
   const repoDir = '/home/Projects/snowbridge-media';
   const container = `${repoDir}.worktree`;
-  const wt = (checkout: string, delta: number) => folder(`${container}/${checkout}`, delta);
+  const wtNode = worktreesNodeId(repoDir);
+  // branchlet parks checkouts in a `<repo>.worktree/` sibling; git links them to the repo.
+  const wt = (name: string, delta: number) => checkout(`${container}/${name}`, delta, repoDir);
 
   it('folds worktrees under the repo as one top row (default collapsed, no sibling container)', () => {
     const rows = buildFolderRows([folder(repoDir, 12), wt('case-study', 3), wt('animation', 1)], '/home', opts());
@@ -94,31 +102,42 @@ describe('buildFolderRows — worktree grouping', () => {
   it('expanding the repo reveals a worktrees group; expanding that reveals the checkouts', () => {
     const repoOpen = buildFolderRows([folder(repoDir, 12), wt('case-study', 3)], '/home', opts({ expanded: new Set([repoDir]) }));
     expect(repoOpen.map((r) => [r.label, r.depth])).toEqual([['snowbridge-media', 0], ['worktrees', 1]]);
-    expect(repoOpen[1]).toMatchObject({ kind: 'worktrees', hasChildren: true, collapsed: true, count: 0, folder: null });
+    expect(repoOpen[1]).toMatchObject({ nodeId: wtNode, kind: 'worktrees', hasChildren: true, collapsed: true, count: 0, folder: null });
 
     const allOpen = buildFolderRows(
       [folder(repoDir, 12), wt('case-study', 3), wt('animation', 1)],
       '/home',
-      opts({ expanded: new Set([repoDir, container]) }),
+      opts({ expanded: new Set([repoDir, wtNode]) }),
     );
     expect(allOpen.map((r) => r.label)).toEqual(['snowbridge-media', 'worktrees', 'case-study', 'animation']);
     // checkouts at depth 2 with their OWN counts, sorted by delta desc
     expect(allOpen.slice(2).map((r) => [r.label, r.depth, r.count])).toEqual([['case-study', 2, 3], ['animation', 2, 1]]);
   });
 
-  it('does not emit a duplicate nodeId when the .worktree container is itself discovered', () => {
-    // Shane's `.claude.json` registers the bucket dir itself as a project, so
-    // discovery hands buildFolderRows a folder whose path IS the container. It
-    // must not become a standalone row colliding with the synthetic worktrees
-    // node (both keyed by the container path → duplicate React key every render).
+  it('groups a worktree that lives outside the repo tree — herdr-style, dot-dir, hidden-exempt', () => {
+    // The herdr bug: a checkout parked under `~/.herdr`, nowhere near the repo.
+    // git links it to the repo, so it shows under it even with hidden off.
+    const central = '/home/.herdr/worktrees/snowbridge-media/posthog';
+    const rows = buildFolderRows(
+      [folder(repoDir, 4), checkout(central, 2, repoDir)],
+      '/home',
+      opts({ expanded: new Set([repoDir, wtNode]) }), // showHidden stays false
+    );
+    expect(rows.map((r) => [r.label, r.depth])).toEqual([['snowbridge-media', 0], ['worktrees', 1], ['posthog', 2]]);
+    expect(rows[2]!.nodeId).toBe(central);
+  });
+
+  it('does not emit a duplicate nodeId, and drops the registered .worktree bucket dir', () => {
+    // Shane's `.claude.json` registers the bucket dir itself as a project. It is a
+    // git worktree bucket, never a project — no standalone row, no colliding key.
     const rows = buildFolderRows(
       [folder(repoDir, 12), folder(container, 0), wt('animation', 1)],
       '/home',
-      opts({ expanded: new Set([repoDir, container]) }),
+      opts({ expanded: new Set([repoDir, wtNode]) }),
     );
     const ids = rows.map((r) => r.nodeId);
     expect(new Set(ids).size).toBe(ids.length); // no duplicate keys
-    expect(rows.filter((r) => r.nodeId === container)).toHaveLength(1); // only the group node
+    expect(rows.some((r) => r.nodeId === container)).toBe(false); // bucket dropped
     expect(rows.map((r) => r.label)).toEqual(['snowbridge-media', 'worktrees', 'animation']);
   });
 
@@ -134,11 +153,11 @@ describe('buildFolderRows — worktree grouping', () => {
     expect(rows[0]).toMatchObject({ kind: 'project', label: 'snowbridge-media', hasChildren: true, count: 0, folder: null });
   });
 
-  it('uses the nearest .worktree ancestor and labels the checkout by its relative path', () => {
+  it('labels a checkout by its basename (git worktree name)', () => {
     const rows = buildFolderRows(
-      [folder('/home/x.worktree/branch-a', 2)],
+      [checkout('/home/x.worktree/branch-a', 2, '/home/x')],
       '/home',
-      opts({ expanded: new Set(['/home/x', '/home/x.worktree']) }),
+      opts({ expanded: new Set(['/home/x', worktreesNodeId('/home/x')]) }),
     );
     expect(rows.map((r) => [r.label, r.depth])).toEqual([['x', 0], ['worktrees', 1], ['branch-a', 2]]);
   });

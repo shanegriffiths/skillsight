@@ -149,6 +149,15 @@ export interface Bucket {
   mcp: McpRecord[];
 }
 
+/** Pure-fs git identity of a checkout (computed in the scan; consumed by renderers). */
+export interface GitLink {
+  /** Root of the checkout containing the path (the worktree root for worktrees). */
+  repoRoot: string;
+  isWorktree: boolean;
+  /** Main checkout root when this is a linked worktree. */
+  mainCheckout?: string;
+}
+
 export interface FolderReport {
   path: string;
   /** Top-level grouping area, e.g. `Developer/Projects`. */
@@ -158,6 +167,8 @@ export interface FolderReport {
   projectScoped: Bucket;
   local: Bucket;
   effective: Bucket;
+  /** git identity of this folder: null when it is not inside any checkout. */
+  git: GitLink | null;
 }
 
 export interface Warning {

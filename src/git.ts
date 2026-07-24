@@ -8,16 +8,11 @@
  * 2026-07-14 design spec.) Submodule gitdirs (`/.git/modules/…`) are plain
  * checkouts for our purposes.
  */
-import { readFileSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
+import type { GitLink } from './types.js';
 
-export interface GitLink {
-  /** Root of the checkout containing the path (the worktree root for worktrees). */
-  repoRoot: string;
-  isWorktree: boolean;
-  /** Main checkout root when this is a linked worktree. */
-  mainCheckout?: string;
-}
+export type { GitLink };
 
 const WORKTREE_GITDIR = /^(.+)\/\.git\/worktrees\/[^/]+\/?$/;
 
@@ -34,6 +29,46 @@ function fromGitFile(gitFile: string, checkoutDir: string): GitLink {
     if (m) return { repoRoot: checkoutDir, isWorktree: true, mainCheckout: m[1]! };
   }
   return { repoRoot: checkoutDir, isWorktree: false };
+}
+
+/**
+ * Absolute checkout dirs of every linked worktree registered under a main
+ * checkout — git's own record, so it finds worktrees wherever a tool parked
+ * them (branchlet siblings, herdr's `~/.herdr`, a repo's own `.claude/…`).
+ *
+ * Each `<repoDir>/.git/worktrees/<name>/gitdir` holds a bare path to the
+ * checkout's `.git` (no `gitdir:` prefix — that prefix is on the checkout's
+ * own `.git` file, not this registry file). The checkout is its parent dir.
+ * A checkout that no longer exists on disk is a stale entry git hasn't pruned;
+ * skip it. Only meaningful for a main checkout (`.git` is a directory).
+ */
+export function worktreesOf(repoDir: string): string[] {
+  const base = join(repoDir, '.git', 'worktrees');
+  let entries;
+  try {
+    entries = readdirSync(base, { withFileTypes: true });
+  } catch {
+    return []; // no linked worktrees (or not a main checkout)
+  }
+  const out: string[] = [];
+  for (const e of entries) {
+    if (!e.isDirectory()) continue;
+    let raw: string;
+    try {
+      raw = readFileSync(join(base, e.name, 'gitdir'), 'utf8').trim();
+    } catch {
+      continue; // unreadable entry
+    }
+    if (!raw) continue;
+    const target = isAbsolute(raw) ? raw : resolve(base, e.name, raw);
+    const checkout = dirname(target); // target is `<checkout>/.git`
+    try {
+      if (statSync(checkout).isDirectory()) out.push(checkout);
+    } catch {
+      /* stale entry — checkout was removed without `git worktree prune` */
+    }
+  }
+  return out;
 }
 
 /** Nearest enclosing git checkout of `start`, or null when there is none. */

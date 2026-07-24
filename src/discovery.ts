@@ -6,6 +6,7 @@
 import { join, relative, sep } from 'node:path';
 import type { HomeCtx } from './runtimes.js';
 import { exists, isDir, readDirEntries, readJson } from './fsread.js';
+import { worktreesOf } from './git.js';
 
 const MAX_DEPTH = 5;
 
@@ -40,23 +41,6 @@ function* walk(root: string, depth: number): Generator<string> {
   }
 }
 
-/**
- * Git worktrees (branchlet's `<repo>.worktree/<branch>` convention) live in a
- * sibling bucket beside the repo, not inside it — so the depth-limited walk,
- * which also stops at the first marker-bearing ancestor, never reaches them.
- * Given a discovered repo, yield each checkout in its worktree container. A
- * checkout carries a `.git` gitdir pointer; a stray dir in the bucket does not.
- */
-function* worktreesBeside(repoDir: string): Generator<string> {
-  const container = `${repoDir}.worktree`;
-  if (!isDir(container)) return;
-  for (const e of readDirEntries(container)) {
-    if (!e.isDir) continue;
-    const child = join(container, e.name);
-    if (exists(join(child, '.git'))) yield child;
-  }
-}
-
 /** Top-level grouping area for a folder (e.g. `Developer/Projects`). */
 export function groupFor(dir: string, homeRoot: string): string {
   const rel = relative(homeRoot, dir);
@@ -82,10 +66,12 @@ export function discover(ctx: HomeCtx, opts: { walk: boolean }): string[] {
     for (const d of walk(ctx.homeRoot, 0)) set.add(d);
   }
 
-  // Worktrees sit beside their repo, out of the walk's reach — expand every
-  // discovered repo's `<repo>.worktree/` bucket so its checkouts are folders too.
+  // Worktrees can live anywhere a tool parks them (branchlet siblings, herdr's
+  // `~/.herdr`, a repo's own `.claude/…`) — all out of the walk's reach. Ask
+  // git: expand every discovered main checkout's `.git/worktrees/` registry so
+  // its linked checkouts are folders too, regardless of on-disk location.
   for (const d of [...set]) {
-    for (const c of worktreesBeside(d)) set.add(c);
+    for (const c of worktreesOf(d)) set.add(c);
   }
 
   return [...set].filter((d) => !excluded.has(d)).sort();

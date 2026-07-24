@@ -65,6 +65,7 @@ function folder(b: Partial<Pick<FolderReport, 'projectScoped' | 'local'>>, path 
     projectScoped: b.projectScoped ?? emptyBucket(),
     local: b.local ?? emptyBucket(),
     effective: emptyBucket(),
+    git: null,
   };
 }
 

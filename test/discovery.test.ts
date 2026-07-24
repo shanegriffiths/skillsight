@@ -35,30 +35,32 @@ describe('discover', () => {
     expect(dirs).not.toContain(home);
   });
 
-  it('discovers git worktrees beside a discovered repo (branchlet `<repo>.worktree/<branch>`)', () => {
+  it('discovers a repo\'s linked worktrees via git\'s registry, wherever they live', () => {
     home = makeTempHome();
     const container = join(home, 'Developer', 'Acme');
     const repo = join(container, 'acme-web');
     writeFileEnsured(join(repo, 'CLAUDE.md'), '# acme'); // repo marker
 
-    // branchlet puts worktrees in a sibling `<repo>.worktree/` bucket, not inside the repo
-    const wtA = join(container, 'acme-web.worktree', 'feature-x');
-    const wtB = join(container, 'acme-web.worktree', 'bugfix-y');
-    for (const wt of [wtA, wtB]) {
-      writeFileEnsured(join(wt, '.git'), 'gitdir: /elsewhere'); // a checkout carries a .git pointer file
-      writeFileEnsured(join(wt, 'CLAUDE.md'), '# checkout');
-    }
-    // a stray dir in the bucket with no .git is not a worktree
-    const stray = join(container, 'acme-web.worktree', 'notes');
-    writeFileEnsured(join(stray, 'README.md'), 'x');
+    // git records every linked worktree under <repo>/.git/worktrees/<name>/gitdir,
+    // a bare path to the checkout's own .git — regardless of where the checkout sits.
+    const register = (name: string, checkout: string) => {
+      writeFileEnsured(join(repo, '.git', 'worktrees', name, 'gitdir'), `${join(checkout, '.git')}\n`);
+      writeFileEnsured(join(checkout, '.git'), `gitdir: ${join(repo, '.git', 'worktrees', name)}\n`);
+    };
+    const sibling = join(container, 'acme-web.worktree', 'feature-x'); // branchlet
+    const central = join(home, '.herdr', 'worktrees', 'acme-web', 'posthog'); // herdr, dot-dir
+    const inRepo = join(repo, '.claude', 'worktrees', 'variant'); // inside the repo's dotdir
+    register('feature-x', sibling);
+    register('posthog', central);
+    register('variant', inRepo);
 
-    // the repo is discovered via the registry; the worktrees are NOT registered
+    // the repo is discovered via the registry; the worktrees are NOT registered there
     writeFileEnsured(join(home, '.claude.json'), JSON.stringify({ projects: { [repo]: {} } }));
 
     const dirs = discover(ctxOf(home), { walk: false });
     expect(dirs).toContain(repo);
-    expect(dirs).toContain(wtA);
-    expect(dirs).toContain(wtB);
-    expect(dirs).not.toContain(stray);
+    expect(dirs).toContain(sibling);
+    expect(dirs).toContain(central); // was invisible before — the herdr bug
+    expect(dirs).toContain(inRepo); // walk never descends past the repo marker
   });
 });

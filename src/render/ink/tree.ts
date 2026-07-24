@@ -1,14 +1,17 @@
 /**
- * The Folders column list. Plain projects are flat leaves; a repo that has a
- * `<repo>.worktree/<branch>` container (Shane's convention) becomes a single
- * parent node with a nested `worktrees` group beneath it holding the checkouts:
+ * The Folders column list. Plain projects are flat leaves; a repo that has git
+ * worktrees becomes a single parent node with a nested `worktrees` group
+ * beneath it holding the checkouts:
  *
  *   ▾ my-repo            +2      ← the repo (its OWN delta; selectable)
  *       ▾ worktrees              ← grouping node (no count)
  *           feature-x    +1      ← a checkout (its own delta)
  *
- * Counts are never aggregated up — every row shows only its own delta. Pure: a
- * function of `folders[].path` + `homeRoot`; no engine or discovery coupling.
+ * Grouping is driven by each folder's git identity (`FolderReport.git`), not a
+ * path convention — a checkout groups under its `mainCheckout` repo wherever it
+ * physically lives (branchlet siblings, herdr's `~/.herdr`, a repo's own
+ * `.claude/…`). Counts are never aggregated up — every row shows only its own
+ * delta. Pure: a function of `folders[].{path,git}` + `homeRoot`; no fs.
  */
 import { basename, dirname, relative, sep } from 'node:path';
 import type { FolderReport } from '../../types.js';
@@ -18,8 +21,17 @@ export { isHiddenPath };
 
 export type SortMode = 'items' | 'name';
 
+/**
+ * Synthetic, path-free id for a repo's `worktrees` group node. A tab can never
+ * appear in a filesystem path, so this never collides with a real folder's
+ * nodeId — even the `<repo>.worktree` bucket dir.
+ */
+export function worktreesNodeId(repoDir: string): string {
+  return `${repoDir}\tworktrees`;
+}
+
 export interface FolderRow {
-  /** Absolute path — stable row key (repoDir for a repo, container path for the worktrees node). */
+  /** Stable row key: a folder path for real rows, {@link worktreesNodeId} for the group node. */
   nodeId: string;
   /** Basename / repo name / the literal `worktrees`; full path for folders outside homeRoot. */
   label: string;
@@ -49,40 +61,8 @@ function relPath(homeRoot: string, path: string): string | null {
   return rel.split(sep).join('/');
 }
 
-interface WorktreeInfo {
-  /** The `<repo>.worktree` container (nodeId of the worktrees group). */
-  containerPath: string;
-  /** The repo dir this container belongs to (`.worktree` stripped). */
-  repoDir: string;
-  repoLabel: string;
-  /** This checkout's label within the container. */
-  childLabel: string;
-}
-
-/** If `path` sits inside a `*.worktree` container (a strict ancestor), describe it. */
-function worktreeOf(homeRoot: string, path: string): WorktreeInfo | null {
-  const rel = relPath(homeRoot, path);
-  if (rel === null) return null;
-  const segs = rel.split('/');
-  for (let i = segs.length - 2; i >= 0; i--) {
-    const seg = segs[i]!;
-    if (seg.endsWith('.worktree')) {
-      const stripped = seg.replace(/\.worktree$/, '');
-      return {
-        containerPath: `${homeRoot}/${segs.slice(0, i + 1).join('/')}`,
-        repoDir: `${homeRoot}/${[...segs.slice(0, i), stripped].join('/')}`,
-        repoLabel: stripped,
-        childLabel: segs.slice(i + 1).join('/'),
-      };
-    }
-  }
-  return null;
-}
-
 interface Group {
   repoDir: string;
-  repoLabel: string;
-  containerPath: string;
   /** The discovered main checkout, if it too was found; null otherwise. */
   mainRepo: FolderReport | null;
   children: { nodeId: string; label: string; count: number; folder: FolderReport }[];
@@ -94,9 +74,14 @@ interface TopRow {
   count: number;
   folder: FolderReport | null;
   hasChildren: boolean;
-  containerPath: string;
+  repoDir: string;
   children: Group['children'];
   containerDir: string; // for the duplicate-label hint
+}
+
+/** Label a folder by basename, or by full path when it sits outside homeRoot. */
+function labelOf(homeRoot: string, path: string): string {
+  return relPath(homeRoot, path) === null ? path : basename(path);
 }
 
 export function buildFolderRows(
@@ -107,48 +92,45 @@ export function buildFolderRows(
   const expanded = opts.expanded ?? new Set<string>();
 
   const groups = new Map<string, Group>();
-  const others: { folder: FolderReport; outside: boolean }[] = [];
+  const groupFor = (repoDir: string): Group => {
+    let g = groups.get(repoDir);
+    if (!g) { g = { repoDir, mainRepo: null, children: [] }; groups.set(repoDir, g); }
+    return g;
+  };
+  const plain: { folder: FolderReport; outside: boolean }[] = [];
 
   for (const f of folders) {
-    const rel = relPath(homeRoot, f.path);
-    if (rel !== null && !opts.showHidden && isHiddenPath(rel)) continue;
-
-    const wt = rel === null ? null : worktreeOf(homeRoot, f.path);
-    if (wt) {
-      let g = groups.get(wt.repoDir);
-      if (!g) {
-        g = { repoDir: wt.repoDir, repoLabel: wt.repoLabel, containerPath: wt.containerPath, mainRepo: null, children: [] };
-        groups.set(wt.repoDir, g);
-      }
-      g.children.push({ nodeId: f.path, label: wt.childLabel, count: ownDelta(f), folder: f });
-    } else {
-      others.push({ folder: f, outside: rel === null });
+    // A worktree checkout groups under its repo wherever it lives on disk, and
+    // is exempt from the hidden filter — its path may sit under `~/.herdr` or a
+    // repo's own `.claude/…`, but it belongs to a visible repo.
+    if (f.git?.isWorktree && f.git.mainCheckout) {
+      groupFor(f.git.mainCheckout).children.push({
+        nodeId: f.path, label: basename(f.path), count: ownDelta(f), folder: f,
+      });
+      continue;
     }
+    const rel = relPath(homeRoot, f.path);
+    if (rel !== null && !opts.showHidden && isHiddenPath(rel)) continue; // hidden filter (non-checkouts)
+    if (basename(f.path).endsWith('.worktree')) continue; // a git worktree bucket dir, never a project
+    plain.push({ folder: f, outside: rel === null });
   }
 
   // A discovered folder whose path is a group's repoDir is that repo's main
   // checkout — fold it in so it isn't also listed as a standalone sibling.
-  // A folder whose path is a group's `<repo>.worktree` bucket (Shane's
-  // `.claude.json` registers the bucket dir itself) is represented by that
-  // group's synthetic `worktrees` node — drop it, else its row's nodeId
-  // collides with that node's (both are the container path → duplicate key).
-  const containerPaths = new Set<string>();
-  for (const g of groups.values()) containerPaths.add(g.containerPath);
   const top: TopRow[] = [];
-  for (const o of others) {
+  for (const o of plain) {
     const g = groups.get(o.folder.path);
     if (g) {
       g.mainRepo = o.folder;
       continue;
     }
-    if (containerPaths.has(o.folder.path)) continue;
     top.push({
       nodeId: o.folder.path,
       label: o.outside ? o.folder.path : basename(o.folder.path),
       count: ownDelta(o.folder),
       folder: o.folder,
       hasChildren: false,
-      containerPath: '',
+      repoDir: '',
       children: [],
       containerDir: basename(dirname(o.folder.path)),
     });
@@ -156,11 +138,11 @@ export function buildFolderRows(
   for (const g of groups.values()) {
     top.push({
       nodeId: g.repoDir,
-      label: g.repoLabel,
+      label: labelOf(homeRoot, g.repoDir),
       count: g.mainRepo ? ownDelta(g.mainRepo) : 0,
       folder: g.mainRepo,
       hasChildren: true,
-      containerPath: g.containerPath,
+      repoDir: g.repoDir,
       children: g.children,
       containerDir: basename(dirname(g.repoDir)),
     });
@@ -199,9 +181,10 @@ export function buildFolderRows(
     });
     if (!r.hasChildren || !repoExpanded) continue;
 
-    const wtExpanded = expanded.has(r.containerPath);
+    const wtNode = worktreesNodeId(r.repoDir);
+    const wtExpanded = expanded.has(wtNode);
     out.push({
-      nodeId: r.containerPath,
+      nodeId: wtNode,
       label: 'worktrees',
       count: 0,
       depth: 1,

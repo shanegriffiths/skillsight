@@ -61,6 +61,24 @@ describe('scan() engine integration', () => {
     expect(p1.transport.kind).toBe('stdio');
   });
 
+  it('attaches a git link to each folder — main checkout vs linked worktree', () => {
+    home = makeTempHome();
+    const repo = join(home, 'proj');
+    writeFileEnsured(join(repo, 'CLAUDE.md'), '# proj'); // marker + real .git dir below
+    // a linked worktree parked in a dot-dir, recorded in git's registry
+    const checkout = join(home, '.herdr', 'wt');
+    writeFileEnsured(join(repo, '.git', 'worktrees', 'wt', 'gitdir'), `${join(checkout, '.git')}\n`);
+    writeFileEnsured(join(checkout, '.git'), `gitdir: ${join(repo, '.git', 'worktrees', 'wt')}\n`);
+    writeFileEnsured(join(home, '.claude.json'), JSON.stringify({ projects: { [repo]: {} } }));
+
+    const inv = scan(home, { walk: false, env: {} });
+
+    const repoF = inv.folders.find((f) => f.path === repo)!;
+    expect(repoF.git).toEqual({ repoRoot: repo, isWorktree: false });
+    const wtF = inv.folders.find((f) => f.path === checkout)!;
+    expect(wtF.git).toEqual({ repoRoot: checkout, isWorktree: true, mainCheckout: repo });
+  });
+
   it('returns an empty, valid inventory for a bare home (no crash)', () => {
     home = makeTempHome();
     const inv = scan(home, { walk: true, env: {} });
