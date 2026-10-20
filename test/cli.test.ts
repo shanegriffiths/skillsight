@@ -132,3 +132,10 @@ describe('resolveScan', () => {
     expect(t).toEqual({ homeRoot: '/tmp/demo', scanOpts: { walk: true, env: {} } });
   });
 });
+
+describe('--live', () => {
+  it('parses --live and leaves it off by default', () => {
+    expect(parseArgs([]).live).toBe(false);
+    expect(parseArgs(['--live']).live).toBe(true);
+  });
+});

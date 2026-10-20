@@ -8,7 +8,16 @@ import { mkdirSync, writeFileSync, symlinkSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
+import type { ClaudeAiConnector } from './liveConnectors.js';
+
 const DEFAULT_ROOT = join(tmpdir(), 'skillsight-demo-home');
+
+/** What `--demo --live` injects instead of running `claude mcp list` (nothing is spawned). */
+export const DEMO_CONNECTORS: ClaudeAiConnector[] = [
+  { name: 'claude.ai Linear', url: 'https://mcp.linear.app/mcp', state: 'connected' },
+  { name: 'claude.ai Gmail', url: 'https://gmailmcp.googleapis.com/mcp/v1', state: 'connected' },
+  { name: 'claude.ai Slack', url: 'https://mcp.slack.com/mcp', state: 'needs-auth' },
+];
 
 function write(path: string, content: string): void {
   mkdirSync(dirname(path), { recursive: true });
@@ -155,7 +164,7 @@ export function buildDemoHome(root: string = DEFAULT_ROOT): string {
   const day = 86_400_000;
   write(join(root, '.claude.json'), json({
     projects: {
-      [acme]: { enabledMcpjsonServers: ['postgres'] },
+      [acme]: { enabledMcpjsonServers: ['postgres'], disabledMcpServers: ['claude.ai Gmail'] },
       [folio]: {},
       [pixel]: {},
       [orbit]: {},

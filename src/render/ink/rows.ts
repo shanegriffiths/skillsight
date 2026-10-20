@@ -46,7 +46,7 @@ export interface ItemRow {
    * plugin from another origin loads instead) or `name taken` (a local/plugin
    * skill owns the short `/<name>`; the synced skill runs as `/anthropic-skills:<name>`).
    */
-  note?: 'shadowed' | 'name taken';
+  note?: 'shadowed' | 'name taken' | 'needs auth' | 'failed';
   /** Leaderboard: present in the inherited global layer (lives in every project). */
   everywhere?: boolean;
   /** Leaderboard: project folder paths where this item appears in a delta. */
@@ -120,17 +120,22 @@ function pluginRow(p: PluginRecord): ItemRow {
 }
 
 function mcpRow(m: McpRecord): ItemRow {
+  const state = m.account?.state;
+  const note = state === 'needs-auth' ? 'needs auth' : state === 'failed' ? 'failed' : undefined;
   return {
     kind: 'mcp',
     name: m.name,
     used: null,
     uses: null,
-    source: m.transport.kind,
+    // A claude.ai connector's origin is the account; other servers show their transport.
+    source: m.account ? 'account' : m.transport.kind,
     sourceDim: true,
     record: m,
     usedRuntimes: m.runtime ? [m.runtime] : [],
-    scope: displayScope(m.scope),
+    scope: m.override ?? displayScope(m.scope),
     status: m.enabled ? 'enabled' : 'disabled',
+    ...(m.override ? { override: true } : {}),
+    ...(note ? { note } : {}),
   };
 }
 

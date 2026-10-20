@@ -18,6 +18,8 @@ export interface Args {
   global: boolean;
   noWalk: boolean;
   demo: boolean;
+  /** Opt-in: run `claude mcp list` once to list claude.ai connectors (the only subprocess skillsight ever spawns). */
+  live: boolean;
   help: boolean;
   version: boolean;
   dir?: string;
@@ -59,7 +61,7 @@ function isFlag(s: string | undefined): boolean {
 export function parseArgs(argv: string[]): Args {
   const a: Args = {
     watch: false, json: false, report: false, show: false, full: false, provenance: false,
-    global: false, noWalk: false, demo: false, help: false, version: false, runtimes: [], kinds: [],
+    global: false, noWalk: false, demo: false, live: false, help: false, version: false, runtimes: [], kinds: [],
     issues: [], errors: [],
   };
   for (let i = 0; i < argv.length; i++) {
@@ -78,6 +80,7 @@ export function parseArgs(argv: string[]): Args {
       case '--global': a.global = true; break;
       case '--no-walk': a.noWalk = true; break;
       case '--demo': a.demo = true; break;
+      case '--live': a.live = true; break;
       case '--help': case '-h': a.help = true; break;
       case '--version': case '-v': a.version = true; break;
       case '--dir':

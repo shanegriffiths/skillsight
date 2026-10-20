@@ -295,3 +295,30 @@ describe('itemRows — claude.ai account source', () => {
     expect(b!.note).toBeUndefined();
   });
 });
+
+describe('itemRows — live claude.ai connectors', () => {
+  it('an account MCP row shows SOURCE "account", a state note, and the override layer as its scope', () => {
+    const needsAuth: McpRecord = {
+      ...mcp('claude.ai Slack', 'http'),
+      provider: { kind: 'account', path: '/x/.claude.json' },
+      scope: 'global',
+      account: { state: 'needs-auth' },
+    };
+    const offHere: McpRecord = {
+      ...mcp('claude.ai Gmail', 'http'),
+      provider: { kind: 'account', path: '/x/.claude.json' },
+      scope: 'global',
+      enabled: false,
+      override: 'local',
+      account: { state: 'disabled' },
+    };
+    const [a, b] = itemRows({ ...emptyBucket(), mcp: [needsAuth, offHere] });
+    expect(a!.source).toBe('account');
+    expect(a!.scope).toBe('user');
+    expect(a!.note).toBe('needs auth');
+    expect(b!.scope).toBe('local');
+    expect(b!.override).toBe(true);
+    expect(b!.status).toBe('disabled');
+    expect(b!.note).toBeUndefined();
+  });
+});

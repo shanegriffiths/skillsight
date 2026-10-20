@@ -242,3 +242,16 @@ describe('detailFields — claude.ai account source', () => {
     expect(valueOf(f, 'disable')).toBe('claude plugin disable superpowers@synced');
   });
 });
+
+describe('detailFields — live claude.ai connector', () => {
+  it('shows the account source, live state, url and the /mcp toggle hint', () => {
+    const row = mcpRow({ kind: 'http', url: 'https://mcp.slack.com/mcp' });
+    (row.record as McpRecord).provider = { kind: 'account', path: '/x/.claude.json' };
+    (row.record as McpRecord).account = { state: 'needs-auth' };
+    const f = detailFields(row);
+    expect(valueOf(f, 'source')).toBe('claude.ai account');
+    expect(valueOf(f, 'state')).toBe('needs authentication');
+    expect(valueOf(f, 'url')).toBe('https://mcp.slack.com/mcp');
+    expect(valueOf(f, 'toggle')).toBe('/mcp in a session (per project)');
+  });
+});

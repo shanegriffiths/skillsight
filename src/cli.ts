@@ -22,7 +22,8 @@ import { renderJson } from './render/json.js';
 import { renderPlain } from './render/plain.js';
 import { runShow } from './show.js';
 import { parseArgs, decideMode, resolveScan } from './cliArgs.js';
-import { buildDemoHome } from './demo.js';
+import { buildDemoHome, DEMO_CONNECTORS } from './demo.js';
+import { fetchClaudeAiConnectors } from './liveConnectors.js';
 
 const HELP = `skillsight — cross-runtime inventory of agent skills, plugins, and MCP servers
 
@@ -45,6 +46,8 @@ Options:
   --provenance                    (report) expand provider + "used by" per item
   --no-walk                       registry only (skip the filesystem walk)
   --demo                          render a built-in fictional dataset (nothing real is read)
+  --live                          also list claude.ai account connectors by running
+                                  "claude mcp list" once (the only subprocess skillsight ever spawns)
   --help
   --version, -v                   print the version and exit
 
@@ -85,6 +88,17 @@ async function main(): Promise<void> {
 
   const demoHome = args.demo ? buildDemoHome() : undefined;
   const { homeRoot, scanOpts } = resolveScan(args, process.env, { osHome: homedir(), demoHome });
+  if (args.live) {
+    // The one opt-in subprocess: run `claude mcp list` once, up front, and hand
+    // the parsed result to the engine as data. Nothing else ever spawns.
+    if (args.demo) {
+      scanOpts.live = { claudeAiConnectors: DEMO_CONNECTORS };
+    } else {
+      const r = fetchClaudeAiConnectors({ cwd: process.cwd() });
+      if (r.warning) process.stderr.write(`warning: ${r.warning}\n`);
+      if (r.connectors) scanOpts.live = { claudeAiConnectors: r.connectors };
+    }
+  }
   const filterOpts = { runtimes: args.runtimes, kinds: args.kinds };
   const mode = decideMode(args, Boolean(process.stdout.isTTY));
 

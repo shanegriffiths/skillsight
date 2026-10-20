@@ -191,3 +191,11 @@ describe('renderPlain — claude.ai account source', () => {
     expect(out).toContain('pdf [account] (short name taken: runs as /anthropic-skills:pdf)');
   });
 });
+
+describe('renderPlain — connectors scanned or not', () => {
+  it('says connectors were not scanned unless --live supplied them', () => {
+    const base = fixtureInventory();
+    expect(renderPlain({ ...base, live: { connectors: false } }, { globalOnly: true })).toContain('connectors: not scanned (--live)');
+    expect(renderPlain({ ...base, live: { connectors: true } }, { globalOnly: true })).not.toContain('not scanned');
+  });
+});

@@ -175,6 +175,11 @@ export interface PluginRecord {
   account?: AccountPluginMeta;
 }
 
+/** Live state of a claude.ai account connector (from a `--live` run). */
+export interface AccountMcpMeta {
+  state: 'connected' | 'needs-auth' | 'failed' | 'disabled';
+}
+
 export interface McpRecord {
   name: string;
   transport: McpTransport;
@@ -183,6 +188,15 @@ export interface McpRecord {
   enabled: boolean;
   /** The runtime whose config declares this server (set by the engine). */
   runtime?: Runtime;
+  /**
+   * Set on a per-folder record that re-scopes an inherited (user-scope) server
+   * — today only claude.ai connectors toggled off for a project: `local` for a
+   * `~/.claude.json` `disabledMcpServers` entry, `project` for a committed
+   * `disableClaudeAiConnectors: true`. `enabled` reflects the override.
+   */
+  override?: 'project' | 'local';
+  /** Present when the server is a claude.ai account connector (`--live`). */
+  account?: AccountMcpMeta;
 }
 
 export interface Bucket {
@@ -225,6 +239,8 @@ export interface Inventory {
   warnings: Warning[];
   global: Bucket;
   folders: FolderReport[];
+  /** What the opt-in `--live` pass covered. `connectors: false` = claude.ai connectors not scanned. */
+  live?: { connectors: boolean };
 }
 
 export function emptyBucket(): Bucket {

@@ -22,6 +22,7 @@ import type { RuntimeAdapter } from './adapters/index.js';
 import { enrichBucket, mergeBuckets, sharedStoreBucket, splitByScope, type EnrichContext } from './resolve.js';
 import { discover, groupFor } from './discovery.js';
 import { gitLink } from './git.js';
+import type { LiveData } from './liveConnectors.js';
 import type { Bucket } from './types.js';
 import type { Runtime as RuntimeId } from './types.js';
 
@@ -56,6 +57,8 @@ export interface ScanOptions {
   dir?: string;
   /** Environment for config-home resolution (defaults to process.env). */
   env?: Record<string, string | undefined>;
+  /** Results of the opt-in `--live` pass (collected by the CLI; the engine never spawns). */
+  live?: LiveData;
 }
 
 export interface ScanResult {
@@ -65,7 +68,7 @@ export interface ScanResult {
 }
 
 export function scanFull(homeRoot: string = homedir(), opts: ScanOptions = {}): ScanResult {
-  const ctx: HomeCtx = { homeRoot, env: opts.env ?? process.env };
+  const ctx: HomeCtx = { homeRoot, env: opts.env ?? process.env, ...(opts.live ? { live: opts.live } : {}) };
   const warnings: Warning[] = [];
 
   const shared = collectSharedStore(ctx);
@@ -113,6 +116,7 @@ export function scanFull(homeRoot: string = homedir(), opts: ScanOptions = {}): 
       warnings,
       global,
       folders,
+      live: { connectors: opts.live?.claudeAiConnectors !== undefined },
     },
     sites,
   };

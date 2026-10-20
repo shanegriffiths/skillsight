@@ -8,7 +8,7 @@
  * config — they only inform a plugin's `supportsRuntimes`.
  */
 import { join } from 'node:path';
-import type { Bucket, PluginRecord, SkillRecord, Warning } from '../types.js';
+import type { Bucket, McpRecord, PluginRecord, SkillRecord, Warning } from '../types.js';
 import { emptyBucket } from '../types.js';
 import { runtimeById, runtimeHome, type HomeCtx } from '../runtimes.js';
 import { readJson, readDirEntries, exists } from '../fsread.js';
@@ -43,6 +43,8 @@ interface SettingsFile {
   syncClaudeAiPlugins?: boolean;
   /** `false` stops syncing claude.ai skills on this machine. */
   syncClaudeAiSkills?: boolean;
+  /** `true` in ANY settings source turns off the claude.ai connectors Claude Code fetches itself. */
+  disableClaudeAiConnectors?: boolean;
 }
 interface InstalledPlugins {
   version?: number;
@@ -56,6 +58,8 @@ interface ProjectState {
   mcpServers?: Record<string, Record<string, unknown>>;
   enabledMcpjsonServers?: string[];
   disabledMcpjsonServers?: string[];
+  /** claude.ai connectors toggled off for this project via `/mcp`. */
+  disabledMcpServers?: string[];
 }
 
 interface GlobalConfig {
@@ -177,6 +181,29 @@ function buildVisibilityLayers(
   };
 }
 
+/**
+ * claude.ai account connectors as user-scope MCP records. Only present when a
+ * `--live` run supplied them (`ctx.live`); the engine never spawns `claude`.
+ * `disableClaudeAiConnectors: true` in user settings (any-source-true) drops them.
+ */
+function accountConnectors(ctx: HomeCtx): McpRecord[] {
+  const live = ctx.live?.claudeAiConnectors;
+  if (!live) return [];
+  const { userSettings } = globalConfig(ctx);
+  const userLocal = readJson<SettingsFile>(join(claudeHome(ctx), 'settings.local.json'));
+  if (userSettings?.disableClaudeAiConnectors === true || userLocal?.disableClaudeAiConnectors === true) return [];
+  return live.map((c) => ({
+    name: c.name,
+    transport: c.url ? { kind: 'http', url: c.url } : { kind: 'http' },
+    provider: { kind: 'account', path: claudeJsonPath(ctx) },
+    scope: 'global',
+    // "disabled" from the live run reflects the cwd it ran in; per-folder state
+    // comes from ~/.claude.json in collectForDirectory. Everything else is available.
+    enabled: c.state !== 'failed',
+    account: { state: c.state === 'disabled' ? 'connected' : c.state },
+  }));
+}
+
 export const claudeCodeAdapter: RuntimeAdapter = {
   id: 'claude-code',
 
@@ -225,6 +252,9 @@ export const claudeCodeAdapter: RuntimeAdapter = {
         path: claudeJsonPath(ctx),
       }, () => true),
     );
+
+    // claude.ai account connectors (only with --live)
+    bucket.mcp.push(...accountConnectors(ctx));
 
     // Same-name checks: a synced skill whose short name a local/plugin skill
     // owns; a synced plugin an enabled plugin from another origin shadows.
@@ -327,6 +357,18 @@ export const claudeCodeAdapter: RuntimeAdapter = {
         path: claudeJsonPath(ctx),
       }, () => true),
     );
+
+    // claude.ai connectors re-scoped by this folder: a committed/local
+    // `disableClaudeAiConnectors: true` turns them all off here; otherwise the
+    // `/mcp` toggle recorded in ~/.claude.json turns off the named ones. Each
+    // becomes an override copy (same name+scope+path) that wins in `effective`.
+    const allOff = settings.project?.disableClaudeAiConnectors === true || settings.local?.disableClaudeAiConnectors === true;
+    const offLayer: McpRecord['override'] = settings.local?.disableClaudeAiConnectors === true ? 'local' : 'project';
+    const offHere = new Set(projState?.disabledMcpServers ?? []);
+    for (const c of accountConnectors(ctx)) {
+      if (!allOff && !offHere.has(c.name)) continue;
+      bucket.mcp.push({ ...c, enabled: false, override: allOff ? offLayer : 'local', account: { state: 'disabled' } });
+    }
 
     return bucket;
   },

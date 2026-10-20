@@ -58,6 +58,13 @@ function ownerLabel(owner: string): string {
   return `${owner} skill`;
 }
 
+const STATE_LABEL = {
+  connected: 'connected',
+  'needs-auth': 'needs authentication',
+  failed: 'failed to connect',
+  disabled: 'disabled for this project',
+} as const;
+
 function skillFields(s: SkillRecord): DetailField[] {
   const f: DetailField[] = [{ label: 'kind', value: 'skill' }];
   f.push({ label: 'used by', value: namesFor(s.usedBy), dim: s.usedBy.length === 0 });
@@ -127,6 +134,10 @@ function mcpFields(m: McpRecord): DetailField[] {
     { label: 'kind', value: 'mcp' },
     { label: 'transport', value: t.kind },
   ];
+  if (m.account) {
+    f.push({ label: 'source', value: 'claude.ai account' });
+    f.push({ label: 'state', value: STATE_LABEL[m.account.state] });
+  }
   if (t.command) f.push({ label: 'command', value: [t.command, ...(t.args ?? [])].join(' ') });
   if (t.url) f.push({ label: 'url', value: t.url, link: true });
   // PRIVACY: names only — the records never carry env/header values.
@@ -134,6 +145,8 @@ function mcpFields(m: McpRecord): DetailField[] {
   if (t.headerKeys?.length) f.push({ label: 'headers', value: t.headerKeys.join(', '), dim: true });
   if (t.timeoutMs !== undefined) f.push({ label: 'timeout', value: `${t.timeoutMs}ms`, dim: true });
   f.push({ label: 'scope', value: m.scope });
+  if (m.override) f.push({ label: 'disabled via', value: m.override === 'local' ? '/mcp toggle for this project' : `${m.override} settings (disableClaudeAiConnectors)` });
+  if (m.account) f.push({ label: 'toggle', value: '/mcp in a session (per project)', dim: true });
   return f;
 }
 

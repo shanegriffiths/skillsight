@@ -47,6 +47,8 @@ function pluginLine(p: PluginRecord, prov: boolean, prefix: string): string {
 function mcpLine(m: McpRecord, prov: boolean, prefix: string): string {
   const off = m.enabled ? '' : pc.red(' (pending/disabled)');
   const t = m.transport;
+  const origin = m.account ? 'account' : 'mcp';
+  const state = m.account && m.account.state !== 'connected' && m.enabled ? pc.yellow(` (${m.account.state})`) : '';
   let extra = '';
   if (prov) {
     const bits: string[] = [];
@@ -58,7 +60,7 @@ function mcpLine(m: McpRecord, prov: boolean, prefix: string): string {
     bits.push(`scope: ${m.scope}`);
     extra = pc.dim(`\n      ${bits.join(' · ')}`);
   }
-  return `${prefix}${m.name} ${pc.dim(`[mcp ${t.kind}]`)}${off}${extra}`;
+  return `${prefix}${m.name} ${pc.dim(`[${origin} ${t.kind}]`)}${off}${state}${extra}`;
 }
 
 function renderBucket(b: Bucket, opts: PlainOptions, prefix: string): string[] {
@@ -82,7 +84,8 @@ export function renderPlain(inv: Inventory, opts: PlainOptions = {}): string {
     out.push(pc.yellow(`⚠ ${inv.warnings.length} unreadable source${inv.warnings.length === 1 ? '' : 's'}`));
   }
 
-  out.push('', pc.bold('GLOBAL') + pc.dim('  inherited everywhere') + `  (${counts(inv.global)})`);
+  const notLive = inv.live && !inv.live.connectors ? pc.dim('  · connectors: not scanned (--live)') : '';
+  out.push('', pc.bold('GLOBAL') + pc.dim('  inherited everywhere') + `  (${counts(inv.global)})` + notLive);
   out.push(...renderBucket(inv.global, opts, '  - '));
 
   if (opts.globalOnly) return out.join('\n');
