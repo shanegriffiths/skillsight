@@ -257,3 +257,41 @@ describe('sortItemRows', () => {
     expect(rows.map((x) => x.name)).toEqual(['b', 'a']);
   });
 });
+
+describe('itemRows — claude.ai account source', () => {
+  it('a synced skill shows SOURCE "account" and a "name taken" note when its short name is owned elsewhere', () => {
+    const synced: SkillRecord = {
+      ...skill('pdf', ['claude-code']),
+      provider: { kind: 'account', path: '/x/synced/pdf' },
+      scope: 'global',
+      account: { id: 'anthropic-skills:pdf', creator: 'anthropic', shortNameTakenBy: 'user' },
+    };
+    const plain: SkillRecord = {
+      ...skill('docs', ['claude-code']),
+      provider: { kind: 'account', path: '/x/synced/docs' },
+      scope: 'global',
+      account: { id: 'anthropic-skills:docs', creator: 'anthropic' },
+    };
+    const [a, b] = itemRows({ ...emptyBucket(), skills: [synced, plain] });
+    expect(a!.source).toBe('account');
+    expect(a!.scope).toBe('user');
+    expect(a!.note).toBe('name taken');
+    expect(b!.note).toBeUndefined();
+  });
+
+  it('a synced plugin shows SOURCE "account" and a "shadowed" note when another origin wins', () => {
+    const shadowed: PluginRecord = {
+      ...plugin('superpowers@synced'),
+      name: 'superpowers',
+      marketplace: 'synced',
+      marketplaceRepo: undefined,
+      account: { marketplaceName: 'anthropic-plugin-directory', shadowedBy: 'superpowers@official' },
+    };
+    const plain: PluginRecord = { ...plugin('figma@synced'), name: 'figma', marketplace: 'synced', marketplaceRepo: undefined, account: {} };
+    const [a, b] = itemRows({ ...emptyBucket(), plugins: [shadowed, plain] });
+    expect(a!.source).toBe('account');
+    expect(a!.note).toBe('shadowed');
+    expect(b!.source).toBe('account');
+    expect(b!.note).toBeUndefined();
+  });
+});

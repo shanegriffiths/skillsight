@@ -27,6 +27,16 @@ describe('buildDemoHome', () => {
     // a plugin resolved
     expect(inv.global.plugins.some((p) => p.id === 'sentry@studio-marketplace')).toBe(true);
 
+    // the claude.ai account source: a synced plugin (UUID folder, real name from its manifest)
+    // and synced skills, one of which collides with the local commit-helper skill
+    const figma = inv.global.plugins.find((p) => p.id === 'figma@synced')!;
+    expect(figma).toBeDefined();
+    expect(figma.account?.marketplaceName).toBe('knowledge-work-plugins');
+    const synced = inv.global.skills.filter((s) => s.provider.kind === 'account');
+    expect(synced.map((s) => s.name).sort()).toEqual(['commit-helper', 'pdf']);
+    expect(synced.find((s) => s.name === 'commit-helper')!.account?.shortNameTakenBy).toBe('user');
+    expect(synced.find((s) => s.name === 'pdf')!.account?.shortNameTakenBy).toBeUndefined();
+
     // provider variety in the global layer: shared-store, user, runtime-builtin
     const gProviders = new Set(inv.global.skills.map((s) => s.provider.kind));
     expect(gProviders.has('shared-store')).toBe(true);

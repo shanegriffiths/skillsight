@@ -45,7 +45,7 @@ function pad(text: string, width: number, align?: 'right'): string {
 function nameSeg(row: ItemRow): Seg {
   const isGroup = row.expandState !== undefined;
   const marker = row.expandState === 'expanded' ? '▾' : row.expandState === 'collapsed' ? '▸' : '';
-  const suffix = row.override ? ' (override)' : '';
+  const suffix = `${row.override ? ' (override)' : ''}${row.note ? ` (${row.note})` : ''}`;
   const label = isGroup ? `${marker} ${row.name} (${row.used})` : `${row.depth ? '  ' : ''}${row.name}${suffix}`;
   // Name brightness tracks enabled/disabled only. A parked skill (VISIBILITY
   // `name-only` / `user-only`) is still enabled and available, so it stays

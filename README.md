@@ -206,7 +206,7 @@ The JSON record is the part worth building against. `copies[]` is the interestin
 
 | Runtime                        | Coverage                                                                     |
 | ------------------------------ | ---------------------------------------------------------------------------- |
-| Claude Code                    | full: plugins (`enabledPlugins` + `defaultEnabled`), skills, MCP (3 scopes)  |
+| Claude Code                    | full: plugins (`enabledPlugins` + `defaultEnabled`), skills, MCP (3 scopes), claude.ai account sync |
 | Codex                          | full: `config.toml` MCP/plugins, `~/.codex/skills` + `.system` builtins      |
 | Hermes                         | full: `~/.hermes/skills/<domain>/<skill>`                                    |
 | Gemini CLI · Cursor · OpenCode | best-effort: MCP servers + native skills (Cursor: MCP only)                  |
@@ -222,6 +222,19 @@ The `~/.agents/skills` hub, managed by Vercel's `skills` CLI (`npx skills`), is 
 2. compute **`usedBy`**: every runtime whose skills directory points at that content, combined with the lock's `lastSelectedAgents` for hub-direct runtimes.
 
 Origin repo (`source`), clone URL, and git tree hash all come from `~/.agents/.skill-lock.json`.
+
+### The claude.ai account source
+
+Since Claude Code 2.1.273, plugins and skills enabled on your claude.ai account sync down and load in every terminal session you sign in to. They have no install record and no marketplace, so most tools don't list them. skillsight reads them from disk and shows them with SOURCE `account`, scope `user`:
+
+- **Plugins** from `~/.claude/plugins/synced/`, as `<name>@synced` (the id `claude plugin disable` takes). The folder on disk is often a UUID; the name and version come from the plugin's own `.claude-plugin/plugin.json`, the same way Claude Code resolves them. The detail pane shows the claude.ai marketplace it came from and when it last synced.
+- **Skills** from `~/.claude/skills/synced/`, with the reserved full name `anthropic-skills:<name>`, and whether Anthropic or you made them.
+- **Status** follows the same `enabledPlugins` layering as any other plugin (`"<name>@synced": false` in user, project, or local settings). `syncClaudeAiPlugins: false` or `syncClaudeAiSkills: false` in user settings removes the whole source.
+- **Same-name checks.** A synced skill whose short name a local or plugin skill already uses is marked `(name taken)`: both load, but `/<name>` runs the other one and the synced copy answers only to `/anthropic-skills:<name>`. A synced plugin whose manifest name an enabled plugin from another origin shares is marked `(shadowed)`: Claude Code loads the other copy and skips this one.
+
+Account **connectors** (the claude.ai MCP servers that show up as `mcp__claude_ai_<Name>__*`) are not stored on disk, so skillsight does not scan them.
+
+Docs: [synced plugins](https://code.claude.com/docs/en/plugins/loading#synced-plugins) · [synced skills](https://code.claude.com/docs/en/skills#how-synced-skills-behave).
 
 ## Relationship to `npx skills`
 

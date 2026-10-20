@@ -29,14 +29,19 @@ function skillLine(s: SkillRecord, prov: boolean, prefix: string): string {
   const vis = prov && s.visibility && s.visibility !== 'on'
     ? pc.dim(`\n      visibility: ${s.visibility} (${s.visibilitySource})`)
     : '';
-  return `${prefix}${s.name} ${tag}${off}${used}${vis}`;
+  const taken = s.account?.shortNameTakenBy
+    ? pc.yellow(` (short name taken: runs as /${s.account.id})`)
+    : '';
+  return `${prefix}${s.name} ${tag}${off}${taken}${used}${vis}`;
 }
 
 function pluginLine(p: PluginRecord, prov: boolean, prefix: string): string {
   const off = p.enabled ? '' : pc.red(' (disabled)');
-  const tag = pc.dim(`[${p.marketplace || 'plugin'}@${p.version}]`);
+  const origin = p.account ? 'account' : p.marketplace || 'plugin';
+  const tag = pc.dim(`[${origin}@${p.version}]`);
+  const shadow = p.account?.shadowedBy ? pc.yellow(` (shadowed by ${p.account.shadowedBy})`) : '';
   const extra = prov ? pc.dim(`\n      supports: ${p.supportsRuntimes.join(', ')}`) : '';
-  return `${prefix}${p.name} ${tag}${off}${extra}`;
+  return `${prefix}${p.name} ${tag}${off}${shadow}${extra}`;
 }
 
 function mcpLine(m: McpRecord, prov: boolean, prefix: string): string {

@@ -9,7 +9,14 @@
 import { join } from 'node:path';
 import type { Inventory } from '../../types.js';
 import { runtimeById, runtimeHome, sharedLockPath, type HomeCtx } from '../../runtimes.js';
-import { exists } from '../../fsread.js';
+import { exists, readDirEntries } from '../../fsread.js';
+
+/** `<root>/<bucket>/manifest.json` for every claude.ai sync bucket under `root`. */
+function syncManifests(root: string): string[] {
+  return readDirEntries(root)
+    .filter((e) => !e.name.startsWith('.') && (e.isDir || e.isSymlink))
+    .map((e) => join(root, e.name, 'manifest.json'));
+}
 
 function homeOf(id: string, ctx: HomeCtx): string | undefined {
   const def = runtimeById(id);
@@ -29,6 +36,9 @@ export function computeWatchPaths(
     paths.add(join(claude, 'settings.json'));
     paths.add(join(claude, 'settings.local.json'));
     paths.add(join(claude, 'plugins', 'installed_plugins.json'));
+    // claude.ai sync writes a fresh manifest per round; plugins/skills come and go with it.
+    for (const m of syncManifests(join(claude, 'plugins', 'synced'))) paths.add(m);
+    for (const m of syncManifests(join(claude, 'skills', 'synced'))) paths.add(m);
   }
   paths.add(join(homeRoot, '.claude.json'));
   paths.add(sharedLockPath(ctx));

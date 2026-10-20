@@ -41,6 +41,12 @@ export interface ItemRow {
   status?: ItemStatus;
   /** True when a plugin row is a per-folder enablement override of an inherited plugin. */
   override?: boolean;
+  /**
+   * Short NAME-cell note for a claude.ai-synced item: `shadowed` (a same-name
+   * plugin from another origin loads instead) or `name taken` (a local/plugin
+   * skill owns the short `/<name>`; the synced skill runs as `/anthropic-skills:<name>`).
+   */
+  note?: 'shadowed' | 'name taken';
   /** Leaderboard: present in the inherited global layer (lives in every project). */
   everywhere?: boolean;
   /** Leaderboard: project folder paths where this item appears in a delta. */
@@ -89,6 +95,7 @@ function skillRow(s: SkillRecord): ItemRow {
     scope: displayScope(s.scope),
     visibility: displayVisibility(s.visibility),
     status: s.enabled ? 'enabled' : 'disabled',
+    ...(s.account?.shortNameTakenBy ? { note: 'name taken' as const } : {}),
   };
 }
 
@@ -98,7 +105,8 @@ function pluginRow(p: PluginRecord): ItemRow {
     name: p.name,
     used: null,
     uses: null,
-    source: p.marketplaceRepo ?? p.marketplace,
+    // A claude.ai-synced plugin has no marketplace repo; its origin is the account.
+    source: p.account ? 'account' : (p.marketplaceRepo ?? p.marketplace),
     sourceDim: !p.marketplaceRepo,
     record: p,
     usedRuntimes: p.runtime ? [p.runtime] : [],
@@ -107,6 +115,7 @@ function pluginRow(p: PluginRecord): ItemRow {
     scope: p.override ?? (p.scope === 'project' ? 'project' : 'user'),
     status: p.enabled ? 'enabled' : 'disabled',
     ...(p.override ? { override: true } : {}),
+    ...(p.account?.shadowedBy ? { note: 'shadowed' as const } : {}),
   };
 }
 

@@ -7,15 +7,23 @@
  * Sibling `.codex-plugin/` / `.cursor-plugin/` dirs are NOT parsed as Claude
  * config — they only inform a plugin's `supportsRuntimes`.
  */
-import { join, basename } from 'node:path';
-import type { Bucket, PluginRecord, Runtime, SkillRecord, Warning } from '../types.js';
+import { join } from 'node:path';
+import type { Bucket, PluginRecord, SkillRecord, Warning } from '../types.js';
 import { emptyBucket } from '../types.js';
 import { runtimeById, runtimeHome, type HomeCtx } from '../runtimes.js';
 import { readJson, readDirEntries, exists } from '../fsread.js';
 import { realpathSafe } from '../symlinks.js';
 import { scanSkillsDir } from '../skillscan.js';
-import { readFrontmatterFile } from '../frontmatter.js';
 import { normalizeClaudeTransport, buildMcpRecords } from '../mcp.js';
+import { pluginRecordAndSkills, type InstalledEntry, type MarketplaceEntry } from './claude-code-plugin.js';
+import type { SyncedPlugin } from './claude-code-synced.js';
+import {
+  flagAccountDuplicates,
+  flagShortNameTaken,
+  foldName,
+  scanSyncedPlugins,
+  scanSyncedSkills,
+} from './claude-code-synced.js';
 import {
   parseSkillOverrides,
   resolveVisibility,
@@ -31,24 +39,14 @@ interface SettingsFile {
   enabledPlugins?: Record<string, boolean>;
   enableAllProjectMcpServers?: boolean;
   skillOverrides?: unknown;
-}
-interface InstalledEntry {
-  scope?: 'user' | 'project';
-  installPath?: string;
-  version?: string;
-  projectPath?: string;
+  /** `false` stops syncing claude.ai plugins on this machine (already-synced ones are trashed). */
+  syncClaudeAiPlugins?: boolean;
+  /** `false` stops syncing claude.ai skills on this machine. */
+  syncClaudeAiSkills?: boolean;
 }
 interface InstalledPlugins {
   version?: number;
   plugins?: Record<string, InstalledEntry[]>;
-}
-interface MarketplaceEntry {
-  source?: { source?: string; repo?: string; path?: string };
-}
-interface PluginManifest {
-  description?: string;
-  defaultEnabled?: boolean;
-  mcpServers?: unknown;
 }
 interface ClaudeJson {
   mcpServers?: Record<string, Record<string, unknown>>;
@@ -68,6 +66,14 @@ interface GlobalConfig {
   userSettings: SettingsFile | undefined;
   /** User-layer `skillOverrides` from `userSettings`, validated. */
   userSkillOverrides: SkillOverrides;
+  /** Merged user + user-local `enabledPlugins` (the user-scope enablement layer). */
+  userEnabled: Record<string, boolean>;
+  /**
+   * claude.ai-synced plugins (`<name>@synced`), built against `userEnabled`.
+   * Empty when `syncClaudeAiPlugins` is `false`. Per-folder passes rebuild a
+   * record from `installPath` when the folder's settings override it.
+   */
+  synced: SyncedPlugin[];
   /** Warnings captured at read time, delivered to the first caller that provides a sink. */
   pendingWarnings: Warning[];
 }
@@ -111,12 +117,15 @@ function globalConfig(ctx: HomeCtx, warnings?: Warning[]): GlobalConfig {
     const home = claudeHome(ctx);
     const settingsPath = join(home, 'settings.json');
     const userSettings = readJson<SettingsFile>(settingsPath, pending);
+    const userEnabled = mergeEnabled(userSettings, readJson<SettingsFile>(join(home, 'settings.local.json'), pending));
     cfg = {
       installed: readJson<InstalledPlugins>(join(home, 'plugins', 'installed_plugins.json'), pending),
       marketplaces: readJson<Record<string, MarketplaceEntry>>(join(home, 'plugins', 'known_marketplaces.json'), pending),
       claudeJson: readJson<ClaudeJson>(claudeJsonPath(ctx), pending),
       userSettings,
       userSkillOverrides: parseSkillOverrides(userSettings?.skillOverrides, settingsPath, pending),
+      userEnabled,
+      synced: userSettings?.syncClaudeAiPlugins === false ? [] : scanSyncedPlugins(home, ctx, userEnabled, pending),
       pendingWarnings: pending,
     };
     globalConfigCache.set(ctx, cfg);
@@ -127,14 +136,6 @@ function globalConfig(ctx: HomeCtx, warnings?: Warning[]): GlobalConfig {
   }
   return cfg;
 }
-
-const RUNTIME_PLUGIN_SIBLINGS: Record<string, Runtime> = {
-  '.codex-plugin': 'codex',
-  '.cursor-plugin': 'cursor',
-  '.kimi-plugin': 'kimi-code-cli',
-  '.opencode': 'opencode',
-  '.pi': 'pi',
-};
 
 function claudeHome(ctx: HomeCtx): string {
   return runtimeHome(DEF, ctx);
@@ -176,104 +177,6 @@ function buildVisibilityLayers(
   };
 }
 
-function splitKey(key: string): { name: string; marketplace: string } {
-  const at = key.lastIndexOf('@');
-  return at === -1
-    ? { name: key, marketplace: '' }
-    : { name: key.slice(0, at), marketplace: key.slice(at + 1) };
-}
-
-function dirChildren(dir: string): string[] {
-  return readDirEntries(dir)
-    .filter((e) => !e.name.startsWith('.') && (e.isDir || e.isSymlink))
-    .map((e) => e.name);
-}
-function mdBasenames(dir: string): string[] {
-  return readDirEntries(dir)
-    .filter((e) => !e.isDir && e.name.endsWith('.md'))
-    .map((e) => basename(e.name, '.md'));
-}
-
-function pluginMcpNames(installPath: string, manifest: PluginManifest | undefined): string[] {
-  const names = new Set<string>();
-  const m = manifest?.mcpServers;
-  if (m && typeof m === 'object' && !Array.isArray(m)) {
-    for (const k of Object.keys(m as Record<string, unknown>)) names.add(k);
-  }
-  const sidecar = readJson<{ mcpServers?: Record<string, unknown> }>(join(installPath, '.mcp.json'));
-  if (sidecar?.mcpServers) for (const k of Object.keys(sidecar.mcpServers)) names.add(k);
-  return [...names];
-}
-
-function detectSupportsRuntimes(installPath: string): Runtime[] {
-  const out: Runtime[] = ['claude-code'];
-  for (const [dir, runtime] of Object.entries(RUNTIME_PLUGIN_SIBLINGS)) {
-    if (exists(join(installPath, dir))) out.push(runtime);
-  }
-  if (exists(join(installPath, 'gemini-extension.json'))) out.push('gemini-cli');
-  return [...new Set(out)].sort();
-}
-
-function pluginRecordAndSkills(
-  key: string,
-  entry: InstalledEntry,
-  enabledMap: Record<string, boolean>,
-  marketplaces: Record<string, MarketplaceEntry> | undefined,
-  ctx: HomeCtx,
-): { plugin: PluginRecord; skills: SkillRecord[] } {
-  const { name, marketplace } = splitKey(key);
-  const installPath = entry.installPath ?? '';
-  const manifest = readJson<PluginManifest>(join(installPath, '.claude-plugin', 'plugin.json'));
-  const mpSource = marketplaces?.[marketplace]?.source;
-  const marketplaceRepo = mpSource?.repo ?? mpSource?.path;
-
-  const explicit = enabledMap[key];
-  const enabled = explicit ?? manifest?.defaultEnabled ?? true;
-
-  const skillsRoot = join(installPath, 'skills');
-  // Only dirs with a SKILL.md are skills; skip support dirs (references/, assets/, …).
-  const skillDirs = dirChildren(skillsRoot).filter((name) => exists(join(skillsRoot, name, 'SKILL.md')));
-  const supportsRuntimes = detectSupportsRuntimes(installPath);
-
-  const plugin: PluginRecord = {
-    id: key,
-    name,
-    ...(typeof manifest?.description === 'string' ? { description: manifest.description } : {}),
-    marketplace,
-    marketplaceRepo,
-    version: entry.version ?? 'unknown',
-    scope: entry.scope === 'project' ? 'project' : 'user',
-    ...(entry.scope === 'project' && entry.projectPath ? { projectPath: entry.projectPath } : {}),
-    enabled,
-    provides: {
-      skills: skillDirs,
-      commands: mdBasenames(join(installPath, 'commands')),
-      agents: mdBasenames(join(installPath, 'agents')),
-      mcpServers: pluginMcpNames(installPath, manifest),
-      hooks: exists(join(installPath, 'hooks', 'hooks.json')) ? ['hooks.json'] : undefined,
-    },
-    supportsRuntimes,
-  };
-
-  const skills: SkillRecord[] = skillDirs.map((sName) => {
-    const real = realpathSafe(join(installPath, 'skills', sName));
-    const fm = readFrontmatterFile(join(installPath, 'skills', sName, 'SKILL.md'));
-    return {
-      name: typeof fm.name === 'string' ? fm.name : sName,
-      description: typeof fm.description === 'string' ? fm.description : undefined,
-      contentId: real,
-      provider: { kind: 'plugin', pluginId: key, marketplace, marketplaceRepo, path: real },
-      usedBy: [],
-      bundledInPlugin: key,
-      supportsRuntimes,
-      enabled,
-      scope: plugin.scope === 'project' ? 'project-scoped' : 'global',
-    };
-  });
-
-  return { plugin, skills };
-}
-
 export const claudeCodeAdapter: RuntimeAdapter = {
   id: 'claude-code',
 
@@ -285,19 +188,22 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     const home = claudeHome(ctx);
     const bucket: Bucket = emptyBucket();
 
-    const { installed, marketplaces, claudeJson, userSettings, userSkillOverrides } = globalConfig(ctx, warnings);
-    const enabledMap = mergeEnabled(
-      userSettings,
-      readJson<SettingsFile>(join(home, 'settings.local.json'), warnings),
-    );
+    const { installed, marketplaces, claudeJson, userSettings, userSkillOverrides, userEnabled, synced } =
+      globalConfig(ctx, warnings);
 
     for (const [key, entries] of Object.entries(installed?.plugins ?? {})) {
       for (const entry of entries) {
         if (entry.scope !== 'user') continue;
-        const { plugin, skills } = pluginRecordAndSkills(key, entry, enabledMap, marketplaces, ctx);
+        const { plugin, skills } = pluginRecordAndSkills(key, entry, userEnabled, marketplaces, ctx);
         bucket.plugins.push(plugin);
         bucket.skills.push(...skills);
       }
+    }
+
+    // claude.ai-synced plugins (`<name>@synced`): no install record, user scope.
+    for (const { plugin, skills } of synced) {
+      bucket.plugins.push(plugin);
+      bucket.skills.push(...skills);
     }
 
     // user skills (~/.claude/skills/*), user-layer visibility resolved by DIR name
@@ -307,6 +213,11 @@ export const claudeCodeAdapter: RuntimeAdapter = {
       ),
     );
 
+    // claude.ai-synced skills (`anthropic-skills:<name>`), user scope.
+    if (userSettings?.syncClaudeAiSkills !== false) {
+      bucket.skills.push(...scanSyncedSkills(home, ctx, warnings));
+    }
+
     // user-scope MCP servers (~/.claude.json top-level mcpServers)
     bucket.mcp.push(
       ...buildMcpRecords(claudeJson?.mcpServers, normalizeClaudeTransport, 'global', {
@@ -314,6 +225,10 @@ export const claudeCodeAdapter: RuntimeAdapter = {
         path: claudeJsonPath(ctx),
       }, () => true),
     );
+
+    // Same-name checks: a synced skill whose short name a local/plugin skill
+    // owns; a synced plugin an enabled plugin from another origin shadows.
+    flagAccountDuplicates(bucket);
 
     return bucket;
   },
@@ -325,7 +240,7 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     const projEnabled = mergeEnabled(settings.project, settings.local);
 
     // project-scoped plugins installed for this directory
-    const { installed, marketplaces, claudeJson } = globalConfig(ctx);
+    const { installed, marketplaces, claudeJson, synced } = globalConfig(ctx);
     const visLayers = buildVisibilityLayers(dir, ctx, settings, warnings);
     for (const [key, entries] of Object.entries(installed?.plugins ?? {})) {
       for (const entry of entries) {
@@ -350,14 +265,35 @@ export const claudeCodeAdapter: RuntimeAdapter = {
       }
     }
     const localKeys = new Set(Object.keys(settings.local?.enabledPlugins ?? {}));
+    const syncedById = new Map(synced.map((s) => [s.plugin.id, s]));
     for (const key of Object.keys(projEnabled)) {
       if (projectHere.has(key)) continue; // already surfaced as a project install
+      if (syncedById.has(key)) continue; // handled below with the shadow check
       const entries = installed?.plugins?.[key];
       const base = entries?.find((e) => e.scope === 'user') ?? entries?.[0];
       if (!base) continue; // dangling enabledPlugins key — nothing installed to override
       const { plugin } = pluginRecordAndSkills(key, base, projEnabled, marketplaces, ctx);
       plugin.override = localKeys.has(key) ? 'local' : 'project';
       bucket.plugins.push(plugin);
+    }
+
+    // Synced plugins re-scoped by this folder: an `enabledPlugins` override of
+    // `<name>@synced`, and/or a same-name project install here that shadows the
+    // synced copy (Claude Code loads the other origin and skips the synced one).
+    // Either way a fresh record is emitted so the cached global one is untouched.
+    const projectNames = new Map<string, string>();
+    for (const p of bucket.plugins) if (p.enabled && !p.account) projectNames.set(foldName(p.name), p.id);
+    for (const { plugin, installPath } of synced) {
+      const overridden = Object.prototype.hasOwnProperty.call(projEnabled, plugin.id);
+      const shadowedBy = projectNames.get(foldName(plugin.name));
+      if (!overridden && !shadowedBy) continue;
+      const entry: InstalledEntry = { scope: 'user', installPath, version: plugin.version };
+      const fresh = pluginRecordAndSkills(plugin.id, entry, overridden ? projEnabled : {}, undefined, ctx).plugin;
+      if (!overridden) fresh.enabled = plugin.enabled;
+      if (overridden) fresh.override = localKeys.has(plugin.id) ? 'local' : 'project';
+      const { shadowedBy: _global, ...account } = plugin.account ?? {};
+      fresh.account = shadowedBy ? { ...account, shadowedBy } : account;
+      bucket.plugins.push(fresh);
     }
 
     // project skills, folder-resolved visibility (local > project > user) by DIR name
@@ -409,6 +345,11 @@ export const claudeCodeAdapter: RuntimeAdapter = {
       const pe = enabledByPlugin.get(s.bundledInPlugin);
       if (pe !== undefined && pe !== s.enabled) s.enabled = pe;
     }
+
+    // A project skill can take a synced skill's short name in this folder.
+    // Skills here are copies, and the flagger reassigns `account` rather than
+    // mutating the shared object, so the global record is untouched.
+    flagShortNameTaken(effective.skills);
 
     const layers = buildVisibilityLayers(dir, ctx, folderSettings(dir));
     if (
