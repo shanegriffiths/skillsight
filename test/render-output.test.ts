@@ -167,3 +167,35 @@ describe('renderJson characterization', () => {
     expect(JSON.parse(out)).toEqual(inv);
   });
 });
+
+describe('renderPlain — claude.ai account source', () => {
+  it('tags a synced plugin as account and notes a shadowed copy', () => {
+    const inv: Inventory = {
+      generatedAt: 'now',
+      homeRoot: '/home/u',
+      runtimesDetected: ['claude-code'],
+      warnings: [],
+      global: {
+        ...emptyBucket(),
+        plugins: [
+          plugin({ id: 'superpowers@synced', name: 'superpowers', marketplace: 'synced', marketplaceRepo: undefined, version: '6.4.2', account: { marketplaceName: 'anthropic-plugin-directory', shadowedBy: 'superpowers@official' } }),
+        ],
+        skills: [
+          skill({ name: 'pdf', provider: { kind: 'account', path: '/home/u/.claude/skills/synced/b/pdf' }, account: { id: 'anthropic-skills:pdf', creator: 'anthropic', shortNameTakenBy: 'user' } }),
+        ],
+      },
+      folders: [],
+    };
+    const out = renderPlain(inv, { globalOnly: true });
+    expect(out).toContain('superpowers [account@6.4.2] (shadowed by superpowers@official)');
+    expect(out).toContain('pdf [account] (short name taken: runs as /anthropic-skills:pdf)');
+  });
+});
+
+describe('renderPlain — connectors scanned or not', () => {
+  it('says connectors were not scanned unless --live supplied them', () => {
+    const base = fixtureInventory();
+    expect(renderPlain({ ...base, live: { connectors: false } }, { globalOnly: true })).toContain('connectors: not scanned (--live)');
+    expect(renderPlain({ ...base, live: { connectors: true } }, { globalOnly: true })).not.toContain('not scanned');
+  });
+});

@@ -52,7 +52,9 @@ export interface Provider {
     | 'personal-repo'
     | 'runtime-builtin'
     | 'user'
-    | 'project-local';
+    | 'project-local'
+    /** Synced down from the user's claude.ai account (`~/.claude/skills/synced/`). */
+    | 'account';
   /** From `.skill-lock.json` — `"owner/repo"`. */
   source?: string;
   sourceUrl?: string;
@@ -64,6 +66,42 @@ export interface Provider {
   marketplaceRepo?: string;
   /** Physical content location, symlink-resolved (`fs.realpath`). */
   path: string;
+}
+
+/**
+ * claude.ai account provenance for a synced skill. Present only on skills
+ * Claude Code downloaded into `~/.claude/skills/synced/`.
+ */
+export interface AccountSkillMeta {
+  /** Full command name, always reserved for the synced copy: `anthropic-skills:<name>`. */
+  id: string;
+  /** `anthropic` for Anthropic-made skills, `user` for ones made on the account. */
+  creator: 'anthropic' | 'user';
+  /** `updatedAt` from the sync manifest (ISO). */
+  updatedAt?: string;
+  /**
+   * Set when another skill or command owns the short `/<name>`: the other
+   * skill's provider kind (`user`, `project-local`, …) or plugin id. Both load;
+   * the synced copy then runs only as `/anthropic-skills:<name>`.
+   */
+  shortNameTakenBy?: string;
+}
+
+/**
+ * claude.ai account provenance for a synced plugin (`<name>@synced`). Present
+ * only on plugins Claude Code downloaded into `~/.claude/plugins/synced/`.
+ */
+export interface AccountPluginMeta {
+  /** The claude.ai marketplace the plugin was enabled from (e.g. `anthropic-plugin-directory`). */
+  marketplaceName?: string;
+  /** `updatedAt` from the sync manifest (ISO). */
+  updatedAt?: string;
+  /**
+   * Set when an enabled plugin from another origin shares the manifest name
+   * (e.g. `superpowers@claude-plugins-official`). Claude Code loads that one
+   * and reports the synced copy as not loaded.
+   */
+  shadowedBy?: string;
 }
 
 /** A physical duplicate of a skill's content that dedup merged away. */
@@ -100,6 +138,8 @@ export interface SkillRecord {
    */
   copies?: SkillCopy[];
   scope: Scope;
+  /** Present when the skill is synced from the user's claude.ai account. */
+  account?: AccountSkillMeta;
 }
 
 export interface PluginRecord {
@@ -131,6 +171,13 @@ export interface PluginRecord {
    * flipped it (`local > project`). `enabled` reflects the override.
    */
   override?: 'project' | 'local';
+  /** Present when the plugin is synced from the user's claude.ai account (`<name>@synced`). */
+  account?: AccountPluginMeta;
+}
+
+/** Live state of a claude.ai account connector (from a `--live` run). */
+export interface AccountMcpMeta {
+  state: 'connected' | 'needs-auth' | 'failed' | 'disabled';
 }
 
 export interface McpRecord {
@@ -141,6 +188,15 @@ export interface McpRecord {
   enabled: boolean;
   /** The runtime whose config declares this server (set by the engine). */
   runtime?: Runtime;
+  /**
+   * Set on a per-folder record that re-scopes an inherited (user-scope) server
+   * — today only claude.ai connectors toggled off for a project: `local` for a
+   * `~/.claude.json` `disabledMcpServers` entry, `project` for a committed
+   * `disableClaudeAiConnectors: true`. `enabled` reflects the override.
+   */
+  override?: 'project' | 'local';
+  /** Present when the server is a claude.ai account connector (`--live`). */
+  account?: AccountMcpMeta;
 }
 
 export interface Bucket {
@@ -183,6 +239,8 @@ export interface Inventory {
   warnings: Warning[];
   global: Bucket;
   folders: FolderReport[];
+  /** What the opt-in `--live` pass covered. `connectors: false` = claude.ai connectors not scanned. */
+  live?: { connectors: boolean };
 }
 
 export function emptyBucket(): Bucket {

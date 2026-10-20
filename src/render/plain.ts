@@ -29,19 +29,26 @@ function skillLine(s: SkillRecord, prov: boolean, prefix: string): string {
   const vis = prov && s.visibility && s.visibility !== 'on'
     ? pc.dim(`\n      visibility: ${s.visibility} (${s.visibilitySource})`)
     : '';
-  return `${prefix}${s.name} ${tag}${off}${used}${vis}`;
+  const taken = s.account?.shortNameTakenBy
+    ? pc.yellow(` (short name taken: runs as /${s.account.id})`)
+    : '';
+  return `${prefix}${s.name} ${tag}${off}${taken}${used}${vis}`;
 }
 
 function pluginLine(p: PluginRecord, prov: boolean, prefix: string): string {
   const off = p.enabled ? '' : pc.red(' (disabled)');
-  const tag = pc.dim(`[${p.marketplace || 'plugin'}@${p.version}]`);
+  const origin = p.account ? 'account' : p.marketplace || 'plugin';
+  const tag = pc.dim(`[${origin}@${p.version}]`);
+  const shadow = p.account?.shadowedBy ? pc.yellow(` (shadowed by ${p.account.shadowedBy})`) : '';
   const extra = prov ? pc.dim(`\n      supports: ${p.supportsRuntimes.join(', ')}`) : '';
-  return `${prefix}${p.name} ${tag}${off}${extra}`;
+  return `${prefix}${p.name} ${tag}${off}${shadow}${extra}`;
 }
 
 function mcpLine(m: McpRecord, prov: boolean, prefix: string): string {
   const off = m.enabled ? '' : pc.red(' (pending/disabled)');
   const t = m.transport;
+  const origin = m.account ? 'account' : 'mcp';
+  const state = m.account && m.account.state !== 'connected' && m.enabled ? pc.yellow(` (${m.account.state})`) : '';
   let extra = '';
   if (prov) {
     const bits: string[] = [];
@@ -53,7 +60,7 @@ function mcpLine(m: McpRecord, prov: boolean, prefix: string): string {
     bits.push(`scope: ${m.scope}`);
     extra = pc.dim(`\n      ${bits.join(' · ')}`);
   }
-  return `${prefix}${m.name} ${pc.dim(`[mcp ${t.kind}]`)}${off}${extra}`;
+  return `${prefix}${m.name} ${pc.dim(`[${origin} ${t.kind}]`)}${off}${state}${extra}`;
 }
 
 function renderBucket(b: Bucket, opts: PlainOptions, prefix: string): string[] {
@@ -77,7 +84,8 @@ export function renderPlain(inv: Inventory, opts: PlainOptions = {}): string {
     out.push(pc.yellow(`⚠ ${inv.warnings.length} unreadable source${inv.warnings.length === 1 ? '' : 's'}`));
   }
 
-  out.push('', pc.bold('GLOBAL') + pc.dim('  inherited everywhere') + `  (${counts(inv.global)})`);
+  const notLive = inv.live && !inv.live.connectors ? pc.dim('  · connectors: not scanned (--live)') : '';
+  out.push('', pc.bold('GLOBAL') + pc.dim('  inherited everywhere') + `  (${counts(inv.global)})` + notLive);
   out.push(...renderBucket(inv.global, opts, '  - '));
 
   if (opts.globalOnly) return out.join('\n');

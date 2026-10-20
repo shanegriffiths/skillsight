@@ -22,7 +22,9 @@ import { renderJson } from './render/json.js';
 import { renderPlain } from './render/plain.js';
 import { runShow } from './show.js';
 import { parseArgs, decideMode, resolveScan } from './cliArgs.js';
-import { buildDemoHome } from './demo.js';
+import { buildDemoHome, DEMO_CONNECTORS } from './demo.js';
+import { fetchClaudeAiConnectors, type LiveFetch } from './liveConnectors.js';
+import { startProgress } from './progress.js';
 
 const HELP = `skillsight — cross-runtime inventory of agent skills, plugins, and MCP servers
 
@@ -45,6 +47,8 @@ Options:
   --provenance                    (report) expand provider + "used by" per item
   --no-walk                       registry only (skip the filesystem walk)
   --demo                          render a built-in fictional dataset (nothing real is read)
+  --live                          also list claude.ai account connectors by running
+                                  "claude mcp list" once (the only subprocess skillsight ever spawns)
   --help
   --version, -v                   print the version and exit
 
@@ -88,11 +92,29 @@ async function main(): Promise<void> {
   const filterOpts = { runtimes: args.runtimes, kinds: args.kinds };
   const mode = decideMode(args, Boolean(process.stdout.isTTY));
 
+  // --live: the one opt-in subprocess. Start `claude mcp list` now (it takes a
+  // few seconds of network health checks) and hand the parsed result to the
+  // engine as data. `--demo --live` injects a fixed list instead: nothing spawns.
+  const livePromise: Promise<LiveFetch> | undefined = !args.live
+    ? undefined
+    : args.demo
+      ? Promise.resolve({ connectors: DEMO_CONNECTORS })
+      : fetchClaudeAiConnectors({ cwd: process.cwd() });
+
   if (mode === 'dashboard') {
     // Dynamically imported so the plain/--json path never loads Ink/React.
+    // The dashboard opens on the disk scan and folds the connectors in when ready.
     const { runWatch } = await import('./render/ink/index.js');
-    await runWatch(homeRoot, scanOpts, filterOpts);
+    await runWatch(homeRoot, scanOpts, filterOpts, livePromise);
     return;
+  }
+
+  if (livePromise) {
+    const progress = startProgress('checking claude.ai connectors (claude mcp list)', process.stderr);
+    const r = await livePromise;
+    progress.stop();
+    if (r.warning) process.stderr.write(`warning: ${r.warning}\n`);
+    if (r.connectors) scanOpts.live = { claudeAiConnectors: r.connectors };
   }
 
   if (mode === 'show') {
@@ -105,7 +127,9 @@ async function main(): Promise<void> {
     return;
   }
 
+  const progress = startProgress(`scanning ${homeRoot}`, process.stderr);
   const inv = filterInventory(scan(homeRoot, scanOpts), filterOpts);
+  progress.stop();
   if (mode === 'json') {
     process.stdout.write(renderJson(inv) + '\n');
     return;

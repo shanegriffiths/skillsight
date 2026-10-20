@@ -198,3 +198,60 @@ describe('detailFields — defensive', () => {
     expect(detailFields(row)).toEqual([]);
   });
 });
+
+describe('detailFields — claude.ai account source', () => {
+  it('a synced skill shows its full name, creator, sync date and who took the short name', () => {
+    const f = detailFields(
+      skillRow({
+        name: 'pdf',
+        provider: { kind: 'account', path: '/x/synced/pdf' },
+        scope: 'global',
+        account: { id: 'anthropic-skills:pdf', creator: 'anthropic', updatedAt: '2026-07-10T19:23:15Z', shortNameTakenBy: 'user' },
+      }),
+    );
+    expect(valueOf(f, 'source')).toBe('claude.ai account');
+    expect(valueOf(f, 'full name')).toBe('anthropic-skills:pdf');
+    expect(valueOf(f, 'creator')).toBe('anthropic');
+    expect(valueOf(f, 'synced')).toBe('2026-07-10');
+    expect(valueOf(f, 'short name')).toBe('taken by user skill — runs as /anthropic-skills:pdf');
+  });
+
+  it('a synced skill with a free short name omits the short-name field', () => {
+    const f = detailFields(
+      skillRow({ provider: { kind: 'account', path: '/x' }, account: { id: 'anthropic-skills:docs', creator: 'user' } }),
+    );
+    expect(valueOf(f, 'creator')).toBe('user');
+    expect(valueOf(f, 'short name')).toBeUndefined();
+    expect(valueOf(f, 'synced')).toBeUndefined();
+  });
+
+  it('a synced plugin shows the claude.ai marketplace, sync date and the plugin that shadows it', () => {
+    const f = detailFields(
+      pluginRow({
+        id: 'superpowers@synced',
+        name: 'superpowers',
+        marketplace: 'synced',
+        marketplaceRepo: undefined,
+        account: { marketplaceName: 'anthropic-plugin-directory', updatedAt: '2026-10-01T22:44:45Z', shadowedBy: 'superpowers@official' },
+      }),
+    );
+    expect(valueOf(f, 'source')).toBe('claude.ai account');
+    expect(valueOf(f, 'marketplace')).toBe('anthropic-plugin-directory');
+    expect(valueOf(f, 'synced')).toBe('2026-10-01');
+    expect(valueOf(f, 'shadowed by')).toBe('superpowers@official — this copy does not load');
+    expect(valueOf(f, 'disable')).toBe('claude plugin disable superpowers@synced');
+  });
+});
+
+describe('detailFields — live claude.ai connector', () => {
+  it('shows the account source, live state, url and the /mcp toggle hint', () => {
+    const row = mcpRow({ kind: 'http', url: 'https://mcp.slack.com/mcp' });
+    (row.record as McpRecord).provider = { kind: 'account', path: '/x/.claude.json' };
+    (row.record as McpRecord).account = { state: 'needs-auth' };
+    const f = detailFields(row);
+    expect(valueOf(f, 'source')).toBe('claude.ai account');
+    expect(valueOf(f, 'state')).toBe('needs authentication');
+    expect(valueOf(f, 'url')).toBe('https://mcp.slack.com/mcp');
+    expect(valueOf(f, 'toggle')).toBe('/mcp in a session (per project)');
+  });
+});

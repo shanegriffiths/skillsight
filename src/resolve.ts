@@ -22,6 +22,7 @@ const PROVIDER_RANK: Record<Provider['kind'], number> = {
   plugin: 5,
   'personal-repo': 4,
   'runtime-builtin': 3,
+  account: 3,
   user: 2,
   'project-local': 1,
 };

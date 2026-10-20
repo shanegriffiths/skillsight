@@ -8,7 +8,16 @@ import { mkdirSync, writeFileSync, symlinkSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
+import type { ClaudeAiConnector } from './liveConnectors.js';
+
 const DEFAULT_ROOT = join(tmpdir(), 'skillsight-demo-home');
+
+/** What `--demo --live` injects instead of running `claude mcp list` (nothing is spawned). */
+export const DEMO_CONNECTORS: ClaudeAiConnector[] = [
+  { name: 'claude.ai Linear', url: 'https://mcp.linear.app/mcp', state: 'connected' },
+  { name: 'claude.ai Gmail', url: 'https://gmailmcp.googleapis.com/mcp/v1', state: 'connected' },
+  { name: 'claude.ai Slack', url: 'https://mcp.slack.com/mcp', state: 'needs-auth' },
+];
 
 function write(path: string, content: string): void {
   mkdirSync(dirname(path), { recursive: true });
@@ -63,6 +72,34 @@ export function buildDemoHome(root: string = DEFAULT_ROOT): string {
   }));
   write(join(sentryCache, '.claude-plugin', 'plugin.json'), json({ name: 'sentry' }));
   skill(join(sentryCache, 'skills'), 'sentry-code-review', 'Review a diff for crash-prone changes.');
+
+  // --- Claude Code (account): plugins + skills synced from claude.ai. The plugin
+  // folder is a UUID (as on disk); its real name comes from .claude-plugin/plugin.json.
+  // The synced `commit-helper` collides with the local one above (short name taken).
+  const syncBucket = '0f3c1b2a-1111-4222-8333-944444444444_5a6b7c8d-2222-4333-8444-955555555555';
+  const syncedPlugins = join(root, '.claude', 'plugins', 'synced', syncBucket);
+  const figmaDir = join(syncedPlugins, '9e8d7c6b-3333-4444-8555-966666666666');
+  write(join(syncedPlugins, 'manifest.json'), json({
+    lastUpdated: 1,
+    plugins: [{
+      pluginId: 'plugin_demo_figma', name: '9e8d7c6b-3333-4444-8555-966666666666',
+      description: 'Figma design platform integration.', version: '0058',
+      updatedAt: '2026-10-15T07:34:38Z', marketplaceName: 'knowledge-work-plugins', installationPreference: 'available',
+    }],
+  }));
+  write(`${figmaDir}.meta.json`, json({ server_plugin_id: 'plugin_demo_figma', marketplace_name: 'knowledge-work-plugins' }));
+  write(join(figmaDir, '.claude-plugin', 'plugin.json'), json({ name: 'figma', version: '2.2.157', description: 'Figma MCP server and skills.' }));
+  skill(join(figmaDir, 'skills'), 'figma-use', 'Drive the Figma plugin API from the agent.');
+  const syncedSkills = join(root, '.claude', 'skills', 'synced', syncBucket);
+  write(join(syncedSkills, 'manifest.json'), json({
+    lastUpdated: 1,
+    skills: [
+      { skillId: 'pdf', name: 'pdf', description: 'Read, merge, split and fill PDFs.', source: 'anthropic', updatedAt: '2026-07-10T19:23:15Z', creatorType: 'anthropic' },
+      { skillId: 'skill_demo_commit', name: 'commit-helper', description: 'Conventional commits, account edition.', source: 'plugin', updatedAt: '2026-10-20T11:06:49Z' },
+    ],
+  }));
+  skill(syncedSkills, 'pdf', 'Read, merge, split and fill PDFs.');
+  skill(syncedSkills, 'commit-helper', 'Conventional commits, account edition.');
 
   // --- Codex: a hub link (usedBy), a bundled .system skill (runtime-builtin), an MCP with secret-shaped env ---
   link(join(root, '.codex', 'skills', 'agent-browser'), agentBrowser);
@@ -127,7 +164,7 @@ export function buildDemoHome(root: string = DEFAULT_ROOT): string {
   const day = 86_400_000;
   write(join(root, '.claude.json'), json({
     projects: {
-      [acme]: { enabledMcpjsonServers: ['postgres'] },
+      [acme]: { enabledMcpjsonServers: ['postgres'], disabledMcpServers: ['claude.ai Gmail'] },
       [folio]: {},
       [pixel]: {},
       [orbit]: {},

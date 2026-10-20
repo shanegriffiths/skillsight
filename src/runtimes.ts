@@ -12,10 +12,13 @@
  */
 import { join } from 'node:path';
 import type { Runtime } from './types.js';
+import type { LiveData } from './liveConnectors.js';
 
 export interface HomeCtx {
   homeRoot: string;
   env: Record<string, string | undefined>;
+  /** Data an opt-in `--live` run collected up front (adapters never spawn anything themselves). */
+  live?: LiveData;
 }
 
 export interface RuntimeDef {

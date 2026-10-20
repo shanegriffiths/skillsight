@@ -50,4 +50,15 @@ describe('computeWatchPaths', () => {
     // a path that doesn't exist is excluded
     expect(paths).not.toContain(join(proj, '.cursor', 'mcp.json'));
   });
+
+  it('watches the claude.ai sync manifests when present', () => {
+    home = makeTempHome();
+    const pm = join(home, '.claude', 'plugins', 'synced', 'org_user', 'manifest.json');
+    const sm = join(home, '.claude', 'skills', 'synced', 'org_user', 'manifest.json');
+    writeFileEnsured(pm, '{}');
+    writeFileEnsured(sm, '{}');
+    const paths = computeWatchPaths(home, invWithFolder(home, join(home, 'proj')), {});
+    expect(paths).toContain(pm);
+    expect(paths).toContain(sm);
+  });
 });

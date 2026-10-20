@@ -45,6 +45,26 @@ export function formatLastUsed(ms: number, now: number): string {
   return `${Math.floor(d / 365)}y ago`;
 }
 
+/** `YYYY-MM-DD` of an ISO timestamp (the sync manifests carry microseconds). */
+function isoDay(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+/** Human label for what owns a synced skill's short name (a provider kind or a plugin id). */
+function ownerLabel(owner: string): string {
+  if (owner.includes('@')) return `plugin ${owner}`;
+  if (owner === 'project-local') return 'project skill';
+  if (owner === 'user') return 'user skill';
+  return `${owner} skill`;
+}
+
+const STATE_LABEL = {
+  connected: 'connected',
+  'needs-auth': 'needs authentication',
+  failed: 'failed to connect',
+  disabled: 'disabled for this project',
+} as const;
+
 function skillFields(s: SkillRecord): DetailField[] {
   const f: DetailField[] = [{ label: 'kind', value: 'skill' }];
   f.push({ label: 'used by', value: namesFor(s.usedBy), dim: s.usedBy.length === 0 });
@@ -52,7 +72,19 @@ function skillFields(s: SkillRecord): DetailField[] {
     f.push({ label: 'uses', value: `${s.usageCount} · Claude Code`, dim: s.usageCount === 0 });
     if (s.lastUsedAt !== undefined) f.push({ label: 'last used', value: formatLastUsed(s.lastUsedAt, Date.now()), dim: true });
   }
-  if (s.provider.source) {
+  if (s.account) {
+    f.push({ label: 'source', value: 'claude.ai account' });
+    f.push({ label: 'full name', value: s.account.id });
+    f.push({ label: 'creator', value: s.account.creator });
+    if (s.account.updatedAt) f.push({ label: 'synced', value: isoDay(s.account.updatedAt), dim: true });
+    if (s.account.shortNameTakenBy) {
+      f.push({
+        label: 'short name',
+        value: `taken by ${ownerLabel(s.account.shortNameTakenBy)} — runs as /${s.account.id}`,
+        wrap: true,
+      });
+    }
+  } else if (s.provider.source) {
     f.push({ label: 'source', value: s.provider.source });
     if (s.provider.sourceUrl) f.push({ label: 'url', value: s.provider.sourceUrl, dim: true, link: true });
   } else {
@@ -77,10 +109,20 @@ function pluginFields(p: PluginRecord): DetailField[] {
   const f: DetailField[] = [
     { label: 'kind', value: 'plugin' },
     { label: 'provides', value: provides },
-    { label: 'marketplace', value: p.marketplaceRepo ?? p.marketplace, dim: !p.marketplaceRepo },
-    { label: 'scope', value: p.scope },
   ];
+  if (p.account) {
+    f.push({ label: 'source', value: 'claude.ai account' });
+    if (p.account.marketplaceName) f.push({ label: 'marketplace', value: p.account.marketplaceName });
+    if (p.account.updatedAt) f.push({ label: 'synced', value: isoDay(p.account.updatedAt), dim: true });
+  } else {
+    f.push({ label: 'marketplace', value: p.marketplaceRepo ?? p.marketplace, dim: !p.marketplaceRepo });
+  }
+  f.push({ label: 'scope', value: p.scope });
   if (p.override) f.push({ label: 'enabled via', value: `${p.override} settings override` });
+  if (p.account?.shadowedBy) {
+    f.push({ label: 'shadowed by', value: `${p.account.shadowedBy} — this copy does not load`, wrap: true });
+  }
+  if (p.account) f.push({ label: 'disable', value: `claude plugin disable ${p.id}`, dim: true });
   f.push({ label: 'version', value: p.version, dim: true });
   if (p.description) f.push({ label: 'about', value: p.description, wrap: true });
   return f;
@@ -92,6 +134,10 @@ function mcpFields(m: McpRecord): DetailField[] {
     { label: 'kind', value: 'mcp' },
     { label: 'transport', value: t.kind },
   ];
+  if (m.account) {
+    f.push({ label: 'source', value: 'claude.ai account' });
+    f.push({ label: 'state', value: STATE_LABEL[m.account.state] });
+  }
   if (t.command) f.push({ label: 'command', value: [t.command, ...(t.args ?? [])].join(' ') });
   if (t.url) f.push({ label: 'url', value: t.url, link: true });
   // PRIVACY: names only — the records never carry env/header values.
@@ -99,6 +145,8 @@ function mcpFields(m: McpRecord): DetailField[] {
   if (t.headerKeys?.length) f.push({ label: 'headers', value: t.headerKeys.join(', '), dim: true });
   if (t.timeoutMs !== undefined) f.push({ label: 'timeout', value: `${t.timeoutMs}ms`, dim: true });
   f.push({ label: 'scope', value: m.scope });
+  if (m.override) f.push({ label: 'disabled via', value: m.override === 'local' ? '/mcp toggle for this project' : `${m.override} settings (disableClaudeAiConnectors)` });
+  if (m.account) f.push({ label: 'toggle', value: '/mcp in a session (per project)', dim: true });
   return f;
 }
 

@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, useApp, useInput } from 'ink';
 import chokidar from 'chokidar';
 import type { Inventory, Runtime, Kind } from '../../types.js';
 import { scanFull, type ScanOptions } from '../../index.js';
+import type { LiveFetch } from '../../liveConnectors.js';
+import type { LiveStatus } from './HeaderBox.js';
 import { filterInventory, type FilterOptions } from '../../filter.js';
 import { assembleShow, type ShowHit } from '../../show.js';
 import type { SiteIndex } from '../../symlinks.js';
@@ -25,14 +27,20 @@ export function App({
   filter,
   initial,
   initialSites,
+  livePromise,
 }: {
   homeRoot: string;
   opts: ScanOptions;
   filter: FilterOptions;
   initial: Inventory;
   initialSites: SiteIndex;
+  /** A `--live` connector check still running when the dashboard opened; folded in when it lands. */
+  livePromise?: Promise<LiveFetch>;
 }) {
   const [raw, setRaw] = useState<Inventory>(initial);
+  const [liveStatus, setLiveStatus] = useState<LiveStatus | undefined>(livePromise ? 'checking' : undefined);
+  // Scan options for rescans; gains `live` once the background check resolves.
+  const scanOpts = useRef<ScanOptions>(opts);
   const [sites, setSites] = useState<SiteIndex>(initialSites);
   const [status, setStatus] = useState<'idle' | 'rescanning'>('idle');
   const [tab, setTab] = useState<TabId>('folders');
@@ -117,6 +125,29 @@ export function App({
     { isActive: filtering },
   );
 
+  // Fold the background `--live` result in without blocking first paint: the
+  // dashboard opens on the disk-only scan, the header says "checking…", and
+  // one rescan with the connectors follows when `claude mcp list` returns.
+  useEffect(() => {
+    if (!livePromise) return;
+    let cancelled = false;
+    void livePromise.then((r) => {
+      if (cancelled) return;
+      if (!r.connectors) {
+        setLiveStatus('failed');
+        return;
+      }
+      scanOpts.current = { ...scanOpts.current, live: { claudeAiConnectors: r.connectors } };
+      const next = scanFull(homeRoot, scanOpts.current);
+      setRaw(next.inventory);
+      setSites(next.sites);
+      setLiveStatus(undefined);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Watch set is computed once at mount (from the initial scan); folders discovered by
   // later rescans aren't added until restart — a deliberate trade-off vs. re-creating
   // the watcher on every rescan.
@@ -129,7 +160,7 @@ export function App({
       setStatus('rescanning');
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
-        const r = scanFull(homeRoot, opts);
+        const r = scanFull(homeRoot, scanOpts.current);
         setRaw(r.inventory);
         setSites(r.sites);
         setStatus('idle');
@@ -144,7 +175,7 @@ export function App({
 
   return (
     <Box flexDirection="column">
-      <HeaderBox inv={inv} status={status} tab={tab} controls={controls} />
+      <HeaderBox inv={inv} status={status} tab={tab} controls={controls} liveStatus={liveStatus} />
       <FilterBar chips={chipList} runtimes={runtimes} kinds={kinds} cursor={safeCursor} filtering={filtering} sortLabel={sortLabel} />
       {tab === 'folders' ? (
         <FoldersView inv={inv} inputActive={!filtering} pendingFolder={pendingFolder} onConsumePending={() => setPendingFolder(null)} onControls={setControls} onSort={setSortLabel} yankJson={yankJson} onSearchActive={setSearchActive} />
