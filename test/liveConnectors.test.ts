@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseClaudeMcpList } from '../src/liveConnectors.js';
+import { parseClaudeMcpList, fetchClaudeAiConnectors } from '../src/liveConnectors.js';
 
 // A saved copy of real `claude mcp list` output (2026-10-20). Keys and secrets
 // never appear in this output; the Firecrawl URL carries a workspace path only.
@@ -36,5 +36,13 @@ describe('parseClaudeMcpList', () => {
   it('returns an empty list for empty or unrelated output', () => {
     expect(parseClaudeMcpList('')).toEqual([]);
     expect(parseClaudeMcpList('No MCP servers configured.\n')).toEqual([]);
+  });
+});
+
+describe('fetchClaudeAiConnectors', () => {
+  it('resolves with a warning (never throws) when the claude binary is missing', async () => {
+    const r = await fetchClaudeAiConnectors({ cwd: process.cwd(), bin: 'skillsight-no-such-binary-xyz', timeoutMs: 5000 });
+    expect(r.connectors).toBeUndefined();
+    expect(r.warning).toMatch(/not found on PATH/);
   });
 });

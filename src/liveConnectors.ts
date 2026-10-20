@@ -10,7 +10,7 @@
  * Per-project on/off state is NOT taken from this run (it reflects the cwd
  * only); the adapter reads it from `~/.claude.json` `projects[dir].disabledMcpServers`.
  */
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 
 export type ConnectorState = 'connected' | 'needs-auth' | 'failed' | 'disabled';
 
@@ -57,22 +57,38 @@ export interface LiveFetch {
 }
 
 /**
- * Run `claude mcp list` and parse it. Never throws: a missing binary, timeout,
- * or non-zero exit returns `warning` and no connectors.
+ * Run `claude mcp list` and parse it. Async so a caller can show progress (the
+ * health checks take several seconds) or start the dashboard meanwhile. Never
+ * rejects: a missing binary, timeout, or non-zero exit resolves with `warning`
+ * and no connectors.
  */
-export function fetchClaudeAiConnectors(opts: { cwd: string; timeoutMs?: number } = { cwd: process.cwd() }): LiveFetch {
-  try {
-    const text = execFileSync('claude', ['mcp', 'list'], {
-      cwd: opts.cwd,
-      encoding: 'utf8',
-      timeout: opts.timeoutMs ?? 30_000,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, NO_COLOR: '1' },
-    });
-    return { connectors: parseClaudeMcpList(text) };
-  } catch (err) {
-    const code = (err as { code?: string }).code;
-    const reason = code === 'ENOENT' ? '`claude` not found on PATH' : code === 'ETIMEDOUT' ? 'timed out' : (err instanceof Error ? err.message.split('\n')[0] : String(err));
-    return { warning: `--live: could not run \`claude mcp list\` (${reason}); connectors not scanned` };
-  }
+export function fetchClaudeAiConnectors(
+  opts: { cwd: string; timeoutMs?: number; bin?: string } = { cwd: process.cwd() },
+): Promise<LiveFetch> {
+  const bin = opts.bin ?? 'claude';
+  return new Promise((resolve) => {
+    execFile(
+      bin,
+      ['mcp', 'list'],
+      {
+        cwd: opts.cwd,
+        encoding: 'utf8',
+        timeout: opts.timeoutMs ?? 30_000,
+        env: { ...process.env, NO_COLOR: '1' },
+      },
+      (err, stdout) => {
+        if (!err) {
+          resolve({ connectors: parseClaudeMcpList(stdout) });
+          return;
+        }
+        const code = (err as { code?: string | number; killed?: boolean }).code;
+        const killed = (err as { killed?: boolean }).killed;
+        const reason =
+          code === 'ENOENT' ? `\`${bin}\` not found on PATH`
+          : killed ? 'timed out'
+          : err.message.split('\n')[0];
+        resolve({ warning: `--live: could not run \`${bin} mcp list\` (${reason}); connectors not scanned` });
+      },
+    );
+  });
 }

@@ -13,15 +13,27 @@ import { filterInventory, type FilterOptions } from '../../filter.js';
 import { renderPlain } from '../plain.js';
 import { computeWatchPaths } from './watchpaths.js';
 import { App } from './App.js';
+import { runInAltScreen } from './altScreen.js';
+import { startProgress } from '../../progress.js';
+import type { LiveFetch } from '../../liveConnectors.js';
 
 export async function runWatch(
   homeRoot: string,
   opts: ScanOptions,
   filter: FilterOptions,
+  /** An in-flight `--live` connector check; the dashboard opens without waiting for it. */
+  livePromise?: Promise<LiveFetch>,
 ): Promise<void> {
+  const progress = startProgress(`scanning ${homeRoot}`, process.stderr);
   const initial = scanFull(homeRoot, opts);
+  progress.stop();
 
   if (!process.stdout.isTTY) {
+    if (livePromise) {
+      const r = await livePromise;
+      if (r.warning) process.stderr.write(`warning: ${r.warning}\n`);
+      if (r.connectors) opts = { ...opts, live: { claudeAiConnectors: r.connectors } };
+    }
     const print = (inv: Inventory) =>
       process.stdout.write('\n' + renderPlain(filterInventory(inv, filter), {}) + '\n');
     print(initial.inventory);
@@ -37,8 +49,12 @@ export async function runWatch(
     return;
   }
 
-  const { waitUntilExit } = render(
-    <App homeRoot={homeRoot} opts={opts} filter={filter} initial={initial.inventory} initialSites={initial.sites} />,
-  );
-  await waitUntilExit();
+  // Alternate screen: quitting restores the terminal instead of leaving the
+  // last frame above the prompt (like vim/htop/less).
+  await runInAltScreen(process.stdout, async () => {
+    const { waitUntilExit } = render(
+      <App homeRoot={homeRoot} opts={opts} filter={filter} initial={initial.inventory} initialSites={initial.sites} livePromise={livePromise} />,
+    );
+    await waitUntilExit();
+  });
 }

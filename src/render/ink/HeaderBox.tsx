@@ -28,7 +28,17 @@ const MIN_ART_ROWS = 30;
 /** The per-tab metadata line: what the active tab is looking at. The home path
  *  lives here now (in brackets) — the header line under the wordmark carries the
  *  key hints instead. */
-function MetaLine({ inv, tab }: { inv: Inventory; tab: TabId }) {
+/** What the User Scope meta line says about claude.ai connectors. */
+export type LiveStatus = 'checking' | 'failed';
+
+function connectorNote(inv: Inventory, liveStatus: LiveStatus | undefined): string | null {
+  if (liveStatus === 'checking') return 'connectors: checking…';
+  if (liveStatus === 'failed') return 'connectors: check failed';
+  if (inv.live && !inv.live.connectors) return 'connectors: not scanned (--live)';
+  return null;
+}
+
+function MetaLine({ inv, tab, liveStatus }: { inv: Inventory; tab: TabId; liveStatus?: LiveStatus }) {
   // The Folders tab is about the folders themselves, not the global layer.
   if (tab === 'folders') {
     const n = inv.folders.length;
@@ -68,7 +78,7 @@ function MetaLine({ inv, tab }: { inv: Inventory; tab: TabId }) {
     <Text wrap="truncate-end">
       <Text bold>{label}</Text> <Text dimColor>{gloss}</Text> · {formatCounts(counts)}
       {tab === 'leaderboard' ? <Text dimColor> · USES = Claude Code usage</Text> : null}
-      {tab === 'global' && inv.live && !inv.live.connectors ? <Text dimColor> · connectors: not scanned (--live)</Text> : null}{' '}
+      {tab === 'global' && connectorNote(inv, liveStatus) ? <Text dimColor> · {connectorNote(inv, liveStatus)}</Text> : null}{' '}
       <Text dimColor>({inv.homeRoot})</Text>
     </Text>
   );
@@ -116,12 +126,15 @@ export function HeaderBox({
   status,
   tab,
   controls,
+  liveStatus,
 }: {
   inv: Inventory;
   status: 'idle' | 'rescanning';
   tab: TabId;
   /** The active view's per-focus key hints, lifted up from that view. */
   controls: string;
+  /** Progress of a background `--live` connector check (dashboard only). */
+  liveStatus?: LiveStatus;
 }) {
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={theme.border} paddingX={1}>
@@ -149,7 +162,7 @@ export function HeaderBox({
           );
         })}
       </Box>
-      <MetaLine inv={inv} tab={tab} />
+      <MetaLine inv={inv} tab={tab} liveStatus={liveStatus} />
     </Box>
   );
 }
