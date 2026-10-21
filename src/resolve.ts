@@ -124,14 +124,19 @@ function mergeSkill(into: Map<string, SkillRecord>, s: SkillRecord): void {
   into.set(s.contentId, base);
 }
 
-/** Merge buckets, deduping skills by contentId, plugins by id, mcp by name+scope+provider path. */
+/**
+ * Merge buckets, deduping skills by contentId, plugins by id, mcp by name+scope+provider path.
+ * Skills and plugins come out as shallow copies: `refineEffective` rewrites
+ * `enabled` / `account` on the effective set, and the global records must stay
+ * pristine for every other folder.
+ */
 export function mergeBuckets(...buckets: Bucket[]): Bucket {
   const skills = new Map<string, SkillRecord>();
   const plugins = new Map<string, PluginRecord>();
   const mcp = new Map<string, McpRecord>();
   for (const b of buckets) {
     for (const s of b.skills) mergeSkill(skills, s);
-    for (const p of b.plugins) plugins.set(p.id, p);
+    for (const p of b.plugins) plugins.set(p.id, { ...p });
     for (const m of b.mcp) mcp.set(`${m.name} ${m.scope} ${m.provider.path}`, m);
   }
   return {

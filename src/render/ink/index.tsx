@@ -25,14 +25,19 @@ export async function runWatch(
   livePromise?: Promise<LiveFetch>,
 ): Promise<void> {
   const progress = startProgress(`scanning ${homeRoot}`, process.stderr);
-  const initial = scanFull(homeRoot, opts);
+  let initial = scanFull(homeRoot, opts);
   progress.stop();
 
   if (!process.stdout.isTTY) {
     if (livePromise) {
+      const waiting = startProgress('checking claude.ai connectors (claude mcp list)', process.stderr);
       const r = await livePromise;
+      waiting.stop();
       if (r.warning) process.stderr.write(`warning: ${r.warning}\n`);
-      if (r.connectors) opts = { ...opts, live: { claudeAiConnectors: r.connectors } };
+      if (r.connectors) {
+        opts = { ...opts, live: { claudeAiConnectors: r.connectors } };
+        initial = scanFull(homeRoot, opts); // the first report must already carry them
+      }
     }
     const print = (inv: Inventory) =>
       process.stdout.write('\n' + renderPlain(filterInventory(inv, filter), {}) + '\n');

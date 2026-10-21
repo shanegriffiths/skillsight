@@ -4,6 +4,7 @@ import { makeTempHome, cleanup, ctxOf, writeFileEnsured, writeSkillDir } from '.
 import { claudeCodeAdapter } from '../src/adapters/claude-code.js';
 import { scanSyncedPlugins, scanSyncedSkills } from '../src/adapters/claude-code-synced.js';
 import { emptyBucket, type Warning } from '../src/types.js';
+import { mergeBuckets } from '../src/resolve.js';
 
 let home = '';
 afterEach(() => {
@@ -214,5 +215,76 @@ describe('claude-code adapter: account source', () => {
     expect(synced.account?.shortNameTakenBy).toBe('project-local');
     // the global record is untouched
     expect(g.skills.find((s) => s.provider.kind === 'account' && s.name === 'docs')!.account?.shortNameTakenBy).toBeUndefined();
+  });
+
+  // --- Codex review on PR #4 ---
+
+  function installUserOfficialSuperpowers(h: string): void {
+    const cache = join(h, '.claude', 'plugins', 'cache', 'official', 'superpowers', '6.4.1');
+    writeFileEnsured(join(cache, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'superpowers' }));
+    writeFileEnsured(
+      join(h, '.claude', 'plugins', 'installed_plugins.json'),
+      JSON.stringify({ version: 2, plugins: { 'superpowers@official': [{ scope: 'user', installPath: cache, version: '6.4.1' }] } }),
+    );
+  }
+
+  it('a shadowed synced plugin contributes nothing: its bundled skills are disabled', () => {
+    home = buildHome({ enabledPlugins: { 'superpowers@official': true } });
+    installUserOfficialSuperpowers(home);
+    const g = claudeCodeAdapter.collectGlobal(ctxOf(home), []);
+    const plugin = g.plugins.find((p) => p.id === 'superpowers@synced')!;
+    expect(plugin.account?.shadowedBy).toBe('superpowers@official');
+    expect(plugin.enabled).toBe(true); // still enabled in config, like `claude plugin list` says
+    const bundled = g.skills.find((s) => s.bundledInPlugin === 'superpowers@synced')!;
+    expect(bundled.enabled).toBe(false);
+  });
+
+  it('refineEffective keeps the inherited user-scope shadow when a folder explicitly enables the synced copy', () => {
+    home = buildHome({ enabledPlugins: { 'superpowers@official': true } });
+    installUserOfficialSuperpowers(home);
+    const proj = join(home, 'proj');
+    writeFileEnsured(join(proj, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'superpowers@synced': true } }));
+    const ctx = ctxOf(home);
+    const g = claudeCodeAdapter.collectGlobal(ctx, []);
+    const f = claudeCodeAdapter.collectForDirectory(proj, ctx, []);
+    const effective = mergeBuckets(g, f);
+    claudeCodeAdapter.refineEffective!(proj, effective, ctx);
+    const row = effective.plugins.find((p) => p.id === 'superpowers@synced')!;
+    expect(row.override).toBe('project');
+    expect(row.account?.shadowedBy).toBe('superpowers@official');
+    expect(effective.skills.find((s) => s.bundledInPlugin === 'superpowers@synced')!.enabled).toBe(false);
+  });
+
+  it('refineEffective clears the shadow when the folder disables the shadowing owner, without touching the global record', () => {
+    home = buildHome({ enabledPlugins: { 'superpowers@official': true } });
+    installUserOfficialSuperpowers(home);
+    const proj = join(home, 'proj');
+    writeFileEnsured(join(proj, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'superpowers@official': false } }));
+    const ctx = ctxOf(home);
+    const g = claudeCodeAdapter.collectGlobal(ctx, []);
+    const f = claudeCodeAdapter.collectForDirectory(proj, ctx, []);
+    const effective = mergeBuckets(g, f);
+    claudeCodeAdapter.refineEffective!(proj, effective, ctx);
+    expect(effective.plugins.find((p) => p.id === 'superpowers@synced')!.account?.shadowedBy).toBeUndefined();
+    expect(effective.skills.find((s) => s.bundledInPlugin === 'superpowers@synced')!.enabled).toBe(true);
+    expect(g.plugins.find((p) => p.id === 'superpowers@synced')!.account?.shadowedBy).toBe('superpowers@official');
+  });
+
+  it('a disabled skill cannot take a synced skill\'s short name', () => {
+    home = buildHome({ skillOverrides: { pdf: 'off' } });
+    writeSkillDir(join(home, '.claude', 'skills'), 'pdf');
+    const g = claudeCodeAdapter.collectGlobal(ctxOf(home), []);
+    expect(g.skills.find((s) => s.provider.kind === 'user' && s.name === 'pdf')!.enabled).toBe(false);
+    const synced = g.skills.find((s) => s.provider.kind === 'account' && s.name === 'pdf')!;
+    expect(synced.account?.shortNameTakenBy).toBeUndefined();
+  });
+
+  it('a skill bundled in a disabled plugin cannot take a synced skill\'s short name', () => {
+    home = buildHome({ enabledPlugins: { 'figma@synced': false } });
+    writeSkillDir(join(pluginsRoot(home), 'figma', 'skills'), 'pdf');
+    const g = claudeCodeAdapter.collectGlobal(ctxOf(home), []);
+    expect(g.skills.find((s) => s.bundledInPlugin === 'figma@synced')!.enabled).toBe(false);
+    const synced = g.skills.find((s) => s.provider.kind === 'account' && s.name === 'pdf')!;
+    expect(synced.account?.shortNameTakenBy).toBeUndefined();
   });
 });

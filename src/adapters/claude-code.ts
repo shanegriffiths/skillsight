@@ -18,7 +18,9 @@ import { normalizeClaudeTransport, buildMcpRecords } from '../mcp.js';
 import { pluginRecordAndSkills, type InstalledEntry, type MarketplaceEntry } from './claude-code-plugin.js';
 import type { SyncedPlugin } from './claude-code-synced.js';
 import {
+  cascadePluginEnablement,
   flagAccountDuplicates,
+  flagShadowedPlugins,
   flagShortNameTaken,
   foldName,
   scanSyncedPlugins,
@@ -197,9 +199,10 @@ function accountConnectors(ctx: HomeCtx): McpRecord[] {
     transport: c.url ? { kind: 'http', url: c.url } : { kind: 'http' },
     provider: { kind: 'account', path: claudeJsonPath(ctx) },
     scope: 'global',
-    // "disabled" from the live run reflects the cwd it ran in; per-folder state
-    // comes from ~/.claude.json in collectForDirectory. Everything else is available.
-    enabled: c.state !== 'failed',
+    // Enablement is configuration; `account.state` is health. "disabled" from the
+    // live run reflects the cwd it ran in — per-folder state comes from ~/.claude.json
+    // in collectForDirectory — and a failed health check is still a configured connector.
+    enabled: true,
     account: { state: c.state === 'disabled' ? 'connected' : c.state },
   }));
 }
@@ -311,12 +314,14 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     // `<name>@synced`, and/or a same-name project install here that shadows the
     // synced copy (Claude Code loads the other origin and skips the synced one).
     // Either way a fresh record is emitted so the cached global one is untouched.
+    // The shadow written here is this folder's delta view; `refineEffective`
+    // re-resolves it over the full effective set (inherited owners included).
     const projectNames = new Map<string, string>();
     for (const p of bucket.plugins) if (p.enabled && !p.account) projectNames.set(foldName(p.name), p.id);
     for (const { plugin, installPath } of synced) {
       const overridden = Object.prototype.hasOwnProperty.call(projEnabled, plugin.id);
-      const shadowedBy = projectNames.get(foldName(plugin.name));
-      if (!overridden && !shadowedBy) continue;
+      const shadowedBy = projectNames.get(foldName(plugin.name)) ?? plugin.account?.shadowedBy;
+      if (!overridden && !projectNames.has(foldName(plugin.name))) continue;
       const entry: InstalledEntry = { scope: 'user', installPath, version: plugin.version };
       const fresh = pluginRecordAndSkills(plugin.id, entry, overridden ? projEnabled : {}, undefined, ctx).plugin;
       if (!overridden) fresh.enabled = plugin.enabled;
@@ -377,16 +382,17 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     // No warnings sinks here: collectForDirectory already reported these
     // files for this folder in the same scan.
 
+    // Resolve synced-plugin shadows over the FULL effective set: inherited
+    // user-scope plugins with this folder's overrides applied, plus project
+    // installs. The folder delta alone can't see an inherited owner, nor an
+    // owner the folder switched off. Plugins here are copies from mergeBuckets.
+    flagShadowedPlugins(effective.plugins);
+
     // Cascade each plugin's effective enablement onto its bundled skills. The
     // merged-in folder override may have flipped a plugin (e.g. user-off,
-    // project-on), and bundled skills follow plugin enablement. `effective`
+    // project-on), and a shadowed synced plugin contributes nothing. `effective`
     // skills are clones from mergeBuckets, so this can't leak into `global`.
-    const enabledByPlugin = new Map(effective.plugins.map((p) => [p.id, p.enabled]));
-    for (const s of effective.skills) {
-      if (!s.bundledInPlugin) continue;
-      const pe = enabledByPlugin.get(s.bundledInPlugin);
-      if (pe !== undefined && pe !== s.enabled) s.enabled = pe;
-    }
+    cascadePluginEnablement(effective.plugins, effective.skills);
 
     // A project skill can take a synced skill's short name in this folder.
     // Skills here are copies, and the flagger reassigns `account` rather than

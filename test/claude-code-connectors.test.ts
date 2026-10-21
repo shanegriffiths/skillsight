@@ -99,3 +99,13 @@ describe('claude-code adapter: live claude.ai connectors', () => {
     expect(scan(home, { walk: false, env: {} }).live).toEqual({ connectors: false });
   });
 });
+
+describe('claude-code adapter: connector health vs enablement', () => {
+  it('a connector that failed its health check stays enabled (it is configured) and carries state failed', () => {
+    home = makeTempHome();
+    const { ctx } = ctxWith(home, [{ name: 'claude.ai Broken', url: 'https://x.example/mcp', state: 'failed' }]);
+    const row = claudeCodeAdapter.collectGlobal(ctx, []).mcp.find((m) => m.name === 'claude.ai Broken')!;
+    expect(row.enabled).toBe(true);
+    expect(row.account?.state).toBe('failed');
+  });
+});
