@@ -287,4 +287,36 @@ describe('claude-code adapter: account source', () => {
     const synced = g.skills.find((s) => s.provider.kind === 'account' && s.name === 'pdf')!;
     expect(synced.account?.shortNameTakenBy).toBeUndefined();
   });
+
+  // --- Codex review on PR #5 ---
+
+  it('an enabled same-name plugin from another runtime (codex) does not shadow a Claude synced plugin', () => {
+    home = buildHome();
+    const proj = join(home, 'proj');
+    const ctx = ctxOf(home);
+    const g = claudeCodeAdapter.collectGlobal(ctx, []);
+    for (const pl of g.plugins) pl.runtime = 'claude-code';
+    const codexCopy = { ...g.plugins.find((pl) => pl.id === 'superpowers@synced')!, id: 'superpowers@codex', marketplace: 'codex', account: undefined, runtime: 'codex' as const };
+    const f = claudeCodeAdapter.collectForDirectory(proj, ctx, []);
+    const effective = mergeBuckets(g, f);
+    effective.plugins.push(codexCopy);
+    claudeCodeAdapter.refineEffective!(proj, effective, ctx);
+    expect(effective.plugins.find((pl) => pl.id === 'superpowers@synced')!.account?.shadowedBy).toBeUndefined();
+    expect(effective.skills.find((sk) => sk.bundledInPlugin === 'superpowers@synced')!.enabled).toBe(true);
+  });
+
+  it('a user skill switched off in user settings but back on by the folder takes the short name in that folder', () => {
+    home = buildHome({ skillOverrides: { pdf: 'off' } });
+    writeSkillDir(join(home, '.claude', 'skills'), 'pdf');
+    const proj = join(home, 'proj');
+    writeFileEnsured(join(proj, '.claude', 'settings.json'), JSON.stringify({ skillOverrides: { pdf: 'user-invocable-only' } }));
+    const ctx = ctxOf(home);
+    const g = claudeCodeAdapter.collectGlobal(ctx, []);
+    expect(g.skills.find((sk) => sk.provider.kind === 'account' && sk.name === 'pdf')!.account?.shortNameTakenBy).toBeUndefined();
+    const f = claudeCodeAdapter.collectForDirectory(proj, ctx, []);
+    const effective = mergeBuckets(g, f);
+    claudeCodeAdapter.refineEffective!(proj, effective, ctx);
+    expect(effective.skills.find((sk) => sk.provider.kind === 'user' && sk.name === 'pdf')!.enabled).toBe(true);
+    expect(effective.skills.find((sk) => sk.provider.kind === 'account' && sk.name === 'pdf')!.account?.shortNameTakenBy).toBe('user');
+  });
 });

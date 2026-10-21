@@ -207,6 +207,27 @@ function accountConnectors(ctx: HomeCtx): McpRecord[] {
   }));
 }
 
+/** Folder-resolved skillOverrides (local > project > user) onto standalone effective skills, by DIR name. */
+function applyFolderVisibility(dir: string, effective: Bucket, ctx: HomeCtx): void {
+  const layers = buildVisibilityLayers(dir, ctx, folderSettings(dir));
+  if (
+    !Object.keys(layers.user ?? {}).length &&
+    !Object.keys(layers.project ?? {}).length &&
+    !Object.keys(layers.local ?? {}).length
+  ) {
+    return;
+  }
+  const folderIdx = skillDirIndex(join(dir, '.claude', 'skills'));
+  const userIdx = userSkillDirIndex(ctx);
+  for (const s of effective.skills) {
+    if (s.bundledInPlugin) continue; // plugin skills follow plugin enablement
+    const dirName = folderIdx.get(s.provider.path) ?? userIdx.get(s.provider.path);
+    if (dirName === undefined) continue;
+    const overlay = visibilityOverlay(resolveVisibility(dirName, layers));
+    if (overlay) Object.assign(s, overlay);
+  }
+}
+
 export const claudeCodeAdapter: RuntimeAdapter = {
   id: 'claude-code',
 
@@ -386,7 +407,9 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     // user-scope plugins with this folder's overrides applied, plus project
     // installs. The folder delta alone can't see an inherited owner, nor an
     // owner the folder switched off. Plugins here are copies from mergeBuckets.
-    flagShadowedPlugins(effective.plugins);
+    // Only Claude Code's own plugins can shadow: `effective` also carries other
+    // runtimes' records (tagged by `runtime`), which Claude Code never loads.
+    flagShadowedPlugins(effective.plugins.filter((p) => p.runtime === undefined || p.runtime === 'claude-code'));
 
     // Cascade each plugin's effective enablement onto its bundled skills. The
     // merged-in folder override may have flipped a plugin (e.g. user-off,
@@ -394,27 +417,13 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     // skills are clones from mergeBuckets, so this can't leak into `global`.
     cascadePluginEnablement(effective.plugins, effective.skills);
 
-    // A project skill can take a synced skill's short name in this folder.
-    // Skills here are copies, and the flagger reassigns `account` rather than
-    // mutating the shared object, so the global record is untouched.
-    flagShortNameTaken(effective.skills);
+    applyFolderVisibility(dir, effective, ctx);
 
-    const layers = buildVisibilityLayers(dir, ctx, folderSettings(dir));
-    if (
-      !Object.keys(layers.user ?? {}).length &&
-      !Object.keys(layers.project ?? {}).length &&
-      !Object.keys(layers.local ?? {}).length
-    ) {
-      return;
-    }
-    const folderIdx = skillDirIndex(join(dir, '.claude', 'skills'));
-    const userIdx = userSkillDirIndex(ctx);
-    for (const s of effective.skills) {
-      if (s.bundledInPlugin) continue; // plugin skills follow plugin enablement
-      const dirName = folderIdx.get(s.provider.path) ?? userIdx.get(s.provider.path);
-      if (dirName === undefined) continue;
-      const overlay = visibilityOverlay(resolveVisibility(dirName, layers));
-      if (overlay) Object.assign(s, overlay);
-    }
+    // A project skill can take a synced skill's short name in this folder.
+    // Runs LAST: only skills that are enabled after the folder's visibility
+    // overlay count as owners. Skills here are copies, and the flagger
+    // reassigns `account` rather than mutating the shared object, so the
+    // global record is untouched.
+    flagShortNameTaken(effective.skills);
   },
 };
