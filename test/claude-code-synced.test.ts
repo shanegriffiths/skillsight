@@ -319,4 +319,20 @@ describe('claude-code adapter: account source', () => {
     expect(effective.skills.find((sk) => sk.provider.kind === 'user' && sk.name === 'pdf')!.enabled).toBe(true);
     expect(effective.skills.find((sk) => sk.provider.kind === 'account' && sk.name === 'pdf')!.account?.shortNameTakenBy).toBe('user');
   });
+
+  it('a codex plugin with the SAME id as the Claude owner does not erase an inherited shadow', () => {
+    home = buildHome({ enabledPlugins: { 'superpowers@official': true } });
+    installUserOfficialSuperpowers(home);
+    const proj = join(home, 'proj');
+    const ctx = ctxOf(home);
+    const g = claudeCodeAdapter.collectGlobal(ctx, []);
+    for (const pl of g.plugins) pl.runtime = 'claude-code';
+    const codexSameId = { ...g.plugins.find((pl) => pl.id === 'superpowers@official')!, runtime: 'codex' as const };
+    const f = claudeCodeAdapter.collectForDirectory(proj, ctx, []);
+    for (const pl of f.plugins) pl.runtime = 'claude-code';
+    const effective = mergeBuckets(g, f, { ...emptyBucket(), plugins: [codexSameId] });
+    claudeCodeAdapter.refineEffective!(proj, effective, ctx);
+    expect(effective.plugins.find((pl) => pl.id === 'superpowers@synced')!.account?.shadowedBy).toBe('superpowers@official');
+    expect(effective.skills.find((sk) => sk.bundledInPlugin === 'superpowers@synced')!.enabled).toBe(false);
+  });
 });

@@ -407,15 +407,16 @@ export const claudeCodeAdapter: RuntimeAdapter = {
     // user-scope plugins with this folder's overrides applied, plus project
     // installs. The folder delta alone can't see an inherited owner, nor an
     // owner the folder switched off. Plugins here are copies from mergeBuckets.
-    // Only Claude Code's own plugins can shadow: `effective` also carries other
+    // Only Claude Code's own plugins take part: `effective` also carries other
     // runtimes' records (tagged by `runtime`), which Claude Code never loads.
-    flagShadowedPlugins(effective.plugins.filter((p) => p.runtime === undefined || p.runtime === 'claude-code'));
+    const claudePlugins = effective.plugins.filter((p) => p.runtime === undefined || p.runtime === 'claude-code');
+    flagShadowedPlugins(claudePlugins);
 
     // Cascade each plugin's effective enablement onto its bundled skills. The
     // merged-in folder override may have flipped a plugin (e.g. user-off,
     // project-on), and a shadowed synced plugin contributes nothing. `effective`
     // skills are clones from mergeBuckets, so this can't leak into `global`.
-    cascadePluginEnablement(effective.plugins, effective.skills);
+    cascadePluginEnablement(claudePlugins, effective.skills);
 
     applyFolderVisibility(dir, effective, ctx);
 
