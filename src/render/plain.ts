@@ -48,7 +48,8 @@ function mcpLine(m: McpRecord, prov: boolean, prefix: string): string {
   const off = m.enabled ? '' : pc.red(' (pending/disabled)');
   const t = m.transport;
   const origin = m.account ? 'account' : 'mcp';
-  const state = m.account && m.account.state !== 'connected' && m.enabled ? pc.yellow(` (${m.account.state})`) : '';
+  const st = m.account?.state;
+  const state = st && st !== 'connected' && m.enabled ? (st === 'failed' ? pc.red : pc.yellow)(` (${st})`) : '';
   let extra = '';
   if (prov) {
     const bits: string[] = [];

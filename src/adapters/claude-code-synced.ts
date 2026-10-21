@@ -188,14 +188,17 @@ export function foldName(name: string): string {
 }
 
 /**
- * Mark each account skill whose short name another (non-account) skill in
- * `skills` already owns. Reassigns `account` on the account records — callers
+ * Mark each account skill whose short name another enabled (non-account) skill
+ * in `skills` owns. Run it AFTER plugin enablement has cascaded onto bundled
+ * skills (`cascadePluginEnablement`). Reassigns `account` on the account records — callers
  * pass records they own (adapter output, or `effective` copies).
  */
 export function flagShortNameTaken(skills: SkillRecord[]): void {
   const owners = new Map<string, string>();
   for (const s of skills) {
-    if (s.account) continue;
+    // A disabled skill (skillOverrides off, or bundled in a disabled/shadowed
+    // plugin) never loads, so it cannot own the short command.
+    if (s.account || !s.enabled) continue;
     const key = foldName(s.name);
     if (!owners.has(key)) owners.set(key, s.bundledInPlugin ?? s.provider.kind);
   }
@@ -228,8 +231,22 @@ export function flagShadowedPlugins(plugins: PluginRecord[]): void {
   }
 }
 
-/** Convenience: run both duplicate checks over one bucket. */
+/**
+ * Bundled skills follow their plugin: off when the plugin is disabled, and off
+ * when a synced plugin is shadowed (Claude Code loads none of its contributions).
+ */
+export function cascadePluginEnablement(plugins: PluginRecord[], skills: SkillRecord[]): void {
+  const loads = new Map(plugins.map((p) => [p.id, p.enabled && !p.account?.shadowedBy]));
+  for (const s of skills) {
+    if (!s.bundledInPlugin) continue;
+    const on = loads.get(s.bundledInPlugin);
+    if (on !== undefined && on !== s.enabled) s.enabled = on;
+  }
+}
+
+/** The account checks over one bucket, in dependency order. */
 export function flagAccountDuplicates(bucket: Bucket): void {
-  flagShortNameTaken(bucket.skills);
   flagShadowedPlugins(bucket.plugins);
+  cascadePluginEnablement(bucket.plugins, bucket.skills);
+  flagShortNameTaken(bucket.skills);
 }

@@ -192,6 +192,28 @@ describe('renderPlain — claude.ai account source', () => {
   });
 });
 
+describe('renderPlain — connector health', () => {
+  it('shows a failed connector as failed, not as pending/disabled', () => {
+    const inv: Inventory = {
+      generatedAt: 'now',
+      homeRoot: '/home/u',
+      runtimesDetected: ['claude-code'],
+      warnings: [],
+      global: {
+        ...emptyBucket(),
+        mcp: [
+          mcp({ name: 'claude.ai Broken', scope: 'global', transport: { kind: 'http', url: 'https://x.example/mcp' }, provider: { kind: 'account', path: '/home/u/.claude.json' }, enabled: true, account: { state: 'failed' } }),
+        ],
+      },
+      folders: [],
+      live: { connectors: true },
+    };
+    const out = renderPlain(inv, { globalOnly: true });
+    expect(out).toContain('claude.ai Broken [account http] (failed)');
+    expect(out).not.toContain('pending/disabled');
+  });
+});
+
 describe('renderPlain — connectors scanned or not', () => {
   it('says connectors were not scanned unless --live supplied them', () => {
     const base = fixtureInventory();

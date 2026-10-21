@@ -111,6 +111,21 @@ describe('mergeBuckets mcp identity', () => {
   });
 });
 
+describe('mergeBuckets plugin identity', () => {
+  const mk = (runtime: 'claude-code' | 'codex' | undefined, enabled = true) => ({
+    ...emptyBucket(),
+    plugins: [{ id: 'super@official', name: 'super', marketplace: 'official', version: '1', scope: 'user' as const, enabled, runtime, provides: { skills: [], commands: [], agents: [], mcpServers: [] }, supportsRuntimes: [] }],
+  });
+  it('the same plugin id declared by two runtimes keeps both records', () => {
+    expect(mergeBuckets(mk('claude-code'), mk('codex')).plugins.map((p) => p.runtime)).toEqual(['claude-code', 'codex']);
+  });
+  it('within one runtime the later record (a folder override) still replaces the earlier one', () => {
+    const out = mergeBuckets(mk('claude-code', true), mk('claude-code', false)).plugins;
+    expect(out).toHaveLength(1);
+    expect(out[0]!.enabled).toBe(false);
+  });
+});
+
 describe('splitByScope', () => {
   it('routes local skills/mcp to local; all plugins to projectScoped', () => {
     const bucket: Bucket = {

@@ -69,7 +69,7 @@ describe('groupedRows', () => {
       scope: 'user',
       status: 'enabled',
     });
-    expect(rows[0]!.record).toBe(p);
+    expect(rows[0]!.record).toEqual(p); // a merge copy, same data
   });
 
   it('expansion state is keyed by the full plugin id', () => {
